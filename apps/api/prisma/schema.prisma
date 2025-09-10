@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Expert {
+  id          Int       @id @default(autoincrement())
+  displayId   String    @unique            // 외부 노출 ID (ulid)
+  name        String
+  title       String?
+  categories  Json      // 카테고리 태그 (예: ["law","tax"])
+  bio         String?
+  avatarUrl   String?
+  ratingAvg   Float     @default(0)
+  reviewCount Int       @default(0)
+  ratePerMin  Int       @default(1000)     // 분당 단가 (기본 1000원)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Reservation {
+  id         Int      @id @default(autoincrement())
+  displayId  String   @unique
+  userId     Int
+  expertId   Int
+  startAt    DateTime       // ISO (UTC)
+  endAt      DateTime       // ISO (UTC)
+  status     ReservationStatus @default(PENDING)
+  cost       Int      @default(0)       // 예약 비용
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([expertId, startAt]) // 동일 전문가 같은 시작시각 중복 방지
+  @@index([userId, createdAt])
+
+  // (옵션) 릴레이션은 후속 단계에서 필요 시 추가
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+}
+
+model PaymentIntent {
+  id           Int       @id @default(autoincrement())
+  displayId    String    @unique
+  userId       Int
+  amount       Int       // 결제 금액(원)
+  currency     String    @default("KRW")
+  status       PaymentStatus @default(PENDING) // PENDING, SUCCEEDED, FAILED, CANCELED
+  provider     String    @default("toss")
+  providerKey  String?   @unique // toss paymentKey 등 외부 식별자
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+model CreditTransaction {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  amount       Int       // + 충전, - 사용
+  reason       String    // "charge:toss", "use:reservation", etc
+  refId        String?   // 연관 엔티티 displayId 등
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, reason, refId])
+  @@index([userId, createdAt])
+}
+
+model Session {
+  id            Int           @id @default(autoincrement())
+  displayId     String        @unique
+  reservationId Int
+  channel       String        @unique        // Agora 채널명
+  status        SessionStatus @default(SCHEDULED) // SCHEDULED | LIVE | ENDED
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+enum SessionStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}

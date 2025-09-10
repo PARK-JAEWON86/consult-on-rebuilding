@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `Expert` ADD COLUMN `ratePerMin` INTEGER NOT NULL DEFAULT 1000;
+
+-- AlterTable
+ALTER TABLE `Reservation` ADD COLUMN `cost` INTEGER NOT NULL DEFAULT 0;

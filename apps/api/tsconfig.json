@@ -1,0 +1,9 @@
+{
+  "extends": "@consulton/tsconfig/nestjs.json",
+  "compilerOptions": { 
+    "outDir": "./dist",
+    "noEmit": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

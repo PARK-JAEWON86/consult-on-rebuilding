@@ -1,0 +1,47 @@
+{
+  "name": "consulton",
+  "version": "1.0.0",
+  "description": "Consulton monorepo with Next.js frontend and NestJS backend",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
+    "dev:web": "pnpm --filter @consulton/web dev",
+    "dev:api": "pnpm --filter @consulton/api start:dev",
+    "build": "pnpm --filter @consulton/web build && pnpm --filter @consulton/api build",
+    "build:web": "pnpm --filter @consulton/web build",
+    "build:api": "pnpm --filter @consulton/api build",
+    "start:web": "pnpm --filter @consulton/web start",
+    "start:api": "pnpm --filter @consulton/api start:prod",
+    "test": "pnpm --recursive test",
+    "test:web": "pnpm --filter @consulton/web test",
+    "test:api": "pnpm --filter @consulton/api test",
+    "lint": "pnpm --recursive lint",
+    "lint:fix": "pnpm --recursive lint:fix",
+    "type-check": "pnpm --recursive type-check",
+    "clean": "pnpm --recursive clean",
+    "db:migrate": "pnpm --filter @consulton/api prisma:migrate",
+    "db:generate": "pnpm --filter @consulton/api prisma:generate"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "packages": ["apps/*", "packages/*"]
+  },
+  "packageManager": "pnpm@8.15.1"
+}

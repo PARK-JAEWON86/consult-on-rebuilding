@@ -1,0 +1,11 @@
+{
+  "name": "@consulton/tsconfig",
+  "version": "0.1.0",
+  "description": "Shared TypeScript configurations for Consulton",
+  "main": "index.js",
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "nestjs.json"
+  ]
+}
