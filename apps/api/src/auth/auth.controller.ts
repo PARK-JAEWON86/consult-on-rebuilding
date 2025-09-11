@@ -1,8 +1,10 @@
-import { Controller, Post, Body, Res, Req } from '@nestjs/common'
+import { Controller, Post, Body, Res, Req, Get, UseGuards } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe'
 import { RegisterSchema, LoginSchema, RegisterDto, LoginDto } from './dto'
+import { JwtGuard } from './jwt.guard'
+import { User } from './user.decorator'
 
 @Controller('auth')
 export class AuthController {
@@ -43,7 +45,7 @@ export class AuthController {
     res.cookie('access_token', access, this.cookieOpts(ttls.access))
     res.cookie('refresh_token', refresh, this.cookieOpts(ttls.refresh))
 
-    return { success: true, data: { user } }
+    return { success: true, data: { user, accessToken: access } }
   }
 
   @Post('refresh')
@@ -85,9 +87,24 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const refreshToken = req.cookies?.refresh_token
+    if (refreshToken) {
+      await this.auth.logout(refreshToken, process.env.JWT_REFRESH_SECRET!)
+    }
+    
     res.cookie('access_token', '', this.cookieOpts(0))
     res.cookie('refresh_token', '', this.cookieOpts(0))
     return { success: true, data: { ok: true } }
+  }
+
+  @Get('me')
+  @UseGuards(JwtGuard)
+  async me(@User() user: { id: number; email: string }) {
+    const userData = await this.auth.getUserById(user.id)
+    return { success: true, data: { user: userData } }
   }
 }

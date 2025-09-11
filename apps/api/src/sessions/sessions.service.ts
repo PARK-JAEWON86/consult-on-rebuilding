@@ -70,6 +70,71 @@ export class SessionsService {
     });
   }
 
+  async getDetail(displayId: string) {
+    const s = await this.prisma.session.findUnique({ 
+      where: { displayId }
+    });
+    if (!s) {
+      throw new NotFoundException({ 
+        success: false, 
+        error: { code: 'E_SES_NOT_FOUND', message: 'Session not found' }
+      });
+    }
+
+    // reservation 정보 가져오기
+    const reservation = await this.prisma.reservation.findUnique({
+      where: { id: s.reservationId }
+    });
+
+    return {
+      displayId: s.displayId,
+      status: s.status,
+      channel: s.channel,
+      reservation: reservation ? {
+        id: reservation.id,
+        displayId: reservation.displayId,
+        userId: reservation.userId,
+        expertId: reservation.expertId,
+        startAt: reservation.startAt,
+        endAt: reservation.endAt
+      } : null
+    };
+  }
+
+  async upsertNote(displayId: string, userId: number, content: string) {
+    const s = await this.prisma.session.findUnique({ where: { displayId } });
+    if (!s) {
+      throw new NotFoundException({ 
+        success: false, 
+        error: { code: 'E_SES_NOT_FOUND', message: 'Session not found' }
+      });
+    }
+
+    await this.prisma.sessionNote.upsert({
+      where: { sessionId_userId: { sessionId: s.id, userId } },
+      update: { content, updatedAt: new Date() },
+      create: { sessionId: s.id, userId, content }
+    });
+
+    return { ok: true };
+  }
+
+  async getNote(displayId: string, userId: number) {
+    const s = await this.prisma.session.findUnique({ where: { displayId } });
+    if (!s) {
+      throw new NotFoundException({ 
+        success: false, 
+        error: { code: 'E_SES_NOT_FOUND', message: 'Session not found' }
+      });
+    }
+
+    const note = await this.prisma.sessionNote.findUnique({
+      where: { sessionId_userId: { sessionId: s.id, userId } }
+    });
+
+    return { content: note?.content || '' };
+  }
+
   async issueTokens(displayId: string, uid: string, role: 'host' | 'audience' = 'audience') {
     const s = await this.prisma.session.findUnique({ where: { displayId } });
     if (!s) {

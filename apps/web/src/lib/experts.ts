@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, ApiResponse } from './api';
 
 export interface Expert {
   id: number;
@@ -26,15 +26,15 @@ export async function fetchExperts(params?: {
   q?: string; 
   category?: string; 
   sort?: string;
-}): Promise<ExpertListResponse> {
+}): Promise<ApiResponse<ExpertListResponse>> {
   const { page = 1, size = 12, q, category, sort } = params || {};
   const response = await api.get('/experts', { 
     params: { page, size, q, category, sort } 
   });
-  return response.data;
+  return response;
 }
 
-export async function fetchExpertById(displayId: string): Promise<Expert> {
+export async function fetchExpertById(displayId: string): Promise<ApiResponse<Expert>> {
   const response = await api.get(`/experts/${displayId}`);
-  return response.data;
+  return response;
 }

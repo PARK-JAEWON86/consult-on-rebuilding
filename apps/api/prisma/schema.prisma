@@ -100,10 +100,41 @@ model Session {
   endedAt       DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  notes         SessionNote[]
 }
 
 enum SessionStatus {
   SCHEDULED
   LIVE
   ENDED
+}
+
+// 세션 노트 (유저별 개인 메모)
+model SessionNote {
+  id          Int       @id @default(autoincrement())
+  sessionId   Int
+  userId      Int
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  session     Session   @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, userId])
+}
+
+// 후기 (예약 1건당 1개)
+model Review {
+  id            Int       @id @default(autoincrement())
+  displayId     String    @unique
+  userId        Int
+  expertId      Int
+  reservationId Int       @unique
+  rating        Int
+  content       String
+  isPublic      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  // (선택) relation 정의는 나중에
 }

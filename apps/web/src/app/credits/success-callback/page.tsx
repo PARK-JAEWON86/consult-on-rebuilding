@@ -1,10 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { confirmPayment } from '@/lib/payments';
+import Card from '@/components/ui/Card';
 
-export default function SuccessCallback() {
+function CallbackContent() {
   const sp = useSearchParams();
   const router = useRouter();
   const paymentKey = sp.get('paymentKey') || '';
@@ -27,8 +29,24 @@ export default function SuccessCallback() {
   }, [paymentKey, orderId, amount, router]);
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold">{msg}</h1>
+    <Card className="text-center py-12">
+      <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+      <h1 className="text-2xl font-bold text-gray-900">{msg}</h1>
+    </Card>
+  );
+}
+
+export default function SuccessCallback() {
+  return (
+    <main className="max-w-md mx-auto px-4 py-16">
+      <Suspense fallback={
+        <Card className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h1 className="text-2xl font-bold text-gray-900">로딩 중...</h1>
+        </Card>
+      }>
+        <CallbackContent />
+      </Suspense>
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, Query } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { z } from 'zod';
@@ -10,6 +10,11 @@ const EnsureSchema = z.object({
 const TokensSchema = z.object({ 
   uid: z.string().min(1), 
   role: z.enum(['host', 'audience']).optional() 
+});
+
+const NoteSchema = z.object({
+  userId: z.number().int().positive(),
+  content: z.string()
 });
 
 @Controller('sessions')
@@ -53,6 +58,24 @@ export class SessionsController {
         endedAt: s.endedAt 
       } 
     };
+  }
+
+  @Get(':displayId')
+  async getDetail(@Param('displayId') id: string) {
+    const data = await this.svc.getDetail(id);
+    return { success: true, data };
+  }
+
+  @Get(':displayId/notes')
+  async getNote(@Param('displayId') id: string, @Query('userId') userId: string) {
+    const data = await this.svc.getNote(id, parseInt(userId, 10));
+    return { success: true, data };
+  }
+
+  @Post(':displayId/notes')
+  async upsertNote(@Param('displayId') id: string, @Body(new ZodValidationPipe(NoteSchema)) body: any) {
+    const data = await this.svc.upsertNote(id, body.userId, body.content);
+    return { success: true, data };
   }
 
   @Post(':displayId/tokens')

@@ -1,50 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Link from 'next/link';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const sp = useSearchParams();
   const orderId = sp.get('orderId') || '';
   const amount = parseInt(sp.get('amount') || '0', 10);
-  const [err, setErr] = useState('');
-
-  useEffect(() => {
-    async function run() {
-      try {
-        // 동적 로드 (SSR 회피)
-        // 공식 SDK: @tosspayments/payment-widget-sdk
-        const mod: any = await import('@tosspayments/payment-widget-sdk');
-        const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!;
-        const customerKey = orderId; // 데모: orderId를 임시 사용 (실제는 로그인 유저 ID 등)
-        const paymentWidget = mod.loadPaymentWidget(clientKey, customerKey);
-
-        // 간단 결제창: 카드
-        await paymentWidget.requestPayment({
-          orderId,
-          orderName: 'Consult On 크레딧 충전',
-          successUrl: `${process.env.NEXT_PUBLIC_APP_BASE}/credits/success-callback`,
-          failUrl: `${process.env.NEXT_PUBLIC_APP_BASE}/credits/fail`,
-          amount,
-          // customerName, customerEmail 등은 후속 단계에서 추가 가능
-        });
-      } catch (e: any) {
-        console.error(e);
-        setErr('결제창 호출에 실패했습니다.');
-      }
-    }
-    if (orderId && amount > 0) run();
-  }, [orderId, amount]);
 
   if (!orderId || !amount) {
-    return <main className="container mx-auto px-4 py-8">잘못된 요청입니다.</main>;
+    return (
+      <Card className="text-center py-12">
+        <h1 className="text-2xl font-bold text-red-600 mb-4">잘못된 요청입니다</h1>
+        <p className="text-gray-600 mb-6">올바르지 않은 결제 요청입니다.</p>
+        <Link href="/credits">
+          <Button>크레딧 페이지로 돌아가기</Button>
+        </Link>
+      </Card>
+    );
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold">결제 준비 중…</h1>
-      <p className="mt-2 text-gray-600">주문번호: {orderId}, 금액: {amount.toLocaleString()}원</p>
-      {err && <p className="mt-4 text-red-600">{err}</p>}
+    <Card className="text-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">결제 기능 준비 중</h1>
+      <div className="bg-gray-50 rounded-xl p-4 mb-6">
+        <p className="text-gray-600 mb-2">주문번호: <span className="font-mono">{orderId}</span></p>
+        <p className="text-gray-600">결제 금액: <span className="font-semibold">{amount.toLocaleString()}원</span></p>
+      </div>
+      <div className="bg-yellow-50 rounded-xl p-4 mb-6">
+        <p className="text-sm text-yellow-800">
+          Toss Payment SDK 기능은 임시로 비활성화되었습니다.
+        </p>
+      </div>
+      <Link href="/credits">
+        <Button variant="ghost">크레딧 페이지로 돌아가기</Button>
+      </Link>
+    </Card>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <main className="max-w-md mx-auto px-4 py-16">
+      <Suspense fallback={
+        <Card className="text-center py-12">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+          </div>
+        </Card>
+      }>
+        <CheckoutContent />
+      </Suspense>
     </main>
   );
 }

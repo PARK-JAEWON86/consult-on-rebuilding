@@ -181,6 +181,7 @@ export class ReservationsService {
       where: { userId, NOT: { status: 'CANCELED' } },
       orderBy: { createdAt: 'desc' },
       select: { 
+        id: true,        // 추가: ensureSession에서 필요
         displayId: true, 
         expertId: true, 
         startAt: true, 

@@ -22,4 +22,18 @@ export class RedisService implements OnModuleDestroy {
       await this.client.quit();
     }
   }
+
+  // Refresh token whitelist management
+  async setRefreshToken(jti: string, userId: number, ttlSec: number): Promise<void> {
+    await this.client.setex(`refresh:${jti}`, ttlSec, userId.toString());
+  }
+
+  async getRefreshToken(jti: string): Promise<number | null> {
+    const userId = await this.client.get(`refresh:${jti}`);
+    return userId ? parseInt(userId, 10) : null;
+  }
+
+  async deleteRefreshToken(jti: string): Promise<void> {
+    await this.client.del(`refresh:${jti}`);
+  }
 }

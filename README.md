@@ -1,20 +1,56 @@
-# Consulton
+# Consult On
 
-Expert consultation platform built with modern technologies.
+전문가 상담 플랫폼 - 신뢰할 수 있는 전문가와 실시간 상담
 
-## Local Run (Stage 1)
+## 🚀 빠른 시작
+
+### 1. 원클릭 개발 환경 실행
+```bash
+# 환경 변수 설정
+cp env.example .env
+
+# 개발 환경 시작 (Docker + 백엔드 + 프론트엔드)
+./start-dev.sh
+```
+
+### 2. 접속 및 테스트
+- **프론트엔드**: http://localhost:3000
+- **로그인 페이지**: http://localhost:3000/auth/login
+- **백엔드 API**: http://localhost:3001/v1/health
+
+### 3. 테스트 계정으로 로그인
+- **이메일**: user1@test.com
+- **비밀번호**: password123
+
+### 4. 개발 환경 종료
+```bash
+./stop-dev.sh
+```
+
+## ⚡ 개별 실행 (고급 사용자)
 
 ### Requirements
 - Node.js 20+
 - pnpm 9+
+- Docker & Docker Compose
 
-### Run
-- **API**: `pnpm dev:api` → http://localhost:4000/v1/health
-- **WEB**: `pnpm dev:web` → http://localhost:3000/health
+### Manual Setup
+```bash
+# 1. 인프라 시작
+cd infra/docker && docker-compose up -d
 
-### Troubleshooting
-- **CORS 에러**: `apps/api/src/main.ts`의 CORS 정규식 확인
-- **연결 실패**: `.env` 파일 경로와 값 확인
+# 2. 백엔드 실행
+cd apps/api
+pnpm install
+pnpm prisma migrate deploy
+pnpm prisma db seed
+pnpm dev  # → http://localhost:3001
+
+# 3. 프론트엔드 실행 (새 터미널)
+cd apps/web
+pnpm install
+pnpm dev  # → http://localhost:3000
+```
 
 ## Architecture
 
@@ -96,14 +132,28 @@ pnpm dev:api  # Backend on http://localhost:3001
 When running in development mode, API documentation is available at:
 - http://localhost:3001/v1/docs (Swagger UI)
 
-## Development Guidelines
+## 🔐 인증 시스템
+
+### 로그인 기능
+- **JWT 토큰**: Access(15분) + Refresh(14일) 로테이션
+- **보안 쿠키**: httpOnly + secure 설정
+- **Redis 화이트리스트**: refresh token jti 관리
+- **Argon2 해싱**: 비밀번호 안전 저장
+
+### API 엔드포인트
+- `POST /v1/auth/login` - 로그인
+- `POST /v1/auth/logout` - 로그아웃  
+- `POST /v1/auth/refresh` - 토큰 갱신
+- `GET /v1/auth/me` - 현재 사용자 조회
+
+## 🛠 Development Guidelines
 
 This project follows the rules defined in `cursor-rules.yml`. Key points:
 
 - **Frontend**: Next.js App Router only, Tailwind for styling, TanStack Query + Zustand for state
 - **Backend**: NestJS modular structure, Prisma ORM, Zod validation
 - **API**: All endpoints use `/v1` prefix, standardized response format
-- **Authentication**: JWT with refresh token rotation
+- **Authentication**: JWT with refresh token rotation, Redis whitelist
 - **File Upload**: S3 pre-signed URLs only
 - **Testing**: Jest for unit/integration, Playwright for E2E
 
