@@ -9,9 +9,13 @@ export const EnvSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(10),
   JWT_ACCESS_TTL_SEC: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL_SEC: z.coerce.number().int().positive().default(1209600),
-  AGORA_APP_ID: z.string().min(1),
-  AGORA_APP_CERT: z.string().min(1),
+  AGORA_APP_ID: z.string().optional(),
+  AGORA_APP_CERT: z.string().optional(),
   AGORA_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(3600),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CALLBACK_URL: z.string().url().default('http://localhost:4000/v1/auth/google/callback'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 })
 
 export type EnvVars = z.infer<typeof EnvSchema>

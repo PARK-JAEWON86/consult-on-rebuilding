@@ -12,8 +12,13 @@ model User {
   email        String   @unique
   name         String?
   passwordHash String?
+  provider     String   @default("local") // "local", "google"
+  providerId   String?  // Google ID 등 외부 제공자 고유 ID
+  avatarUrl    String?  // OAuth에서 받은 프로필 이미지
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@unique([provider, providerId])
 }
 
 model Expert {

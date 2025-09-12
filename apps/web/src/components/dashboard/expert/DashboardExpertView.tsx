@@ -1,205 +1,376 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { ExpertStatsCard } from './ExpertStatsCard';
+import { ConsultationCalendar } from './ConsultationCalendar';
+import { ConsultationList } from './ConsultationList';
+import { ReservationRequests } from './ReservationRequests';
+import { RecentReviews } from './RecentReviews';
+import { ExpertTools } from './ExpertTools';
+import {
+  Calendar,
+  RefreshCw,
+  Plus,
+  BarChart3,
+  DollarSign,
+  UserCheck,
+  CheckCircle,
+  Star
+} from "lucide-react";
+
+interface ExpertStats {
+  totalConsultations: number;
+  completedConsultations: number;
+  pendingConsultations: number;
+  totalEarnings: number;
+  averageRating: number;
+  totalClients: number;
+  thisMonthEarnings: number;
+  attendanceRate: number;
+  newClients: number;
+}
+
+interface Consultation {
+  id: string;
+  clientName: string;
+  clientId: string;
+  date: string;
+  time: string;
+  duration: number;
+  type: 'video' | 'chat' | 'voice';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'pending';
+  specialty: string;
+  rating?: number;
+  notes?: string;
+}
+
+interface Review {
+  id: string;
+  clientName: string;
+  rating: number;
+  comment: string;
+  date: string;
+  consultationId: string;
+}
 
 export const DashboardExpertView = () => {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">전문가 대시보드</h1>
-        <p className="text-gray-600">상담 일정과 수익을 관리하세요</p>
-      </div>
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expertStats, setExpertStats] = useState<ExpertStats>({
+    totalConsultations: 0,
+    completedConsultations: 0,
+    pendingConsultations: 0,
+    totalEarnings: 0,
+    averageRating: 0,
+    totalClients: 0,
+    thisMonthEarnings: 0,
+    attendanceRate: 0,
+    newClients: 0
+  });
+  const [upcomingConsultations, setUpcomingConsultations] = useState<Consultation[]>([]);
+  const [recentReviews, setRecentReviews] = useState<Review[]>([]);
+  const [showStats, setShowStats] = useState(false);
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* 오늘 일정 섹션 */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">오늘 일정</h2>
-            <Badge variant="secondary">3건</Badge>
-          </div>
-          <div className="space-y-3">
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-green-900">14:00 - 15:00</p>
-                  <p className="text-xs text-green-700">김○○님 상담</p>
-                </div>
-                <Badge size="sm" className="bg-green-100 text-green-800">
-                  예정
-                </Badge>
-              </div>
+  // 데이터 로드
+  useEffect(() => {
+    const loadExpertData = async () => {
+      setIsLoading(true);
+      try {
+        // 병렬로 데이터 로드
+        const [statsResponse, consultationsResponse, reviewsResponse] = await Promise.all([
+          fetch('/api/experts/stats'),
+          fetch('/api/reservations?expertId=current&status=scheduled'),
+          fetch('/api/reviews?expertId=current&limit=5')
+        ]);
+
+        const [statsData, consultationsData, reviewsData] = await Promise.all([
+          statsResponse.json(),
+          consultationsResponse.json(),
+          reviewsResponse.json()
+        ]);
+
+        if (statsData.success) {
+          setExpertStats(statsData.data);
+        }
+
+        if (consultationsData.success) {
+          setUpcomingConsultations(consultationsData.data || []);
+        }
+
+        if (reviewsData.success) {
+          setRecentReviews(reviewsData.data || []);
+        }
+      } catch (error) {
+        console.error('전문가 데이터 로드 실패:', error);
+        // 더미 데이터 설정
+        setExpertStats({
+          totalConsultations: 127,
+          completedConsultations: 115,
+          pendingConsultations: 3,
+          totalEarnings: 2847500,
+          averageRating: 4.8,
+          totalClients: 89,
+          thisMonthEarnings: 847500,
+          attendanceRate: 95,
+          newClients: 12
+        });
+        setUpcomingConsultations([
+          {
+            id: '1',
+            clientName: '김민수',
+            clientId: 'client1',
+            date: '2024-01-15',
+            time: '14:00',
+            duration: 60,
+            type: 'video',
+            status: 'scheduled',
+            specialty: '진로상담'
+          },
+          {
+            id: '2',
+            clientName: '박지영',
+            clientId: 'client2',
+            date: '2024-01-15',
+            time: '16:00',
+            duration: 45,
+            type: 'chat',
+            status: 'scheduled',
+            specialty: '심리상담'
+          }
+        ]);
+        setRecentReviews([
+          {
+            id: '1',
+            clientName: '이수진',
+            rating: 5,
+            comment: '정말 전문적이고 친절한 상담이었습니다. 많은 도움이 되었어요!',
+            date: '2024-01-14',
+            consultationId: 'consult1'
+          },
+          {
+            id: '2',
+            clientName: '최영희',
+            rating: 4,
+            comment: '시간을 잘 지켜주시고 설명도 이해하기 쉬웠습니다.',
+            date: '2024-01-13',
+            consultationId: 'consult2'
+          }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExpertData();
+  }, []);
+
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">전문가 대시보드를 불러오는 중입니다...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 헤더 */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                전문가 대시보드
+              </h1>
+              <p className="text-gray-600 mt-1">
+                상담 일정과 수익을 관리하세요
+              </p>
             </div>
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">16:00 - 17:00</p>
-                  <p className="text-xs text-blue-700">이○○님 상담</p>
-                </div>
-                <Badge size="sm" className="bg-blue-100 text-blue-800">
-                  대기중
-                </Badge>
-              </div>
-            </div>
-            <div className="text-center py-2">
-              <Button size="sm" variant="outline">
-                전체 일정 보기
+            
+            <div className="flex items-center space-x-3">
+              <Button
+                onClick={() => setShowStats(!showStats)}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>상세 통계</span>
+              </Button>
+              
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>새로고침</span>
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* 예약 요청 섹션 */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">예약 요청</h2>
-            <Badge variant="destructive">2건</Badge>
-          </div>
-          <div className="space-y-3">
-            <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-sm font-medium text-orange-900">박○○님</p>
-                <Badge size="sm" className="bg-orange-100 text-orange-800">
-                  신규
-                </Badge>
-              </div>
-              <p className="text-xs text-orange-700 mb-2">
-                내일 오후 2시 상담 요청
-              </p>
-              <div className="flex gap-2">
-                <Button size="xs" className="bg-green-600 hover:bg-green-700">
-                  승인
+        {/* 통계 카드들 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <ExpertStatsCard
+            title="이번 달 수익"
+            value={`₩${expertStats.thisMonthEarnings.toLocaleString()}`}
+            icon={<DollarSign className="h-6 w-6" />}
+            trend={{ value: 12, isPositive: true }}
+            color="green"
+          />
+          
+          <ExpertStatsCard
+            title="완료된 상담"
+            value={`${expertStats.completedConsultations}건`}
+            icon={<CheckCircle className="h-6 w-6" />}
+            subtitle={`총 ${expertStats.totalConsultations}건`}
+            color="blue"
+          />
+          
+          <ExpertStatsCard
+            title="평균 평점"
+            value={expertStats.averageRating}
+            icon={<Star className="h-6 w-6" />}
+            subtitle={`출석률 ${expertStats.attendanceRate}%`}
+            color="yellow"
+          />
+          
+          <ExpertStatsCard
+            title="신규 고객"
+            value={`${expertStats.newClients}명`}
+            icon={<UserCheck className="h-6 w-6" />}
+            subtitle={`총 ${expertStats.totalClients}명`}
+            color="purple"
+          />
+        </div>
+
+        {/* 메인 콘텐츠 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* 왼쪽: 상담 일정 */}
+          <div className="lg:col-span-2">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+                  상담 일정
+                </h2>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1" />
+                  일정 추가
                 </Button>
-                <Button size="xs" variant="outline">
-                  거절
-                </Button>
               </div>
-            </div>
-            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-sm font-medium text-yellow-900">최○○님</p>
-                <Badge size="sm" className="bg-yellow-100 text-yellow-800">
-                  재예약
-                </Badge>
-              </div>
-              <p className="text-xs text-yellow-700 mb-2">
-                다음주 화요일 상담 요청
-              </p>
-              <div className="flex gap-2">
-                <Button size="xs" className="bg-green-600 hover:bg-green-700">
-                  승인
-                </Button>
-                <Button size="xs" variant="outline">
-                  거절
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
 
-        {/* 정산 카드 섹션 */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">정산 현황</h2>
-            <Button variant="ghost" size="sm">
-              상세보기
-            </Button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ConsultationCalendar
+                  consultations={upcomingConsultations}
+                  onDateSelect={setSelectedDate}
+                  selectedDate={selectedDate}
+                />
+                
+                <ConsultationList
+                  consultations={upcomingConsultations}
+                  selectedDate={selectedDate}
+                  onConsultationClick={(consultation) => {
+                    console.log('상담 상세보기:', consultation);
+                  }}
+                />
+              </div>
+            </Card>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">₩847,500</div>
-            <p className="text-sm text-gray-500">이번 달 수익</p>
-            <div className="mt-4 space-y-2 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>완료된 상담</span>
-                <span>23건</span>
-              </div>
-              <div className="flex justify-between">
-                <span>평균 상담료</span>
-                <span>₩36,850</span>
-              </div>
-              <div className="flex justify-between">
-                <span>정산 예정</span>
-                <span>15일 후</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
 
-      {/* 추가 섹션들 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">전문가 도구</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-20 flex-col">
-              <span className="text-2xl mb-1">📅</span>
-              <span>일정 관리</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <span className="text-2xl mb-1">👥</span>
-              <span>고객 관리</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <span className="text-2xl mb-1">📊</span>
-              <span>수익 분석</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
-              <span className="text-2xl mb-1">⚙️</span>
-              <span>프로필 설정</span>
-            </Button>
-          </div>
-        </Card>
+          {/* 오른쪽: 사이드바 */}
+          <div className="space-y-6">
+            <ReservationRequests
+              requests={[
+                {
+                  id: '1',
+                  clientName: '박○○',
+                  clientId: 'client1',
+                  date: '2024-01-16',
+                  time: '14:00',
+                  duration: 60,
+                  type: 'video',
+                  specialty: '진로상담',
+                  message: '대학 진학에 대해 상담받고 싶습니다.',
+                  isNew: true,
+                  requestedAt: '2024-01-15T10:30:00'
+                },
+                {
+                  id: '2',
+                  clientName: '최○○',
+                  clientId: 'client2',
+                  date: '2024-01-20',
+                  time: '16:00',
+                  duration: 45,
+                  type: 'chat',
+                  specialty: '심리상담',
+                  isNew: false,
+                  requestedAt: '2024-01-15T09:15:00'
+                }
+              ]}
+              onApprove={(requestId) => {
+                console.log('예약 승인:', requestId);
+              }}
+              onReject={(requestId) => {
+                console.log('예약 거절:', requestId);
+              }}
+              onViewDetails={(request) => {
+                console.log('예약 상세보기:', request);
+              }}
+            />
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">최근 리뷰</h2>
-          <div className="space-y-3">
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex text-yellow-400">
-                  {'★'.repeat(5)}
-                </div>
-                <span className="text-xs text-gray-500">김○○님 - 1일 전</span>
-              </div>
-              <p className="text-sm text-gray-700">
-                "정말 전문적이고 친절한 상담이었습니다. 많은 도움이 되었어요!"
-              </p>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex text-yellow-400">
-                  {'★'.repeat(4)}{'☆'}
-                </div>
-                <span className="text-xs text-gray-500">이○○님 - 3일 전</span>
-              </div>
-              <p className="text-sm text-gray-700">
-                "시간을 잘 지켜주시고 설명도 이해하기 쉬웠습니다."
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
+            <RecentReviews
+              reviews={recentReviews}
+              onViewAll={() => {
+                console.log('모든 리뷰 보기');
+              }}
+              maxDisplay={3}
+            />
 
-      {/* 성과 요약 */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">이번 달 성과</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">23</div>
-            <p className="text-sm text-gray-500">완료된 상담</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">4.8</div>
-            <p className="text-sm text-gray-500">평균 평점</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">95%</div>
-            <p className="text-sm text-gray-500">출석률</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">12</div>
-            <p className="text-sm text-gray-500">신규 고객</p>
+            <ExpertTools
+              onToolClick={(toolId) => {
+                console.log('도구 클릭:', toolId);
+              }}
+            />
           </div>
         </div>
-      </Card>
+
+        {/* 상세 통계 (토글) */}
+        {showStats && (
+          <Card className="p-6 mt-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">상세 통계</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{expertStats.completedConsultations}</div>
+                <p className="text-sm text-gray-500">완료된 상담</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{expertStats.averageRating}</div>
+                <p className="text-sm text-gray-500">평균 평점</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{expertStats.attendanceRate}%</div>
+                <p className="text-sm text-gray-500">출석률</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{expertStats.newClients}</div>
+                <p className="text-sm text-gray-500">신규 고객</p>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

@@ -144,8 +144,16 @@ export class SessionsService {
       });
     }
 
-    const appId = process.env.AGORA_APP_ID!;
-    const appCert = process.env.AGORA_APP_CERT!;
+    const appId = process.env.AGORA_APP_ID;
+    const appCert = process.env.AGORA_APP_CERT;
+    
+    if (!appId || !appCert) {
+      throw new BadRequestException({
+        success: false,
+        error: { code: 'E_AGORA_NOT_CONFIGURED', message: 'Agora is not configured' }
+      });
+    }
+    
     const ttl = Number(process.env.AGORA_TOKEN_TTL_SEC || 3600);
     const rtcRole = role === 'host' ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;
     

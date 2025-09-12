@@ -43,7 +43,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleApiError = (event: CustomEvent) => {
       const { message } = event.detail;
-      showToast('error', message);
+      // 네트워크 연결 에러는 Toast로 표시하지 않음
+      if (message !== '네트워크 연결을 확인해주세요.') {
+        showToast('error', message);
+      }
     };
 
     window.addEventListener('api-error', handleApiError as EventListener);

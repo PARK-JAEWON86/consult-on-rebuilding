@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
 
 // Standard API response format as per project rules
 export interface ApiResponse<T = any> {
@@ -53,6 +53,9 @@ class APIClient {
           message = error.response.data.error.message || 'API Error';
         } else if (error.code === 'NETWORK_ERROR' || !error.response) {
           message = '네트워크 연결을 확인해주세요.';
+          // 네트워크 에러는 Toast로 표시하지 않음 (너무 자주 발생할 수 있음)
+          console.warn('Network error:', error.message);
+          return Promise.reject(error);
         }
 
         // Show toast notification if available
