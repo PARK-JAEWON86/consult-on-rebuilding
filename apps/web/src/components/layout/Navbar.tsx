@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, CreditCard, LogOut, Settings, Bell } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface NavItem {
@@ -18,6 +18,7 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, isAuthenticated, logout, isLogoutLoading } = useAuth();
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<"user" | "expert">("user");
 
   // 디버깅 로그 제거됨 - 무한 루프 방지
 
@@ -33,6 +34,22 @@ export default function Navbar() {
     }
   };
 
+  // 뷰 모드 변경 함수
+  const handleViewModeChange = (mode: "user" | "expert") => {
+    setViewMode(mode);
+    localStorage.setItem('consulton-viewMode', JSON.stringify(mode));
+  };
+
+  // 뷰 모드 초기화
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedViewMode = localStorage.getItem('consulton-viewMode');
+      if (storedViewMode) {
+        setViewMode(JSON.parse(storedViewMode));
+      }
+    }
+  }, []);
+
   const authenticatedNavItems: NavItem[] = [
     {
       href: '/dashboard',
@@ -43,11 +60,6 @@ export default function Navbar() {
       href: '/experts',
       label: '전문가 찾기',
       ariaLabel: '전문가 찾기'
-    },
-    {
-      href: '/dashboard/reservations',
-      label: '내 예약',
-      ariaLabel: '내 예약 확인'
     },
     {
       href: '/credits',
@@ -125,36 +137,73 @@ export default function Navbar() {
 
                 {/* 사용자 드롭다운 메뉴 */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                     <div className="py-1">
                       <div className="px-4 py-2 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}</p>
                         <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                       
+                      {/* 전문가 계정이면 모드 전환, 일반 사용자면 전문가 지원 */}
+                      {user?.roles?.includes('EXPERT') ? (
+                        <button
+                          onClick={() => {
+                            const nextMode = viewMode === "expert" ? "user" : "expert";
+                            handleViewModeChange(nextMode);
+                            const target = nextMode === "expert" ? "/dashboard/expert" : "/dashboard";
+                            router.push(target);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <ArrowLeftRight className="w-4 h-4 mr-3" />
+                          <span>
+                            {viewMode === "expert" ? "클라이언트 모드로 전환" : "전문가 모드로 전환"}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            router.push("/experts/become");
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <ArrowLeftRight className="w-4 h-4 mr-3" />
+                          <span>전문가 지원하기</span>
+                        </button>
+                      )}
+
                       <Link
                         href={"/dashboard/profile" as any}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowUserMenu(false)}
                       >
                         <User className="w-4 h-4 mr-3" />
                         프로필
                       </Link>
                       
-                      <Link
-                        href={"/credit-packages" as any}
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <CreditCard className="w-4 h-4 mr-3" />
-                        크레딧 ({user.credits?.toLocaleString() || 0})
-                      </Link>
                       
                       <Link
                         href={"/dashboard/settings" as any}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowUserMenu(false)}
                       >
                         <Settings className="w-4 h-4 mr-3" />
                         설정
                       </Link>
+
+
+                      <button
+                        onClick={() => {
+                          router.push("/community" as any);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <HelpCircle className="w-4 h-4 mr-3" />
+                        <span>도움말 및 지원</span>
+                      </button>
                       
                       <div className="border-t border-gray-100 my-1" />
                       
@@ -229,29 +278,64 @@ export default function Navbar() {
                   </div>
                   
                   <div className="mt-2 space-y-1">
+                    {/* 전문가 계정이면 모드 전환, 일반 사용자면 전문가 지원 */}
+                    {user?.roles?.includes('EXPERT') ? (
+                      <button
+                        onClick={() => {
+                          const nextMode = viewMode === "expert" ? "user" : "expert";
+                          handleViewModeChange(nextMode);
+                          const target = nextMode === "expert" ? "/dashboard/expert" : "/dashboard";
+                          router.push(target);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                      >
+                        <ArrowLeftRight className="w-4 h-4 inline mr-2" />
+                        {viewMode === "expert" ? "클라이언트 모드로 전환" : "전문가 모드로 전환"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          router.push("/experts/become");
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                      >
+                        <ArrowLeftRight className="w-4 h-4 inline mr-2" />
+                        전문가 지원하기
+                      </button>
+                    )}
+
                     <Link
                       href={"/dashboard/profile" as any}
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
+                      <User className="w-4 h-4 inline mr-2" />
                       프로필
                     </Link>
                     
-                    <Link
-                      href={"/credit-packages" as any}
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      크레딧 ({user.credits?.toLocaleString() || 0})
-                    </Link>
                     
                     <Link
                       href={"/dashboard/settings" as any}
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
+                      <Settings className="w-4 h-4 inline mr-2" />
                       설정
                     </Link>
+
+
+                    <button
+                      onClick={() => {
+                        router.push("/community" as any);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                    >
+                      <HelpCircle className="w-4 h-4 inline mr-2" />
+                      도움말 및 지원
+                    </button>
                     
                     <button
                       onClick={() => {
@@ -261,6 +345,7 @@ export default function Navbar() {
                       disabled={isLogoutLoading}
                       className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50"
                     >
+                      <LogOut className="w-4 h-4 inline mr-2" />
                       {isLogoutLoading ? '로그아웃 중...' : '로그아웃'}
                     </button>
                   </div>

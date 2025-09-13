@@ -187,13 +187,23 @@ async function main() {
   });
 
   // 더미 리뷰들 (이미 종료된 가상의 예약들)
-  for (let i = 0; i < 5; i++) {
+  // 실제 예약 ID를 사용하여 unique constraint 위반 방지
+  const reviewReservations = [
+    { id: 10001, userId: user1.id, expertId: expert1.id },
+    { id: 10002, userId: user2.id, expertId: expert2.id },
+    { id: 10003, userId: user1.id, expertId: expert3.id },
+    { id: 10004, userId: user2.id, expertId: expert1.id },
+    { id: 10005, userId: user1.id, expertId: expert2.id },
+  ];
+
+  for (let i = 0; i < reviewReservations.length; i++) {
+    const reservation = reviewReservations[i];
     await prisma.review.create({
       data: {
         displayId: ulid(),
-        userId: i % 2 === 0 ? user1.id : user2.id,
-        expertId: [expert1.id, expert2.id, expert3.id][i % 3],
-        reservationId: 9999 + i, // 가상의 예약 ID
+        userId: reservation.userId,
+        expertId: reservation.expertId,
+        reservationId: reservation.id,
         rating: Math.floor(Math.random() * 2) + 4, // 4-5점
         content: [
           '전문적이고 친절한 상담이었습니다. 복잡한 법적 문제를 쉽게 설명해주셔서 이해하기 좋았어요.',

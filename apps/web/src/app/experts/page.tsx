@@ -3,18 +3,22 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchExperts, Expert } from '@/lib/experts';
+import { useCategoriesPublic } from '@/hooks/useCategories';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import RatingStars from '@/components/ui/RatingStars';
 import Skeleton from '@/components/ui/Skeleton';
+import CategorySelect from '@/components/categories/CategorySelect';
 
 export default function ExpertsPage() {
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState('rating');
   const [page, setPage] = useState(1);
+  
+  const { data: categories = [] } = useCategoriesPublic();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['experts', { q, category, sort, page }],
@@ -69,16 +73,13 @@ export default function ExpertsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 카테고리
               </label>
-              <select
+              <CategorySelect
                 value={category}
-                onChange={(e) => { setPage(1); setCategory(e.target.value); }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">전체</option>
-                <option value="law">법률</option>
-                <option value="tax">세무</option>
-                <option value="labor">노무</option>
-              </select>
+                onChange={(value) => { setPage(1); setCategory(Array.isArray(value) ? value[0] || '' : value); }}
+                multiple={false}
+                placeholder="전체"
+                showSearch={true}
+              />
             </div>
 
             <div>

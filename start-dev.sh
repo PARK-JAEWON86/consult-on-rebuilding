@@ -39,7 +39,7 @@ pnpm prisma db seed
 
 # 백엔드 서버 백그라운드 실행
 echo "🚀 백엔드 서버 실행 (포트 3001)..."
-pnpm dev > ../../backend.log 2>&1 &
+PORT=3001 pnpm start:dev > ../../backend.log 2>&1 &
 BACKEND_PID=$!
 
 cd ../..

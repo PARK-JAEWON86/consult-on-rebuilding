@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import '../styles/globals.css'
 import Providers from './providers'
 import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
 import { ToastProvider } from '@/components/ui/Toast'
 import { getCurrentUser } from '@/lib/auth-server'
+import ConditionalFooter from '@/components/layout/ConditionalFooter'
 
 export const metadata: Metadata = {
   title: 'Consult On – 신뢰할 수 있는 전문가 상담',
@@ -28,7 +28,7 @@ export default async function RootLayout({
               <main className="flex-1">
                 {children}
               </main>
-              <Footer />
+              <ConditionalFooter />
             </div>
           </Providers>
         </ToastProvider>

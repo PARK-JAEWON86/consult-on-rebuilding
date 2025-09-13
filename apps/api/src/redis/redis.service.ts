@@ -36,4 +36,26 @@ export class RedisService implements OnModuleDestroy {
   async deleteRefreshToken(jti: string): Promise<void> {
     await this.client.del(`refresh:${jti}`);
   }
+
+  // Generic Redis operations
+  async get(key: string): Promise<string | null> {
+    if (!this.client.status || this.client.status === 'end') {
+      await this.client.connect();
+    }
+    return this.client.get(key);
+  }
+
+  async setex(key: string, ttl: number, value: string): Promise<void> {
+    if (!this.client.status || this.client.status === 'end') {
+      await this.client.connect();
+    }
+    await this.client.setex(key, ttl, value);
+  }
+
+  async del(key: string): Promise<void> {
+    if (!this.client.status || this.client.status === 'end') {
+      await this.client.connect();
+    }
+    await this.client.del(key);
+  }
 }

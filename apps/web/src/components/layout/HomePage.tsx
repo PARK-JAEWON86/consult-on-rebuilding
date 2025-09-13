@@ -16,7 +16,7 @@ import PopularCategoriesSection from './PopularCategoriesSection';
 import StatsSection from './StatsSection';
 import AIChatPromoSection from './AIChatPromoSection';
 
-// 카테고리 옵션 타입 정의
+// 카테고리 옵션 타입 정의 (기존 호환성을 위해 유지)
 export interface CategoryOption {
   id: string;
   name: string;
@@ -61,28 +61,31 @@ export default function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
-  // 카테고리 데이터
+  // 하드코딩된 카테고리 데이터
   const categories: CategoryOption[] = [
-    { id: 'career', name: '커리어 상담', icon: 'Briefcase', description: '직장, 이직, 진로 상담' },
-    { id: 'psychology', name: '심리 상담', icon: 'Brain', description: '우울, 불안, 스트레스 관리' },
-    { id: 'finance', name: '금융 상담', icon: 'DollarSign', description: '투자, 저축, 재정 관리' },
-    { id: 'health', name: '건강 상담', icon: 'Heart', description: '운동, 다이어트, 건강 관리' },
-    { id: 'education', name: '교육 상담', icon: 'BookOpen', description: '학습법, 진학, 자격증' },
-    { id: 'relationship', name: '인간관계', icon: 'Users', description: '연애, 가족, 사회관계' },
-    { id: 'business', name: '사업/창업', icon: 'TrendingUp', description: '창업, 마케팅, 사업 전략' },
-    { id: 'tech', name: 'IT/기술', icon: 'Code', description: '프로그래밍, 개발, 기술 트렌드' },
-    { id: 'design', name: '디자인', icon: 'Palette', description: 'UI/UX, 그래픽, 브랜딩' },
-    { id: 'language', name: '언어 학습', icon: 'Languages', description: '영어, 중국어, 일본어 등' },
-    { id: 'music', name: '음악', icon: 'Music', description: '악기, 작곡, 음악 이론' },
-    { id: 'travel', name: '여행', icon: 'Plane', description: '여행 계획, 현지 정보' },
-    { id: 'beauty', name: '뷰티', icon: 'Scissors', description: '헤어, 메이크업, 스타일링' },
-    { id: 'sports', name: '스포츠', icon: 'Trophy', description: '운동, 피트니스, 스포츠' },
-    { id: 'pets', name: '반려동물', icon: 'PawPrint', description: '펫케어, 훈련, 건강 관리' },
-    { id: 'gardening', name: '원예', icon: 'Sprout', description: '식물 키우기, 정원 가꾸기' },
-    { id: 'cooking', name: '요리', icon: 'ChefHat', description: '요리법, 베이킹, 식품' },
-    { id: 'real-estate', name: '부동산', icon: 'Building2', description: '매매, 임대, 투자' },
-    { id: 'study', name: '학습법', icon: 'GraduationCap', description: '공부법, 시험 준비' },
+    { id: 'psychology', name: '심리상담', icon: 'Heart', description: '마음의 건강과 상담' },
+    { id: 'career', name: '커리어상담', icon: 'Briefcase', description: '진로와 직업 상담' },
+    { id: 'finance', name: '재무상담', icon: 'DollarSign', description: '돈 관리와 투자 상담' },
+    { id: 'health', name: '건강상담', icon: 'Activity', description: '건강과 의료 상담' },
+    { id: 'education', name: '교육상담', icon: 'BookOpen', description: '학습과 교육 상담' },
+    { id: 'relationship', name: '인간관계', icon: 'Users', description: '사람들과의 관계 상담' },
+    { id: 'business', name: '사업상담', icon: 'TrendingUp', description: '사업과 창업 상담' },
+    { id: 'tech', name: 'IT상담', icon: 'Monitor', description: '기술과 IT 상담' },
+    { id: 'design', name: '디자인상담', icon: 'Palette', description: '디자인과 창작 상담' },
+    { id: 'language', name: '언어상담', icon: 'MessageCircle', description: '언어 학습 상담' },
+    { id: 'art', name: '예술상담', icon: 'Music', description: '예술과 문화 상담' },
+    { id: 'sports', name: '스포츠상담', icon: 'Zap', description: '운동과 스포츠 상담' },
+    { id: 'travel', name: '여행상담', icon: 'MapPin', description: '여행과 문화 상담' },
+    { id: 'cooking', name: '요리상담', icon: 'ChefHat', description: '요리와 음식 상담' },
+    { id: 'fashion', name: '패션상담', icon: 'Shirt', description: '패션과 스타일 상담' },
+    { id: 'pets', name: '반려동물상담', icon: 'Heart', description: '반려동물과 애완동물 상담' },
+    { id: 'gardening', name: '정원상담', icon: 'Flower', description: '원예와 정원 상담' },
+    { id: 'insurance', name: '보험상담', icon: 'Shield', description: '보험과 금융 상담' },
+    { id: 'study', name: '진학상담', icon: 'GraduationCap', description: '입시와 진학 상담' },
+    { id: 'other', name: '기타', icon: 'MoreHorizontal', description: '기타 상담 분야' },
   ];
+
+  const isLoadingCategories = false;
 
   const ageGroups: AgeGroupOption[] = [
     { id: 'teen', name: '10대', icon: 'School' },
@@ -378,7 +381,7 @@ export default function HomePage() {
         categories={categories}
         showAllCategories={showAllCategories}
         setShowAllCategories={setShowAllCategories}
-        isLoading={false}
+        isLoading={isLoadingCategories}
       />
 
       {/* 통계 섹션 */}

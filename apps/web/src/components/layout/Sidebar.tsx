@@ -18,16 +18,9 @@ import {
   Star,
   CreditCard,
   PanelLeft,
-  ChevronRight,
-  LogOut,
-  Sun,
-  Shield,
-  HelpCircle,
-  ArrowLeftRight,
   Calendar,
   Phone,
   Video,
-  Key,
 } from "lucide-react";
 
 interface User {
@@ -76,7 +69,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
 
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     show: false,
     x: 0,
@@ -1005,175 +997,39 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* 프로필 섹션 - 하단 고정 */}
-          <div className={`border-t p-3 flex-shrink-0 ${
-            effectiveVariant === "expert" 
-              ? "border-blue-200" 
-              : "border-gray-200"
-          }`}>
-            <div className="relative">
-              {!isHydrated ? (
-                // 로딩 상태
-                <div className="w-full flex items-center gap-3 rounded-md px-2 py-2">
-                  <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gray-300 animate-pulse" style={{minWidth: '36px', minHeight: '36px'}}>
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="w-4 h-4 bg-gray-400 rounded-full"></div>
-                    </div>
+          {/* 크레딧 표시 - 하단 고정 */}
+          {isAuthenticated && user && (
+            <div className={`border-t p-3 flex-shrink-0 ${
+              effectiveVariant === "expert" 
+                ? "border-blue-200" 
+                : "border-gray-200"
+            }`}>
+              <div className={`flex items-center gap-3 rounded-md px-3 py-2 ${
+                effectiveVariant === "expert" 
+                  ? "bg-blue-50" 
+                  : "bg-gray-50"
+              }`}>
+                <CreditCard className={`h-5 w-5 ${
+                  effectiveVariant === "expert" 
+                    ? "text-blue-600" 
+                    : "text-gray-600"
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900">
+                    보유 크레딧
                   </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 bg-gray-300 rounded animate-pulse w-16"></div>
-                    </div>
-                    <div className="mt-1">
-                      <div className="h-3 bg-gray-200 rounded animate-pulse w-24"></div>
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 ml-2">
-                    <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
-                  </div>
-                </div>
-              ) : (
-                // 실제 프로필
-                <button
-                  onClick={() => setShowProfileMenu((v) => !v)}
-                  className={`w-full flex items-center gap-3 rounded-md px-2 py-2 ${
+                  <div className={`text-lg font-bold ${
                     effectiveVariant === "expert" 
-                      ? "hover:bg-blue-50" 
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="relative w-9 h-9 rounded-full overflow-hidden bg-blue-600" style={{minWidth: '36px', minHeight: '36px'}}>
-                    <div className="w-full h-full flex items-center justify-center text-white text-sm font-medium">
-                      {isAuthenticated && user?.name ? user.name.charAt(0).toUpperCase() : "G"}
-                    </div>
-                  </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">
-                        {isAuthenticated && user?.name ? user.name : "게스트"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {isAuthenticated && user?.email ? user.email : "guest@example.com"}
-                    </div>
-                    
-                    
-                  </div>
-                  <div className="flex-shrink-0 ml-2">
-                    <ChevronRight
-                      className={`h-4 w-4 text-gray-500 transition-transform ${showProfileMenu ? "rotate-90" : ""}`}
-                    />
-                  </div>
-                </button>
-              )}
-
-              {showProfileMenu && (
-                <div className="absolute bottom-12 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden">
-                  <div className="py-1">
-                    {/* 전문가 계정이면 모드 전환, 일반 사용자면 전문가 지원 */}
-                    {user?.role === 'expert' ? (
-                      <button
-                        onClick={() => {
-                          const nextMode =
-                            effectiveVariant === "expert" ? "user" : "expert";
-                          handleViewModeChange(nextMode);
-                          const target =
-                            nextMode === "expert"
-                              ? "/dashboard/expert"
-                              : "/dashboard";
-                          router.push(target);
-                          setShowProfileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <ArrowLeftRight className="h-4 w-4 text-gray-600" />
-                        <span>
-                          {effectiveVariant === "expert"
-                            ? "클라이언트 모드로 전환"
-                            : "전문가 모드로 전환"}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          router.push("/experts/become");
-                          setShowProfileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <ArrowLeftRight className="h-4 w-4 text-gray-600" />
-                        <span>전문가 지원하기</span>
-                      </button>
-                    )}
-
-                    {/* <button
-                      onClick={() => {
-                        setShowPasswordModal(true);
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <Key className="h-4 w-4 text-gray-600" />
-                      <span>비밀번호 변경</span>
-                    </button> */}
-
-                    <button
-                      onClick={() => {
-                        router.push("/dashboard/settings");
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <Shield className="h-4 w-4 text-gray-600" />
-                      <span>개인정보 처리방침</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        router.push("/community");
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <HelpCircle className="h-4 w-4 text-gray-600" />
-                      <span>도움말 및 지원</span>
-                    </button>
-
-                    <div className="my-1 border-t border-gray-200" />
-
-                    {/* 인증 상태에 따라 다른 메뉴 표시 */}
-                    {isAuthenticated ? (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await logout();
-                            setShowProfileMenu(false);
-                          } catch (error) {
-                            console.error('로그아웃 실패:', error);
-                          }
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>로그아웃</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          router.push("/auth/login");
-                          setShowProfileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-600 hover:bg-gray-50"
-                      >
-                        <LogOut className="h-4 w-4 rotate-180" />
-                        <span>로그인</span>
-                      </button>
-                    )}
+                      ? "text-blue-600" 
+                      : "text-gray-900"
+                  }`}>
+                    {user.credits?.toLocaleString() || 0} 크레딧
                   </div>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+
         </div>
       </aside>
 

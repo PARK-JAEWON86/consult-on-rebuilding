@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateExpertApplicationDto } from './dto/expert-application.dto';
+import { ulid } from 'ulid';
 
 type ListParams = { 
   page: number; 
@@ -78,6 +80,29 @@ export class ExpertsService {
         ratingAvg: true,
         reviewCount: true,
         createdAt: true,
+      },
+    });
+  }
+
+  async createApplication(userId: number, dto: CreateExpertApplicationDto) {
+    const displayId = ulid();
+    
+    return this.prisma.expertApplication.create({
+      data: {
+        displayId,
+        userId,
+        name: dto.name,
+        email: dto.email,
+        jobTitle: dto.jobTitle,
+        specialty: dto.specialty,
+        experienceYears: dto.experienceYears,
+        bio: dto.bio,
+        keywords: dto.keywords,
+        consultationTypes: dto.consultationTypes,
+        availability: dto.availability,
+        certifications: dto.certifications,
+        profileImage: dto.profileImage,
+        status: 'PENDING',
       },
     });
   }

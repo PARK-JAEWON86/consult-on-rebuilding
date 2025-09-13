@@ -26,7 +26,7 @@ model Expert {
   displayId   String    @unique            // 외부 노출 ID (ulid)
   name        String
   title       String?
-  categories  Json      // 카테고리 태그 (예: ["law","tax"])
+  categories  Json      // 카테고리 태그 (예: ["law","tax"]) - TODO: N:N 관계로 이관 예정
   bio         String?
   avatarUrl   String?
   ratingAvg   Float     @default(0)
@@ -35,6 +35,37 @@ model Expert {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // N:N 카테고리 관계
+  categoryLinks ExpertCategory[]
+}
+
+// 카테고리 테이블
+model Category {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique     // 영문/슬러그 (e.g. "tax", "labor-law")
+  nameKo      String                 // 한국어 표시명
+  nameEn      String?                // 선택: 국제화 대비
+  icon        String?                // lucide 아이콘 키 (e.g. "Scale", "Briefcase")
+  description String?                // 짧은 설명
+  order       Int       @default(0)  // 정렬 우선순위 (작을수록 위)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  expertLinks ExpertCategory[]
+}
+
+// 전문가–카테고리 N:N
+model ExpertCategory {
+  expertId   Int
+  categoryId Int
+  assignedAt DateTime @default(now())
+
+  expert   Expert   @relation(fields: [expertId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@id([expertId, categoryId])
 }
 
 model Reservation {
@@ -143,3 +174,37 @@ model Review {
 
   // (선택) relation 정의는 나중에
 }
+
+// 전문가 신청
+model ExpertApplication {
+  id              Int                    @id @default(autoincrement())
+  displayId       String                 @unique
+  userId          Int
+  name            String
+  email           String
+  jobTitle        String?
+  specialty       String
+  experienceYears Int                    @default(0)
+  bio             String
+  keywords        Json                   // 상담 주제 키워드 배열
+  consultationTypes Json                // 상담 유형 배열 ["video", "chat", "voice"]
+  availability    Json                   // 일정 정보
+  certifications  Json                   // 자격증 정보
+  profileImage    String?
+  status          ExpertApplicationStatus @default(PENDING)
+  reviewedAt      DateTime?
+  reviewedBy      Int?                   // 관리자 ID
+  reviewNotes     String?                // 검수 메모
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+enum ExpertApplicationStatus {
+  PENDING   // 검수 대기
+  APPROVED  // 승인
+  REJECTED  // 거부
+}
+

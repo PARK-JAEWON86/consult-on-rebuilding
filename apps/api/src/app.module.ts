@@ -3,8 +3,10 @@ import { ConfigModule } from '@nestjs/config'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
+import { CategoriesModule } from './categories/categories.module'
 import { CreditsModule } from './credits/credits.module'
 import { ExpertsModule } from './experts/experts.module'
+import { FilesModule } from './files/files.module'
 import { HealthModule } from './health/health.module'
 import { PaymentsModule } from './payments/payments.module'
 import { PrismaModule } from './prisma/prisma.module'
@@ -25,8 +27,10 @@ import { validateEnv } from './config/env.schema'
     PrismaModule,
     RedisModule,
     AuthModule,
+    CategoriesModule,
     CreditsModule,
     ExpertsModule,
+    FilesModule,
     HealthModule,
     PaymentsModule,
     ReservationsModule,

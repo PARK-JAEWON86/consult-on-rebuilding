@@ -1,5 +1,8 @@
-import { Controller, Get, Query, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Query, Param, NotFoundException, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { ExpertsService } from './experts.service';
+import { JwtGuard } from '../auth/jwt.guard';
+import { CreateExpertApplicationDto, CreateExpertApplicationSchema } from './dto/expert-application.dto';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
 @Controller('experts')
 export class ExpertsController {
@@ -39,5 +42,25 @@ export class ExpertsController {
     }
 
     return { success: true, data };
+  }
+
+  @Post('apply')
+  @UseGuards(JwtGuard)
+  async apply(
+    @Body(new ZodValidationPipe(CreateExpertApplicationSchema)) dto: CreateExpertApplicationDto,
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+    const data = await this.svc.createApplication(userId, dto);
+    
+    return { 
+      success: true, 
+      data: {
+        id: data.id,
+        displayId: data.displayId,
+        status: data.status,
+        message: '전문가 신청이 접수되었습니다. 검수 후 결과를 이메일로 안내드립니다.'
+      }
+    };
   }
 }
