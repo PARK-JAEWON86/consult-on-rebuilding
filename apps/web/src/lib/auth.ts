@@ -1,17 +1,16 @@
-// 클라이언트 사이드에서 사용할 인증 관련 타입들
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  roles: ('USER' | 'EXPERT' | 'ADMIN')[];
-  createdAt: string;
-  updatedAt: string;
-  credits?: number;
-  avatarUrl?: string;
-  isEmailVerified?: boolean;
+import { api } from '@/lib/api';
+
+export async function register(payload: { email: string; password: string; name: string }) {
+  const r = await api.post('/auth/register', payload);
+  return r.data;
 }
 
-export interface AuthState {
-  user: User | null
-  isLoading: boolean
+export async function resendVerification(email: string) {
+  const r = await api.post('/auth/resend-verification', { email });
+  return r.data;
+}
+
+export async function verifyEmailByToken(token: string) {
+  const r = await api.get('/auth/verify-email', { params: { token } });
+  return r.data;
 }

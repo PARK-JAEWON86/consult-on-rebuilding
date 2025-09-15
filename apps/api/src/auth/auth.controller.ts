@@ -1,11 +1,14 @@
-import { Controller, Post, Body, Res, Req, Get, UseGuards } from '@nestjs/common'
+import { Controller, Post, Body, Res, Req, Get, UseGuards, Query, UsePipes } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe'
 import { RegisterSchema, LoginSchema, RegisterDto, LoginDto } from './dto'
+import { registerDto, loginDto, verifyEmailDto, resendDto } from './dto/auth.dto'
 import { JwtGuard } from './jwt.guard'
 import { GoogleGuard } from './google.guard'
 import { User } from './user.decorator'
+import { fail, ok } from '../common/http'
+import * as argon2 from 'argon2'
 
 @Controller('auth')
 export class AuthController {
@@ -23,9 +26,18 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body(new ZodValidationPipe(RegisterSchema)) dto: RegisterDto) {
-    const user = await this.auth.register(dto)
-    return { success: true, data: { user } }
+  @UsePipes(new ZodValidationPipe(registerDto))
+  async register(@Body() body: any) {
+    const { email, password, name } = body;
+    const passwordHash = await argon2.hash(password, { memoryCost: 2 ** 12 });
+    // email unique 충돌 처리
+    try {
+      const r = await this.auth.register({ email, passwordHash, name });
+      return ok({ userId: r.userId });
+    } catch (e: any) {
+      if (e?.code === 'P2002') return fail('CONFLICT', '이미 사용 중인 이메일입니다.');
+      return fail('INTERNAL', '회원가입 처리 중 오류가 발생했습니다.');
+    }
   }
 
   @Post('login')
@@ -148,20 +160,21 @@ export class AuthController {
     res.redirect(`${frontendUrl}?auth=success`)
   }
 
-  @Post('send-verification')
-  async sendVerificationEmail(@Body() body: { email: string }) {
-    // 개발 환경에서는 실제 이메일을 보내지 않고 콘솔에 출력
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
-    
-    console.log(`[이메일 인증] ${body.email}로 인증 코드를 전송했습니다: ${verificationCode}`)
-    
-    return {
-      success: true,
-      data: {
-        email: body.email,
-        verificationCode,
-        message: '인증 이메일이 전송되었습니다.'
-      }
-    }
+  @Get('verify-email')
+  @UsePipes(new ZodValidationPipe(verifyEmailDto))
+  async verifyEmail(@Query() q: any) {
+    const { token } = q;
+    const r = await this.auth.verifyEmailByToken(token);
+    if (!r.ok) return fail(r.code!, r.message!);
+    return ok({ verified: true });
+  }
+
+  @Post('resend-verification')
+  @UsePipes(new ZodValidationPipe(resendDto))
+  async resend(@Body() body: any) {
+    const { email } = body;
+    const r = await this.auth.resendVerification(email);
+    if (!r.ok) return fail(r.code!, r.message!);
+    return ok({ sent: true });
   }
 }

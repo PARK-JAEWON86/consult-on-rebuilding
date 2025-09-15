@@ -16,6 +16,15 @@ export const EnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_CALLBACK_URL: z.string().url().default('http://localhost:4000/v1/auth/google/callback'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  // Email configuration
+  SMTP_HOST: z.string().min(1).default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().email().min(1),
+  SMTP_PASS: z.string().min(1),
+  MAIL_FROM: z.string().email().default('no-reply@localhost'),
+  // Email verification settings
+  AUTH_CODE_EXPIRE_MIN: z.coerce.number().int().positive().default(60),
+  AUTH_RESEND_COOLDOWN_SEC: z.coerce.number().int().positive().default(60),
 })
 
 export type EnvVars = z.infer<typeof EnvSchema>

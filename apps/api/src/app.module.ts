@@ -15,6 +15,7 @@ import { ReservationsModule } from './reservations/reservations.module'
 import { ReviewsModule } from './reviews/reviews.module'
 import { SessionsModule } from './sessions/sessions.module'
 import { UsersModule } from './users/users.module'
+import { MailModule } from './mail/mail.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -37,6 +38,7 @@ import { validateEnv } from './config/env.schema'
     ReviewsModule,
     SessionsModule,
     UsersModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -99,7 +99,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const sendVerificationEmail = async (email: string) => {
     setIsVerificationLoading(true)
     try {
-      const response = await api.post('/auth/send-verification', { email })
+      const response = await api.post('/auth/resend-verification', { email })
       if (response.success) {
         // 인증 코드를 로컬 스토리지에 저장 (5분 유효)
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()

@@ -11,6 +11,7 @@ import Badge from '@/components/ui/Badge';
 import RatingStars from '@/components/ui/RatingStars';
 import Skeleton from '@/components/ui/Skeleton';
 import CategorySelect from '@/components/categories/CategorySelect';
+import ExpertCard from '@/components/experts/ExpertCard';
 
 export default function ExpertsPage() {
   const [q, setQ] = useState('');
@@ -111,21 +112,45 @@ export default function ExpertsPage() {
       {isLoading ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, index) => (
-            <Card key={index}>
-              <div className="flex items-start space-x-4">
-                <Skeleton variant="circular" width={56} height={56} />
-                <div className="flex-1">
-                  <Skeleton height={20} className="mb-2" />
-                  <Skeleton height={16} className="mb-2" />
-                  <Skeleton height={16} className="mb-3" />
-                  <div className="flex space-x-1">
-                    <Skeleton width={40} height={20} />
-                    <Skeleton width={40} height={20} />
-                  </div>
+            <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* 전문가 이미지 스켈레톤 */}
+              <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Skeleton variant="circular" width={80} height={80} />
                 </div>
               </div>
-              <Skeleton height={40} className="mt-4" />
-            </Card>
+              
+              {/* 전문가 정보 스켈레톤 */}
+              <div className="p-4">
+                <div className="mb-3">
+                  <Skeleton height={20} className="mb-1" />
+                  <Skeleton height={16} className="mb-2" />
+                  <div className="flex items-center space-x-1 mb-2">
+                    <Skeleton width={16} height={16} />
+                    <Skeleton width={40} height={16} />
+                    <Skeleton width={60} height={16} />
+                  </div>
+                </div>
+                
+                {/* 전문 분야 스켈레톤 */}
+                <div className="flex gap-1.5 mb-3">
+                  <Skeleton width={60} height={24} />
+                  <Skeleton width={80} height={24} />
+                </div>
+                
+                {/* 상담 정보 스켈레톤 */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <Skeleton height={16} />
+                  <Skeleton height={16} />
+                </div>
+                
+                {/* 하단 섹션 스켈레톤 */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <Skeleton width={80} height={20} />
+                  <Skeleton width={80} height={32} />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       ) : error ? (
@@ -164,59 +189,29 @@ export default function ExpertsPage() {
           {/* 전문가 카드 그리드 */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {experts.map((expert: Expert) => (
-              <Card key={expert.displayId} hover className="h-full">
-                <div className="flex items-start space-x-4 mb-4">
-                  <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                    {expert.avatarUrl ? (
-                      <img 
-                        src={expert.avatarUrl} 
-                        alt={expert.name}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-lg text-gray-500">
-                        {expert.name.charAt(0)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {expert.name}
-                    </h3>
-                    {expert.title && (
-                      <p className="text-sm text-gray-600 truncate">{expert.title}</p>
-                    )}
-                    <RatingStars 
-                      rating={expert.ratingAvg} 
-                      count={expert.reviewCount}
-                      size="sm"
-                    />
-                  </div>
-                </div>
-
-                {/* 카테고리 배지 */}
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {expert.categories.map((cat) => (
-                    <Badge key={cat} variant="blue">
-                      {cat}
-                    </Badge>
-                  ))}
-                </div>
-
-                {/* 소개 */}
-                {expert.bio && (
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                    {expert.bio}
-                  </p>
-                )}
-
-                {/* 상세보기 버튼 */}
-                <Link href={`/experts/${expert.displayId}`} className="block">
-                  <Button variant="ghost" className="w-full">
-                    상세보기
-                  </Button>
-                </Link>
-              </Card>
+              <ExpertCard
+                key={expert.displayId}
+                expert={{
+                  id: expert.id,
+                  displayId: expert.displayId,
+                  name: expert.name,
+                  specialty: expert.title || expert.categories[0] || "전문 분야",
+                  rating: expert.ratingAvg,
+                  reviewCount: expert.reviewCount,
+                  experience: expert.experienceYears || 0,
+                  description: expert.bio || "",
+                  specialties: expert.categories,
+                  consultationTypes: ["video", "chat"],
+                  profileImage: expert.avatarUrl,
+                  level: 1, // 기본값, ExpertCard에서 계산됨
+                  totalSessions: expert.totalSessions || 0,
+                  avgRating: expert.ratingAvg,
+                }}
+                mode="grid"
+                searchContext={{
+                  category: category || undefined,
+                }}
+              />
             ))}
           </div>
 

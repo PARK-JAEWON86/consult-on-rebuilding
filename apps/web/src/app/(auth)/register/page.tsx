@@ -3,23 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
-import { register, resendVerification } from '@/lib/auth';
+import { register, resendVerification } from '@/src/lib/auth';
 
 const registerSchema = z.object({
   email: z.string().email('올바른 이메일을 입력해주세요'),
   password: z.string().min(8, '비밀번호는 최소 8자 이상이어야 합니다'),
-  confirmPassword: z.string().min(8, '비밀번호 확인은 최소 8자 이상이어야 합니다'),
   name: z.string().min(1, '이름을 입력해주세요').max(50, '이름은 50자 이하여야 합니다'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "비밀번호가 일치하지 않습니다",
-  path: ["confirmPassword"],
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState<RegisterForm>({ email: '', password: '', confirmPassword: '', name: '' });
+  const [form, setForm] = useState<RegisterForm>({ email: '', password: '', name: '' });
   const [errors, setErrors] = useState<Partial<RegisterForm>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -43,7 +39,7 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await register({ email: form.email, password: form.password, name: form.name });
+      await register(form);
       setIsSuccess(true);
     } catch (error: any) {
       console.error('회원가입 실패:', error);
@@ -167,24 +163,6 @@ export default function RegisterPage() {
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                비밀번호 확인
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="비밀번호를 다시 입력하세요"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
               )}
             </div>
           </div>
