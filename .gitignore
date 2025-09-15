@@ -111,3 +111,6 @@ ehthumbs.db
 
 # Docker
 .dockerignore
+.env
+.env.local
+*.env
