@@ -2,8 +2,8 @@ import { Controller, Post, Body, Res, Req, Get, UseGuards, Query, UsePipes } fro
 import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe'
-import { RegisterSchema, LoginSchema, RegisterDto, LoginDto } from './dto'
 import { registerDto, loginDto, verifyEmailDto, resendDto } from './dto/auth.dto'
+import type { RegisterDto, LoginDto } from './dto/auth.dto'
 import { JwtGuard } from './jwt.guard'
 import { GoogleGuard } from './google.guard'
 import { User } from './user.decorator'
@@ -42,7 +42,7 @@ export class AuthController {
 
   @Post('login')
   async login(
-    @Body(new ZodValidationPipe(LoginSchema)) dto: LoginDto,
+    @Body(new ZodValidationPipe(loginDto)) dto: LoginDto,
     @Res({ passthrough: true }) res: Response
   ) {
     const secrets = {

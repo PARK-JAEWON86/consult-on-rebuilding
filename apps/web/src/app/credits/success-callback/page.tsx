@@ -1,20 +1,37 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { confirmPayment } from '@/lib/payments';
 import Card from '@/components/ui/Card';
 
 function CallbackContent() {
   const sp = useSearchParams();
   const router = useRouter();
-  const paymentKey = sp.get('paymentKey') || '';
-  const orderId = sp.get('orderId') || '';
-  const amount = parseInt(sp.get('amount') || '0', 10);
+  const [paymentKey, setPaymentKey] = useState('');
+  const [orderId, setOrderId] = useState('');
+  const [amount, setAmount] = useState(0);
+  const [isReady, setIsReady] = useState(false);
   const [msg, setMsg] = useState('결제 확인 중…');
 
   useEffect(() => {
+    try {
+      const paymentKeyParam = sp.get('paymentKey') || '';
+      const orderIdParam = sp.get('orderId') || '';
+      const amountParam = parseInt(sp.get('amount') || '0', 10);
+      setPaymentKey(paymentKeyParam);
+      setOrderId(orderIdParam);
+      setAmount(amountParam);
+      setIsReady(true);
+    } catch (error) {
+      console.error('Error parsing search params:', error);
+      setIsReady(true);
+    }
+  }, [sp]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    
     async function run() {
       try {
         await confirmPayment({ paymentKey, orderId, amount });
@@ -26,7 +43,18 @@ function CallbackContent() {
       }
     }
     if (paymentKey && orderId && amount > 0) run();
-  }, [paymentKey, orderId, amount, router]);
+  }, [paymentKey, orderId, amount, router, isReady]);
+
+  if (!isReady) {
+    return (
+      <Card className="text-center py-12">
+        <div className="animate-pulse">
+          <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+          <div className="h-8 bg-gray-200 rounded"></div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="text-center py-12">

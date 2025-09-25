@@ -9,6 +9,9 @@
     },
     "incremental": true,
     "isolatedModules": true,
+    "jsx": "preserve",
+    "jsxImportSource": "react",
+    "lib": ["dom", "dom.iterable", "es6"],
     "plugins": [
       {
         "name": "next"
@@ -17,6 +20,7 @@
   },
   "include": [
     "next-env.d.ts",
+    "src/types/global.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"

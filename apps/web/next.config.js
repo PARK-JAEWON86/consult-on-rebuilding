@@ -7,23 +7,23 @@ const nextConfig = {
   env: {
     CUSTOM_KEY: 'my-value',
   },
-  // Webpack configuration to handle dynamic imports better
-  webpack: (config, { dev, isServer }) => {
-    // Improve module resolution for dynamic imports
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      net: false,
-      tls: false,
-    };
-
-    // Handle potential module loading issues
+  webpack: (config, { isServer }) => {
+    // Agora SDK 관련 webpack 설정
     if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
       };
     }
-
+    
+    // 모듈 해석 개선
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+    
     return config;
   },
 }

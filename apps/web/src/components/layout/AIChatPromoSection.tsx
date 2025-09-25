@@ -39,10 +39,10 @@ export default function AIChatPromoSection() {
               <Brain className="h-16 w-16 text-white" />
             </div>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
             어떤 상담을 해야할지 모르시나요?
           </h2>
-          <p className="text-xl text-blue-100 mb-8 leading-relaxed">
+          <p className="text-lg text-blue-100 mb-8 leading-relaxed">
             AI가 당신의 상황을 파악하고 가장 적합한 상담 분야를 추천해드립니다.
             <br />
             무료로 간단한 대화를 통해 맞춤형 상담 방향을 찾아보세요.
@@ -78,7 +78,7 @@ export default function AIChatPromoSection() {
             </div>
           </div>
 
-          <Link href="/experts">
+          <Link href="/chat">
             <button className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-2xl text-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
               무료 AI 채팅상담 시작하기 →
             </button>

@@ -1,0 +1,258 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { ExpertLevelsService } from './expert-levels.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
+
+@Injectable()
+export class LevelUpdateService {
+  private readonly logger = new Logger(LevelUpdateService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private expertLevelsService: ExpertLevelsService,
+  ) {}
+
+  /**
+   * 모든 전문가의 레벨을 업데이트하는 배치 작업
+   */
+  async updateAllExpertLevels(): Promise<{
+    success: boolean;
+    updated: number;
+    failed: number;
+    details?: any[];
+  }> {
+    this.logger.log('전문가 레벨 일괄 업데이트 시작');
+
+    let updated = 0;
+    let failed = 0;
+    const details = [];
+
+    try {
+      // 모든 활성 전문가 조회
+      const experts = await this.prisma.expert.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          totalSessions: true,
+          ratingAvg: true,
+          reviewCount: true,
+          repeatClients: true,
+          calculatedLevel: true,
+          rankingScore: true,
+        },
+      });
+
+      this.logger.log(`${experts.length}명의 전문가 레벨 업데이트 시작`);
+
+      // 각 전문가별로 레벨 계산 및 업데이트
+      for (const expert of experts) {
+        try {
+          const stats = {
+            totalSessions: expert.totalSessions || 0,
+            avgRating: expert.ratingAvg || 0,
+            reviewCount: expert.reviewCount || 0,
+            repeatClients: expert.repeatClients || 0,
+            likeCount: 0, // 추후 구현
+          };
+
+          // 새로운 레벨 계산
+          const newRankingScore = this.expertLevelsService.calculateRankingScore(stats);
+          const newLevel = this.expertLevelsService.calculateLevelByScore(newRankingScore);
+
+          // 변경사항이 있는 경우만 업데이트
+          const shouldUpdate =
+            Math.abs(newRankingScore - (expert.rankingScore || 0)) > 0.01 ||
+            newLevel !== (expert.calculatedLevel || 1);
+
+          if (shouldUpdate) {
+            await this.prisma.expert.update({
+              where: { id: expert.id },
+              data: {
+                calculatedLevel: newLevel,
+                rankingScore: newRankingScore,
+                levelUpdatedAt: new Date(),
+              },
+            });
+
+            this.logger.debug(
+              `전문가 ${expert.name} (ID: ${expert.id}) 레벨 업데이트: ` +
+              `Lv.${expert.calculatedLevel} → Lv.${newLevel} (점수: ${newRankingScore.toFixed(2)})`
+            );
+
+            details.push({
+              expertId: expert.id,
+              expertName: expert.name,
+              oldLevel: expert.calculatedLevel,
+              newLevel,
+              oldScore: expert.rankingScore,
+              newScore: newRankingScore,
+            });
+          }
+
+          updated++;
+        } catch (error) {
+          failed++;
+          this.logger.error(
+            `전문가 ${expert.name} (ID: ${expert.id}) 레벨 업데이트 실패:`,
+            error
+          );
+        }
+      }
+
+      this.logger.log(
+        `전문가 레벨 업데이트 완료: 성공 ${updated}명, 실패 ${failed}명`
+      );
+
+      return {
+        success: true,
+        updated,
+        failed,
+        details,
+      };
+    } catch (error) {
+      this.logger.error('전문가 레벨 일괄 업데이트 중 오류 발생:', error);
+      return {
+        success: false,
+        updated,
+        failed,
+        details: [],
+      };
+    }
+  }
+
+  /**
+   * 특정 전문가의 레벨을 업데이트
+   */
+  async updateExpertLevel(expertId: number): Promise<{
+    success: boolean;
+    expert?: any;
+    error?: string;
+  }> {
+    try {
+      const expert = await this.prisma.expert.findUnique({
+        where: { id: expertId },
+        select: {
+          id: true,
+          name: true,
+          totalSessions: true,
+          ratingAvg: true,
+          reviewCount: true,
+          repeatClients: true,
+          calculatedLevel: true,
+          rankingScore: true,
+        },
+      });
+
+      if (!expert) {
+        return {
+          success: false,
+          error: '전문가를 찾을 수 없습니다.',
+        };
+      }
+
+      const stats = {
+        totalSessions: expert.totalSessions || 0,
+        avgRating: expert.ratingAvg || 0,
+        reviewCount: expert.reviewCount || 0,
+        repeatClients: expert.repeatClients || 0,
+        likeCount: 0,
+      };
+
+      const newRankingScore = this.expertLevelsService.calculateRankingScore(stats);
+      const newLevel = this.expertLevelsService.calculateLevelByScore(newRankingScore);
+      const tierInfo = this.expertLevelsService.getTierInfo(newLevel);
+
+      // 데이터베이스 업데이트
+      const updatedExpert = await this.prisma.expert.update({
+        where: { id: expertId },
+        data: {
+          calculatedLevel: newLevel,
+          rankingScore: newRankingScore,
+          levelUpdatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          calculatedLevel: true,
+          rankingScore: true,
+          levelUpdatedAt: true,
+        },
+      });
+
+      this.logger.log(
+        `전문가 ${expert.name} (ID: ${expertId}) 레벨 업데이트 완료: ` +
+        `Lv.${newLevel} (점수: ${newRankingScore.toFixed(2)})`
+      );
+
+      return {
+        success: true,
+        expert: {
+          ...updatedExpert,
+          tierInfo,
+          creditsPerMinute: tierInfo.creditsPerMinute,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`전문가 ${expertId} 레벨 업데이트 실패:`, error);
+      return {
+        success: false,
+        error: '레벨 업데이트 중 오류가 발생했습니다.',
+      };
+    }
+  }
+
+  /**
+   * 매일 새벽 3시에 자동으로 모든 전문가 레벨 업데이트
+   */
+  @Cron('0 3 * * *') // 매일 새벽 3시
+  async scheduledLevelUpdate() {
+    this.logger.log('정기 전문가 레벨 업데이트 시작');
+    const result = await this.updateAllExpertLevels();
+
+    if (result.success) {
+      this.logger.log(
+        `정기 레벨 업데이트 완료: 성공 ${result.updated}명, 실패 ${result.failed}명`
+      );
+    } else {
+      this.logger.error('정기 레벨 업데이트 실패');
+    }
+  }
+
+  /**
+   * 매시간 마지막 업데이트가 오래된 전문가들의 레벨만 업데이트
+   */
+  @Cron('0 * * * *') // 매시간 정각
+  async hourlyIncrementalUpdate() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    try {
+      // 최근 1시간 내에 세션이나 리뷰가 추가된 전문가들 조회
+      const expertsToUpdate = await this.prisma.expert.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { levelUpdatedAt: { lt: oneHourAgo } }, // 1시간 이상 업데이트 안된 경우
+            // 추후 세션이나 리뷰 업데이트 시간 조건 추가 가능
+          ],
+        },
+        select: { id: true, name: true },
+        take: 50, // 한 번에 최대 50명만 처리
+      });
+
+      if (expertsToUpdate.length > 0) {
+        this.logger.log(`${expertsToUpdate.length}명의 전문가 증분 레벨 업데이트 시작`);
+
+        let updated = 0;
+        for (const expert of expertsToUpdate) {
+          const result = await this.updateExpertLevel(expert.id);
+          if (result.success) updated++;
+        }
+
+        this.logger.log(`증분 레벨 업데이트 완료: ${updated}명 업데이트`);
+      }
+    } catch (error) {
+      this.logger.error('증분 레벨 업데이트 중 오류:', error);
+    }
+  }
+}

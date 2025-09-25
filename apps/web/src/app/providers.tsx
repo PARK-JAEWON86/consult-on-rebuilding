@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ReactNode, useState } from 'react';
 import { AuthProvider } from '@/components/auth/AuthProvider';
+import { ViewModeProvider } from '@/contexts/ViewModeContext';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -27,8 +28,10 @@ export default function Providers({ children, initialUser }: ProvidersProps) {
   return (
     <QueryClientProvider client={client}>
       <AuthProvider initialUser={initialUser}>
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
+        <ViewModeProvider>
+          {children}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </ViewModeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewMode } from "@/contexts/ViewModeContext";
 
 // expertDataService는 서버 사이드에서만 사용
 // import PasswordChangeModal from "@/components/settings/PasswordChangeModal";
@@ -13,7 +14,6 @@ import {
   Users,
   FileText,
   Settings,
-  User,
   Bell,
   Star,
   CreditCard,
@@ -21,6 +21,7 @@ import {
   Calendar,
   Phone,
   Video,
+  TrendingUp,
 } from "lucide-react";
 
 interface User {
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
+  const { viewMode } = useViewMode();
 
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     show: false,
@@ -80,8 +82,35 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [summaryNotificationCount, setSummaryNotificationCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [nextSettlementDate, setNextSettlementDate] = useState<Date>(new Date());
+  const [daysUntilSettlement, setDaysUntilSettlement] = useState<number>(0);
+  const [settlementAmount, setSettlementAmount] = useState<number>(0);
 
-  
+  // 정산 정보 계산 함수들
+  const getNextSettlementDate = (): Date => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+
+    if (currentDay >= 5) {
+      return new Date(currentYear, currentMonth + 1, 5);
+    } else {
+      return new Date(currentYear, currentMonth, 5);
+    }
+  };
+
+  const getDaysUntilSettlement = (): number => {
+    const today = new Date();
+    const nextSettlement = getNextSettlementDate();
+    const diffTime = nextSettlement.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const formatCredits = (n: number): string => {
+    return `${n.toLocaleString()} 크레딧`;
+  };
+
   // 알림 개수 로드
   const loadNotificationCount = async () => {
     try {
@@ -107,6 +136,19 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, []);
 
+  // 정산 정보 초기화 (전문가 모드에서만)
+  useEffect(() => {
+    if (pathname.startsWith("/dashboard/expert") && isAuthenticated && user?.roles?.includes('EXPERT')) {
+      const nextDate = getNextSettlementDate();
+      const daysLeft = getDaysUntilSettlement();
+      setNextSettlementDate(nextDate);
+      setDaysUntilSettlement(daysLeft);
+
+      // 임시 정산 예정액 (실제로는 API에서 가져와야 함)
+      setSettlementAmount(75000);
+    }
+  }, [pathname, isAuthenticated, user]);
+
   // 알림 개수 로드
   useEffect(() => {
     loadNotificationCount();
@@ -117,26 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // 뷰 모드 상태 관리
-  const [viewMode, setViewMode] = useState<"user" | "expert">("user");
-
-
-
-  // 뷰 모드 초기화
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedViewMode = localStorage.getItem('consulton-viewMode');
-      if (storedViewMode) {
-        setViewMode(JSON.parse(storedViewMode));
-      }
-    }
-  }, []);
-
-  // 뷰 모드 변경 함수
-  const handleViewModeChange = (mode: "user" | "expert") => {
-    setViewMode(mode);
-    localStorage.setItem('consulton-viewMode', JSON.stringify(mode));
-  };
+  // 뷰 모드는 이제 Context에서 관리됩니다
 
   // 유저 역할/저장된 뷰 모드 기반으로 variant 결정
   
@@ -178,24 +201,34 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
   
-  // 하이드레이션 완료 상태 체크 - 초기값을 true로 설정하여 SSR 문제 방지
-  const [isHydrated, setIsHydrated] = useState(true);
+  // 하이드레이션 완료 상태 체크
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // 하이드레이션 완료 체크
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // ViewMode 변경 이벤트 감지
+  useEffect(() => {
+    const handleViewModeChange = (event: CustomEvent) => {
+      console.log('ViewMode 변경 이벤트 감지:', event.detail);
+      // 강제로 리렌더링을 위해 state 업데이트
+      setIsHydrated(prev => !prev);
+      setTimeout(() => setIsHydrated(prev => !prev), 10);
+    };
+
+    window.addEventListener('viewModeChanged', handleViewModeChange as EventListener);
+
+    return () => {
+      window.removeEventListener('viewModeChanged', handleViewModeChange as EventListener);
+    };
+  }, []);
+
   const effectiveVariant: "user" | "expert" = useMemo(() => {
-    console.log('effectiveVariant 계산:', { variant, pathname, isHydrated, viewMode, userRole: user?.role, isAuthenticated });
-    
-    // 1. 명시적으로 전달된 variant가 있으면 우선
-    if (variant) {
-      console.log('명시적 variant 사용:', variant);
-      return variant;
-    }
-    
-    // 2. 사용자가 설정한 viewMode가 있으면 그것을 사용 (가장 우선)
-    if (viewMode && isAuthenticated) {
-      console.log('사용자 설정 viewMode 사용:', viewMode);
-      return viewMode;
-    }
-    
-    // 3. URL 경로 기반으로 판단 (하지만 viewMode가 설정되어 있으면 우선순위 낮춤)
+    console.log('effectiveVariant 계산:', { variant, pathname, isHydrated, viewMode, userRoles: user?.roles, isAuthenticated });
+
+    // 1. URL 경로 기반으로 판단 (가장 우선순위)
     if (pathname.startsWith("/dashboard/expert")) {
       console.log('URL 기반으로 expert 모드 결정');
       return "expert";
@@ -204,148 +237,95 @@ const Sidebar: React.FC<SidebarProps> = ({
       console.log('URL 기반으로 user 모드 결정');
       return "user";
     }
-    
+
+    // 2. ViewModeContext의 viewMode 사용
+    if (viewMode && isAuthenticated) {
+      console.log('ViewModeContext viewMode 사용:', viewMode);
+      return viewMode;
+    }
+
+    // 3. 명시적으로 전달된 variant 사용
+    if (variant) {
+      console.log('명시적 variant 사용:', variant);
+      return variant;
+    }
+
     // 4. 하이드레이션이 완료되지 않았으면 URL 기반으로 판단
     if (!isHydrated) {
       if (pathname.startsWith("/dashboard/expert")) return "expert";
       return "user";
     }
-    
-    // 5. 사용자 role에 따라 결정 (로그인 직후 자동 결정)
-    if (user?.role === 'expert') {
-      console.log('사용자 role 기반으로 expert 모드 결정');
+
+    // 5. 사용자 roles에 따라 결정 (로그인 직후 자동 결정)
+    if (user?.roles?.includes('EXPERT')) {
+      console.log('사용자 roles 기반으로 expert 모드 결정');
       return "expert";
     }
-    if (user?.role === 'client' || user?.role === 'admin') {
-      console.log('사용자 role 기반으로 user 모드 결정');
+    if (user?.roles?.includes('USER') || user?.roles?.includes('ADMIN')) {
+      console.log('사용자 roles 기반으로 user 모드 결정');
       return "user";
     }
-    
+
     // 6. 기본값
     console.log('기본값 user 모드 사용');
     return "user";
-  }, [variant, pathname, isHydrated, viewMode, user?.role, isAuthenticated]);
+  }, [variant, pathname, isHydrated, viewMode, user?.roles, isAuthenticated]);
 
   // 하이드레이션 완료 체크 - 초기값이 true로 설정되어 있으므로 추가 로직 불필요
 
-  // viewMode 변경 감지하여 즉시 반영
-  useEffect(() => {
-    console.log('viewMode 변경 감지:', viewMode);
-    // viewMode가 변경되면 강제로 리렌더링
-  }, [viewMode]);
+  // viewMode는 Context에서 자동으로 동기화됩니다
 
 
 
 
 
-  // 채팅 기록 초기화
+  // 채팅 기록 초기화 - 로컬 스토리지에서 세션 로드
   useEffect(() => {
     console.log('사이드바: 채팅 기록 초기화 useEffect 실행', { isAuthenticated, pathname, isActivePath: isActivePath("/chat") });
-    
+
     if (isAuthenticated && isActivePath("/chat")) {
-      console.log('사이드바: AI 채팅 메뉴 활성화, 채팅 기록 로드 시작');
-      
-      // 이미 채팅 기록이 로드되어 있고, 사용자 ID가 일치하는 경우에는 API를 다시 호출하지 않음
-      const storedUser = localStorage.getItem('consulton-user');
-      const currentUserId = storedUser ? JSON.parse(storedUser).id : null;
-      
-      if (chatHistory.length > 0 && currentUserId) {
-        console.log('사이드바: 이미 채팅 기록이 로드되어 있음, API 재호출 생략');
-        return;
-      }
-      
-      // API에서 채팅 히스토리 로드
-      const loadChatHistory = async () => {
+      console.log('사이드바: AI 채팅 메뉴 활성화, 로컬 스토리지에서 세션 로드');
+
+      // 로컬 스토리지에서 채팅 세션 로드
+      const loadLocalChatSessions = () => {
         try {
-          // 현재 로그인된 사용자 ID 가져오기
-          const storedUser = localStorage.getItem('consulton-user');
-          const userId = storedUser ? JSON.parse(storedUser).id : null;
-          console.log('사이드바: 초기 채팅 기록 로드 - 사용자 ID:', userId);
-          
-          if (userId) {
-            // aichat-sessions API에서 사용자의 AI 채팅 세션 로드
-            console.log('사이드바: aichat-sessions API 호출 시작');
-            const response = await fetch(`/api/aichat-sessions?userId=${userId}&limit=20`);
-            const result = await response.json();
-            console.log('사이드바: 초기 API 응답:', result);
-            
-            if (result.success) {
-              setChatHistory(result.data);
-              console.log('사이드바: 채팅 히스토리 설정 완료:', result.data.length, '개');
-            } else {
-              console.error('사이드바: API 응답 실패:', result);
-              setChatHistory([]);
-            }
+          const stored = localStorage.getItem('chat-sessions');
+          if (stored) {
+            const sessions = JSON.parse(stored);
+            setChatHistory(sessions);
+            console.log('사이드바: 로컬 스토리지에서 채팅 세션 로드 완료:', sessions.length, '개');
           } else {
-            console.log('사이드바: 사용자 ID 없음 - 빈 배열 설정');
             setChatHistory([]);
           }
         } catch (error) {
-          console.error('사이드바: AI 채팅 히스토리 로드 실패:', error);
+          console.error('사이드바: 로컬 스토리지에서 채팅 세션 로드 실패:', error);
           setChatHistory([]);
         }
       };
-      
-      loadChatHistory();
-      
-      // 주기적으로 채팅 히스토리 업데이트 (5초마다)
-      const interval = setInterval(loadChatHistory, 5000);
-      
-      return () => clearInterval(interval);
+
+      loadLocalChatSessions();
     } else {
       console.log('사이드바: AI 채팅 메뉴 비활성화 또는 인증되지 않음');
-      // 다른 메뉴로 이동할 때는 채팅 기록을 초기화하지 않음
-      // setChatHistory([]); // 이 줄을 제거
     }
-  }, [isAuthenticated, pathname, chatHistory.length]); // chatHistory.length도 의존성에 추가
+  }, [isAuthenticated, pathname]);
 
-  // 채팅 기록 업데이트 이벤트 리스너
+  // 채팅 세션 업데이트 이벤트 리스너
   useEffect(() => {
-    console.log('사이드바: 채팅 기록 업데이트 이벤트 리스너 등록 시작');
-    
-    const handleChatHistoryUpdate = (event: CustomEvent) => {
-      console.log('사이드바: chatHistoryUpdated 이벤트 수신:', event.detail);
-      
-      if (event.detail.action === 'newSession') {
-        console.log('사이드바: 새 세션 감지, 채팅 기록 업데이트 시작');
-        // 새 세션이 생성되면 채팅 기록을 즉시 다시 로드
-        const loadChatHistory = async () => {
-          try {
-            const storedUser = localStorage.getItem('consulton-user');
-            const userId = storedUser ? JSON.parse(storedUser).id : null;
-            console.log('사이드바: 사용자 ID:', userId);
-            
-            if (userId) {
-              console.log('사이드바: aichat-sessions API 호출 시작');
-              const response = await fetch(`/api/aichat-sessions?userId=${userId}&limit=20`);
-              const result = await response.json();
-              console.log('사이드바: API 응답:', result);
-              
-              if (result.success) {
-                setChatHistory(result.data);
-                console.log('사이드바: 새 채팅 세션으로 인한 히스토리 업데이트 완료:', result.data.length, '개');
-              } else {
-                console.error('사이드바: API 응답 실패:', result);
-              }
-            } else {
-              console.log('사이드바: 사용자 ID가 없음');
-            }
-          } catch (error) {
-            console.error('사이드바: 채팅 히스토리 업데이트 실패:', error);
-          }
-        };
-        
-        loadChatHistory();
-      }
+    console.log('사이드바: 채팅 세션 업데이트 이벤트 리스너 등록 시작');
+
+    const handleChatSessionsUpdate = (event: CustomEvent) => {
+      console.log('사이드바: chatSessionsUpdated 이벤트 수신:', event.detail);
+      const { sessions } = event.detail;
+      setChatHistory(sessions);
     };
 
     // 커스텀 이벤트 리스너 등록
-    console.log('사이드바: chatHistoryUpdated 이벤트 리스너 등록');
-    window.addEventListener('chatHistoryUpdated', handleChatHistoryUpdate as EventListener);
-    
+    console.log('사이드바: chatSessionsUpdated 이벤트 리스너 등록');
+    window.addEventListener('chatSessionsUpdated', handleChatSessionsUpdate as EventListener);
+
     return () => {
-      console.log('사이드바: chatHistoryUpdated 이벤트 리스너 제거');
-      window.removeEventListener('chatHistoryUpdated', handleChatHistoryUpdate as EventListener);
+      console.log('사이드바: chatSessionsUpdated 이벤트 리스너 제거');
+      window.removeEventListener('chatSessionsUpdated', handleChatSessionsUpdate as EventListener);
     };
   }, []);
 
@@ -410,18 +390,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           icon: CreditCard,
           path: "/dashboard/expert/payouts",
         },
-        {
-          id: "expert-profile",
-          name: "전문가 프로필",
-          icon: User,
-          path: "/dashboard/expert/profile",
-        },
-        {
-          id: "settings",
-          name: "설정",
-          icon: Settings,
-          path: "/dashboard/expert/settings",
-        },
       ];
     }
 
@@ -436,7 +404,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     // 로그인된 사용자에게만 추가 메뉴 표시
     if (user && isAuthenticated) {
       clientMenu.push(
-        { id: "summary", name: "상담 요약", icon: FileText, path: "/summary" },
+        { id: "consultations", name: "상담 내역", icon: FileText, path: "/dashboard/consultations" },
         { id: "my-reservations", name: "내 예약", icon: Calendar, path: "/dashboard/reservations" },
         { id: "my-reviews", name: "내 리뷰", icon: Star, path: "/dashboard/reviews" }
       );
@@ -448,12 +416,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         name: "결제 및 크레딧",
         icon: CreditCard,
         path: "/credits",
-      },
-      {
-        id: "settings",
-        name: "설정",
-        icon: Settings,
-        path: "/dashboard/settings",
       }
     );
 
@@ -492,14 +454,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       // 로그인된 사용자인 경우 바로 이동
       if (isAuthenticated && user) {
         console.log(`로그인된 사용자 - ${item.name} 페이지로 이동`);
-        router.push(item.path);
+        router.push(item.path as any);
         if (onClose) onClose();
         return;
       }
       
       // 로그인되지 않은 사용자도 전문가 찾기 페이지로 이동 가능
       console.log(`비로그인 사용자 - ${item.name} 페이지로 이동`);
-      router.push(item.path);
+      router.push(item.path as any);
       if (onClose) onClose();
       return;
     }
@@ -517,7 +479,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       // 로그인된 사용자인 경우 바로 이동
       if (isAuthenticated && user) {
         console.log('로그인된 사용자 - AI채팅 상담 페이지로 이동');
-        router.push(item.path);
+        router.push(item.path as any);
         if (onClose) onClose();
         return;
       }
@@ -531,35 +493,28 @@ const Sidebar: React.FC<SidebarProps> = ({
     
     // 로그아웃 상태에서 다른 메뉴 클릭 시 로그인 페이지로 이동
     if (!isAuthenticated) {
-      let redirectPath = item.path;
-      
-      // 설정 메뉴의 경우 현재 모드에 맞는 경로로 설정
-      if (item.id === "settings") {
-        redirectPath = effectiveVariant === "expert" ? "/dashboard/expert/settings" : "/dashboard/settings";
-      }
-      
-      console.log('비로그인 사용자 - 로그인 페이지로 리다이렉트:', redirectPath);
-      router.push(`/auth/login?redirect=${encodeURIComponent(redirectPath)}`);
+      console.log('비로그인 사용자 - 로그인 페이지로 리다이렉트:', item.path);
+      router.push(`/auth/login?redirect=${encodeURIComponent(item.path)}` as any);
       if (onClose) onClose();
       return;
     }
     
     // 로그인된 사용자의 경우 추가 검증
     if (isAuthenticated && user) {
-      console.log('로그인된 사용자 메뉴 클릭:', { item: item.id, userRole: user.role, effectiveVariant });
+      console.log('로그인된 사용자 메뉴 클릭:', { item: item.id, userRoles: user.roles, effectiveVariant });
       
       // 전문가 모드에서 전문가 전용 메뉴 클릭 시
-      if (effectiveVariant === "expert" && user.role === "expert") {
+      if (effectiveVariant === "expert" && user.roles?.includes("EXPERT")) {
         console.log('전문가 모드에서 전문가 메뉴 클릭:', item.id);
-        router.push(item.path);
+        router.push(item.path as any);
         if (onClose) onClose();
         return;
       }
-      
+
       // 클라이언트 모드에서 일반 사용자 메뉴 클릭 시
-      if (effectiveVariant === "user" && (user.role === "client" || user.role === "admin")) {
+      if (effectiveVariant === "user" && (user.roles?.includes("USER") || user.roles?.includes("ADMIN"))) {
         console.log('클라이언트 모드에서 일반 사용자 메뉴 클릭:', item.id);
-        router.push(item.path);
+        router.push(item.path as any);
         if (onClose) onClose();
         return;
       }
@@ -569,17 +524,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       // AI채팅 상담 중 다른 메뉴 클릭 시 바로 이동 (확인 메시지 없음)
       console.log('AI채팅 상담 중 다른 메뉴로 이동:', item.name);
     }
-    
-    // 설정 메뉴 클릭 시 현재 모드에 맞는 경로로 이동
-    if (item.id === "settings") {
-      const targetPath = effectiveVariant === "expert" ? "/dashboard/expert/settings" : "/dashboard/settings";
-      router.push(targetPath);
-      if (onClose) onClose();
-      return;
-    }
-    
+
     console.log('정상 메뉴 이동:', item.path);
-    router.push(item.path);
+    router.push(item.path as any);
     if (onClose) onClose();
   };
 
@@ -711,19 +658,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={async () => {
               // 삭제 기능
               if (confirm(`"${contextMenu.item}"을(를) 삭제하시겠습니까?`)) {
-                try {
-                  const chatItem = chatHistory.find(item => item.title === contextMenu.item);
-                  if (chatItem) {
-                    // API를 통해 채팅 히스토리 삭제
-                    await fetch(`/api/aichat-sessions?id=${chatItem.id}`, {
-                      method: 'DELETE'
-                    });
-                    
-                    // 로컬 상태도 업데이트
-                    setChatHistory(prev => prev.filter(item => item.id !== chatItem.id));
-                  }
-                } catch (error) {
-                  console.error('채팅 히스토리 삭제 실패:', error);
+                const chatItem = chatHistory.find(item => item.title === contextMenu.item);
+                if (chatItem) {
+                  // 로컬 상태 업데이트
+                  const updatedSessions = chatHistory.filter(item => item.id !== chatItem.id);
+                  setChatHistory(updatedSessions);
+
+                  // 로컬 스토리지 업데이트
+                  localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
+
+                  // 채팅 페이지에 삭제 알림
+                  const event = new CustomEvent('chatSessionDeleted', {
+                    detail: { sessionId: chatItem.id, sessions: updatedSessions }
+                  });
+                  window.dispatchEvent(event);
                 }
               }
               setContextMenu(prev => ({ ...prev, show: false }));
@@ -855,9 +803,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                       key={chatItem.id}
                       className="px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 cursor-pointer relative group"
                       onClick={() => {
-                        // 채팅 세션 ID를 로컬 스토리지에 저장하고 채팅 페이지로 이동
-                        localStorage.setItem('current-chat-session', chatItem.id);
-                        router.push('/chat');
+                        // 채팅 세션 선택 이벤트 발송
+                        const event = new CustomEvent('chatSessionSelected', {
+                          detail: { sessionId: chatItem.id }
+                        });
+                        window.dispatchEvent(event);
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -873,27 +823,23 @@ const Sidebar: React.FC<SidebarProps> = ({
                               onChange={(e) => setEditingItem(prev => prev ? { ...prev, title: e.target.value } : null)}
                               onKeyDown={async (e) => {
                                 if (e.key === 'Enter' && editingItem) {
-                                  // API를 통해 채팅 히스토리 업데이트
-                                  try {
-                                    await fetch(`/api/aichat-sessions/${chatItem.id}`, {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        title: editingItem.title
-                                      })
-                                    });
-                                    
-                                    // 로컬 상태도 업데이트
-                                    setChatHistory(prev => 
-                                      prev.map(item => 
-                                        item.id === chatItem.id 
-                                          ? { ...item, title: editingItem.title }
-                                          : item
-                                      )
-                                    );
-                                  } catch (error) {
-                                    console.error('채팅 히스토리 업데이트 실패:', error);
-                                  }
+                                  // 로컬 상태 업데이트
+                                  const updatedSessions = chatHistory.map(item =>
+                                    item.id === chatItem.id
+                                      ? { ...item, title: editingItem.title }
+                                      : item
+                                  );
+                                  setChatHistory(updatedSessions);
+
+                                  // 로컬 스토리지 업데이트
+                                  localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
+
+                                  // 채팅 페이지에 업데이트 알림
+                                  const event = new CustomEvent('chatSessionsUpdated', {
+                                    detail: { sessions: updatedSessions }
+                                  });
+                                  window.dispatchEvent(event);
+
                                   setEditingItem(null);
                                 } else if (e.key === 'Escape') {
                                   // 취소
@@ -902,27 +848,23 @@ const Sidebar: React.FC<SidebarProps> = ({
                               }}
                               onBlur={async () => {
                                 if (editingItem) {
-                                  // API를 통해 채팅 히스토리 업데이트
-                                  try {
-                                    await fetch(`/api/aichat-sessions/${chatItem.id}`, {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        title: editingItem.title
-                                      })
-                                    });
-                                    
-                                    // 로컬 상태도 업데이트
-                                    setChatHistory(prev => 
-                                      prev.map(item => 
-                                        item.id === chatItem.id 
-                                          ? { ...item, title: editingItem.title }
-                                          : item
-                                      )
-                                    );
-                                  } catch (error) {
-                                    console.error('채팅 히스토리 업데이트 실패:', error);
-                                  }
+                                  // 로컬 상태 업데이트
+                                  const updatedSessions = chatHistory.map(item =>
+                                    item.id === chatItem.id
+                                      ? { ...item, title: editingItem.title }
+                                      : item
+                                  );
+                                  setChatHistory(updatedSessions);
+
+                                  // 로컬 스토리지 업데이트
+                                  localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
+
+                                  // 채팅 페이지에 업데이트 알림
+                                  const event = new CustomEvent('chatSessionsUpdated', {
+                                    detail: { sessions: updatedSessions }
+                                  });
+                                  window.dispatchEvent(event);
+
                                   setEditingItem(null);
                                 }
                               }}
@@ -997,36 +939,51 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* 크레딧 표시 - 하단 고정 */}
+          {/* 크레딧/정산 정보 표시 - 하단 고정 */}
           {isAuthenticated && user && (
             <div className={`border-t p-3 flex-shrink-0 ${
-              effectiveVariant === "expert" 
-                ? "border-blue-200" 
+              effectiveVariant === "expert"
+                ? "border-blue-200"
                 : "border-gray-200"
             }`}>
-              <div className={`flex items-center gap-3 rounded-md px-3 py-2 ${
-                effectiveVariant === "expert" 
-                  ? "bg-blue-50" 
-                  : "bg-gray-50"
-              }`}>
-                <CreditCard className={`h-5 w-5 ${
-                  effectiveVariant === "expert" 
-                    ? "text-blue-600" 
-                    : "text-gray-600"
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">
-                    보유 크레딧
+              {effectiveVariant === "expert" ? (
+                // 전문가 모드: 정산 정보 표시
+                <div className="bg-blue-50 rounded-md px-3 py-2">
+                  <div className="flex items-center gap-3 mb-2">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900">
+                        다음 정산일
+                      </div>
+                      <div className="text-xs text-blue-600">
+                        {nextSettlementDate.toLocaleDateString('ko-KR', {
+                          month: 'short',
+                          day: 'numeric'
+                        })} ({daysUntilSettlement}일 후)
+                      </div>
+                    </div>
                   </div>
-                  <div className={`text-lg font-bold ${
-                    effectiveVariant === "expert" 
-                      ? "text-blue-600" 
-                      : "text-gray-900"
-                  }`}>
-                    {user.credits?.toLocaleString() || 0} 크레딧
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">정산 예정액</span>
+                    <span className="text-sm font-bold text-blue-700">
+                      {formatCredits(settlementAmount)}
+                    </span>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // 사용자 모드: 기존 크레딧 표시
+                <div className="flex items-center gap-3 rounded-md px-3 py-2 bg-gray-50">
+                  <CreditCard className="h-5 w-5 text-gray-600" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900">
+                      보유 크레딧
+                    </div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {user.credits?.toLocaleString() || 0} 크레딧
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -11,7 +11,7 @@ import {
   History,
   Gift
 } from "lucide-react";
-import { CreditBalance, CreditTransaction } from '@/lib/credits';
+import type { CreditBalance, CreditTransaction } from '@/lib/credits';
 
 interface CreditBalanceProps {
   balance: CreditBalance;

@@ -18,29 +18,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v
 
 // 서버 사이드에서만 사용하는 함수들
 export async function getCurrentUser(): Promise<User | null> {
-  const cookieStore = cookies()
-  const accessToken = cookieStore.get('access_token')
-  
-  if (!accessToken) {
-    return null
-  }
-  
-  try {
-    // 모든 쿠키를 전달하도록 개선
-    const allCookies = cookieStore.getAll()
-    const cookieString = allCookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-    
-    const response = await axios.get(`${API_BASE_URL}/auth/me`, {
-      headers: {
-        Cookie: cookieString
-      }
-    })
-    
-    return response.data.success ? response.data.data.user : null
-  } catch (error) {
-    console.error('Failed to get current user:', error)
-    return null
-  }
+  // 서버사이드에서는 쿠키 헤더 문제로 인해 null을 반환
+  // 클라이언트사이드 AuthProvider에서 인증 처리
+  return null
 }
 
 // 인증이 필요한 페이지에서 사용 (인증되지 않은 경우 로그인 페이지로 리다이렉트)

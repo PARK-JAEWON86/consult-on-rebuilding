@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { fetchExperts, Expert } from '@/lib/experts';
+import { useCategoriesPublic } from '@/hooks/useCategories';
+import { Category } from '@/lib/categories';
 // import { useAuth } from '@/components/auth/AuthProvider'; // 현재 사용하지 않음
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -61,31 +63,16 @@ export default function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
 
-  // 하드코딩된 카테고리 데이터
-  const categories: CategoryOption[] = [
-    { id: 'psychology', name: '심리상담', icon: 'Heart', description: '마음의 건강과 상담' },
-    { id: 'career', name: '커리어상담', icon: 'Briefcase', description: '진로와 직업 상담' },
-    { id: 'finance', name: '재무상담', icon: 'DollarSign', description: '돈 관리와 투자 상담' },
-    { id: 'health', name: '건강상담', icon: 'Activity', description: '건강과 의료 상담' },
-    { id: 'education', name: '교육상담', icon: 'BookOpen', description: '학습과 교육 상담' },
-    { id: 'relationship', name: '인간관계', icon: 'Users', description: '사람들과의 관계 상담' },
-    { id: 'business', name: '사업상담', icon: 'TrendingUp', description: '사업과 창업 상담' },
-    { id: 'tech', name: 'IT상담', icon: 'Monitor', description: '기술과 IT 상담' },
-    { id: 'design', name: '디자인상담', icon: 'Palette', description: '디자인과 창작 상담' },
-    { id: 'language', name: '언어상담', icon: 'MessageCircle', description: '언어 학습 상담' },
-    { id: 'art', name: '예술상담', icon: 'Music', description: '예술과 문화 상담' },
-    { id: 'sports', name: '스포츠상담', icon: 'Zap', description: '운동과 스포츠 상담' },
-    { id: 'travel', name: '여행상담', icon: 'MapPin', description: '여행과 문화 상담' },
-    { id: 'cooking', name: '요리상담', icon: 'ChefHat', description: '요리와 음식 상담' },
-    { id: 'fashion', name: '패션상담', icon: 'Shirt', description: '패션과 스타일 상담' },
-    { id: 'pets', name: '반려동물상담', icon: 'Heart', description: '반려동물과 애완동물 상담' },
-    { id: 'gardening', name: '정원상담', icon: 'Flower', description: '원예와 정원 상담' },
-    { id: 'insurance', name: '보험상담', icon: 'Shield', description: '보험과 금융 상담' },
-    { id: 'study', name: '진학상담', icon: 'GraduationCap', description: '입시와 진학 상담' },
-    { id: 'other', name: '기타', icon: 'MoreHorizontal', description: '기타 상담 분야' },
-  ];
+  // API에서 카테고리 데이터 가져오기
+  const { data: apiCategories, isLoading: isLoadingCategories } = useCategoriesPublic();
 
-  const isLoadingCategories = false;
+  // API 카테고리를 UI 형식으로 변환
+  const categories: CategoryOption[] = apiCategories ? apiCategories.map((cat: Category) => ({
+    id: cat.slug,
+    name: cat.nameKo,
+    icon: cat.icon || 'Star',
+    description: cat.description || `${cat.nameKo} 관련 상담`
+  })) : [];
 
   const ageGroups: AgeGroupOption[] = [
     { id: 'teen', name: '10대', icon: 'School' },
@@ -248,12 +235,12 @@ export default function HomePage() {
                 <span className="text-sm">또는</span>
                 <div className="h-px bg-gray-300 w-16"></div>
               </div>
-              
+
               <div className="text-center">
                 <p className="text-gray-600 mb-4">
                   어떤 전문가를 찾아야 할지 모르겠나요?
                 </p>
-                <Link href="/experts">
+                <Link href="/chat">
                   <Button variant="ghost" size="lg" className="px-6 py-3 border border-gray-200 hover:bg-gray-50">
                     AI 채팅 상담하기
                   </Button>
@@ -365,7 +352,7 @@ export default function HomePage() {
                 <p className="text-gray-500 mb-6">
                   다른 조건으로 다시 검색해보시거나 AI 채팅 상담을 이용해보세요.
                 </p>
-                <Link href="/experts">
+                <Link href="/chat">
                   <Button className="px-6 py-3 bg-blue-600 text-white hover:bg-blue-700">
                     AI 채팅 상담하기
                   </Button>
@@ -394,8 +381,8 @@ export default function HomePage() {
       <section className="w-full py-24 md:py-32 bg-gradient-to-br from-gray-50 to-slate-100">
         <div className="w-full px-6">
           <div className="text-center mb-20 md:mb-24 max-w-4xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">평점 상위 전문가</h2>
-            <p className="text-xl text-gray-600 leading-relaxed">검증된 전문가들과 함께 문제를 해결해보세요</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">평점 상위 전문가</h2>
+            <p className="text-lg text-gray-600 leading-relaxed">검증된 전문가들과 함께 문제를 해결해보세요</p>
           </div>
 
           {isLoading ? (
@@ -432,11 +419,15 @@ export default function HomePage() {
                     <p className="text-gray-600 text-lg mb-4">{expert.title}</p>
                   )}
                   <div className="flex flex-wrap gap-2 justify-center mb-4">
-                    {expert.categories.map((category) => (
+                    {Array.isArray(expert.categories) ? expert.categories.map((category) => (
                       <Badge key={category} variant="primary">
                         {mapCategoryToKorean(category)}
                       </Badge>
-                    ))}
+                    )) : (
+                      <Badge variant="primary">
+                        일반 상담
+                      </Badge>
+                    )}
                   </div>
                   <div className="mb-4">
                     <RatingStars 

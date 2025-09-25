@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { verifyEmailByToken, resendVerification } from '@/src/lib/auth';
+import { verifyEmailByToken, resendVerification } from '@/lib/auth';
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();

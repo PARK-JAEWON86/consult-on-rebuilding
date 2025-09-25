@@ -1,5 +1,22 @@
 import { api } from '@/lib/api';
 
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  roles: ('USER' | 'EXPERT' | 'ADMIN')[];
+  createdAt: string;
+  updatedAt: string;
+  credits?: number;
+  avatarUrl?: string;
+  isEmailVerified?: boolean;
+}
+
+export interface AuthState {
+  user: User | null;
+  isLoading: boolean;
+}
+
 export async function register(payload: { email: string; password: string; name: string }) {
   const r = await api.post('/auth/register', payload);
   return r.data;

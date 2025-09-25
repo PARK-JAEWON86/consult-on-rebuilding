@@ -24,7 +24,6 @@ interface ExpertProfile {
   avgRating?: number;
 }
 import ExpertLevelBadge from "./ExpertLevelBadge";
-import LoginModal from "@/components/auth/LoginModal";
 
 // API를 통해 전문가 레벨과 요금 정보를 가져오는 함수
 const getExpertLevelPricing = async (expertId: number, totalSessions: number = 0, avgRating: number = 0) => {
@@ -167,32 +166,9 @@ export default function ExpertCard({
   } | null>(null);
   const [isLoadingPricing, setIsLoadingPricing] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // 전문가 데이터 정규화
   const expert = normalizeExpert(rawExpert);
-
-  // 인증 상태 확인
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        const storedUser = localStorage.getItem('consulton-user');
-        const storedAuth = localStorage.getItem('consulton-auth');
-        
-        if (storedUser && storedAuth) {
-          const isAuth = JSON.parse(storedAuth);
-          setIsAuthenticated(isAuth);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        setIsAuthenticated(false);
-      }
-    };
-    
-    checkAuth();
-  }, []);
 
   // 전문가 레벨과 요금 정보 로드
   useEffect(() => {
@@ -224,15 +200,9 @@ export default function ExpertCard({
 
   // 요금 정보가 로딩 중이거나 없을 때 기본값 사용 (레벨은 실시간 계산됨)
   const creditsPerMinute = pricingInfo?.creditsPerMinute || calculateCreditsByLevel(1); // 기본값 사용
-  const tierName = pricingInfo?.tierName || "Tier 1 (Lv.1-99)";
 
   const handleProfileView = () => {
-    // 로그인하지 않은 경우 로그인 모달 표시
-    if (!isAuthenticated) {
-      setShowLoginModal(true);
-      return;
-    }
-
+    // 프로필 보기는 로그인 없이도 가능하도록 수정
     if (onProfileView) {
       onProfileView(expert);
     } else if (expert.id) {
@@ -244,7 +214,7 @@ export default function ExpertCard({
         if (searchContext.ageGroup) params.set('fromAgeGroup', searchContext.ageGroup);
         if (searchContext.startDate) params.set('fromStartDate', searchContext.startDate);
         if (searchContext.endDate) params.set('fromEndDate', searchContext.endDate);
-        
+
         if (params.toString()) {
           url += `?${params.toString()}`;
         }
@@ -290,8 +260,7 @@ export default function ExpertCard({
               <span className="text-sm font-semibold text-gray-900">
                 {(() => {
                   const displayRating = expert.avgRating || expert.rating || 4.5;
-                  console.log(`[ExpertCard DEBUG] ${expert.name}: avgRating=${expert.avgRating}, rating=${expert.rating}, 표시값=${displayRating}`);
-                  return displayRating;
+                  return Number(displayRating).toFixed(1);
                 })()}
               </span>
               <span className="text-sm text-gray-500">
@@ -416,7 +385,7 @@ export default function ExpertCard({
           <div className="flex items-center">
             <Star className="h-4 w-4 text-yellow-500 fill-current" />
             <span className="text-sm font-semibold text-gray-900 ml-1">
-              {expert.avgRating || expert.rating || 4.5}
+              {Number(expert.avgRating || expert.rating || 4.5).toFixed(1)}
             </span>
             <span className="text-sm text-gray-500 ml-1">
               ({expert.reviewCount})
@@ -512,13 +481,6 @@ export default function ExpertCard({
         </div>
       </div>
     </div>
-
-    {/* 로그인 모달 */}
-    <LoginModal
-      isOpen={showLoginModal}
-      onClose={() => setShowLoginModal(false)}
-      redirectPath={`/experts/${expert.id}`}
-    />
   </>
   );
 }

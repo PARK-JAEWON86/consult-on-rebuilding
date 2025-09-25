@@ -27,7 +27,7 @@ export default function ReservationsPage() {
   // 예약 데이터 로드
   const { data: reservationsData, isLoading, error } = useQuery({
     queryKey: ['reservations', user?.id],
-    queryFn: () => listReservationsByUser(user?.id || 0),
+    queryFn: () => listReservationsByUser(Number(user?.id) || 0),
     enabled: !!user?.id && isAuthenticated,
   });
 
@@ -101,13 +101,16 @@ export default function ReservationsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">내 예약</h1>
-        <p className="mt-1 text-sm text-gray-600">
+    <div className="max-w-7xl mx-auto">
+      {/* 헤더 */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">내 예약</h1>
+        <p className="text-gray-600">
           나의 상담 예약 내역을 확인하고 관리할 수 있습니다.
         </p>
       </div>
+
+      <div className="space-y-6">
 
       {isLoading ? (
         <div className="bg-white rounded-lg shadow p-6">
@@ -268,9 +271,10 @@ export default function ReservationsPage() {
                 </p>
               </div>
             )}
-          </div>
         </div>
+      </div>
       )}
+      </div>
     </div>
   );
 }

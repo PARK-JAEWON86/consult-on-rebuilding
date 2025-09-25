@@ -193,15 +193,15 @@ export default function StatsSection() {
               }}
             >
               <div className="mb-2">
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">
-                  <AnimatedNumber 
+                <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
+                  <AnimatedNumber
                     targetNumber={stat.targetNumber}
                     suffix={stat.suffix}
                     isVisible={isVisible}
                     duration={2000 + index * 200}
                   />
                 </div>
-                <div className="text-lg font-semibold text-gray-700">
+                <div className="text-base font-semibold text-gray-700">
                   {stat.label}
                 </div>
               </div>

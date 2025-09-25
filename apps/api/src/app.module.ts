@@ -4,6 +4,7 @@ import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
 import { CategoriesModule } from './categories/categories.module'
+import { CommunityModule } from './community/community.module'
 import { CreditsModule } from './credits/credits.module'
 import { ExpertsModule } from './experts/experts.module'
 import { FilesModule } from './files/files.module'
@@ -16,6 +17,11 @@ import { ReviewsModule } from './reviews/reviews.module'
 import { SessionsModule } from './sessions/sessions.module'
 import { UsersModule } from './users/users.module'
 import { MailModule } from './mail/mail.module'
+import { AIUsageModule } from './ai-usage/ai-usage.module'
+import { ExpertLevelsModule } from './expert-levels/expert-levels.module'
+import { ExpertStatsModule } from './expert-stats/expert-stats.module'
+import { ChatModule } from './chat/chat.module'
+import { SettlementsModule } from './settlements/settlements.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -29,8 +35,12 @@ import { validateEnv } from './config/env.schema'
     RedisModule,
     AuthModule,
     CategoriesModule,
+    CommunityModule,
     CreditsModule,
+    AIUsageModule,
     ExpertsModule,
+    ExpertLevelsModule,
+    ExpertStatsModule,
     FilesModule,
     HealthModule,
     PaymentsModule,
@@ -39,6 +49,8 @@ import { validateEnv } from './config/env.schema'
     SessionsModule,
     UsersModule,
     MailModule,
+    ChatModule,
+    SettlementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

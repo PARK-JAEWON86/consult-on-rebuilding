@@ -13,6 +13,22 @@ export class CreditsService {
     return agg._sum.amount ?? 0;
   }
 
+  async getTransactions(userId: number, limit: number = 10, offset: number = 0) {
+    return await this.prisma.creditTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+      select: {
+        id: true,
+        amount: true,
+        reason: true,
+        refId: true,
+        createdAt: true,
+      },
+    });
+  }
+
   // 음수/양수 트랜잭션 기록 (유니크 충돌시 멱등 처리)
   async record(userId: number, amount: number, reason: string, refId?: string) {
     try {

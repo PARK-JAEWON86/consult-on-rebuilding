@@ -45,8 +45,14 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const refreshUser = async () => {
     setIsLoading(true)
     try {
-      const response = await api.get<User>('/auth/me')
-      setUser(response.success ? response.data : null)
+      const response = await api.get('/auth/me')
+      console.log('Auth API response:', response)
+      if (response.success && response.data && response.data.user) {
+        console.log('User data:', response.data.user)
+        setUser(response.data.user)
+      } else {
+        setUser(null)
+      }
     } catch (error) {
       console.error('Failed to refresh user:', error)
       setUser(null)
@@ -63,7 +69,15 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
       if (response.success) {
         // 로그인 성공 후 사용자 정보 새로고침
         await refreshUser()
-        router.push('/dashboard')
+
+        // redirect 파라미터가 있으면 해당 페이지로, 없으면 dashboard로
+        const urlParams = new URLSearchParams(window.location.search)
+        const redirectPath = urlParams.get('redirect')
+        if (redirectPath) {
+          router.push(decodeURIComponent(redirectPath) as any)
+        } else {
+          router.push('/dashboard')
+        }
       }
     } catch (error) {
       console.error('Login failed:', error)
@@ -119,7 +133,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   // Google 로그인
   const googleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
     window.location.href = `${apiUrl}/auth/google`
   }
 

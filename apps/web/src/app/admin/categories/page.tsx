@@ -56,7 +56,7 @@ export default function AdminCategoriesPage() {
 
   // 권한 확인
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'ADMIN')) {
+    if (!isLoading && (!isAuthenticated || !user?.roles?.includes('ADMIN'))) {
       router.push('/');
     }
   }, [isAuthenticated, user, isLoading, router]);
@@ -141,7 +141,7 @@ export default function AdminCategoriesPage() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  if (!isAuthenticated || !user?.roles?.includes('ADMIN')) {
     return null;
   }
 
@@ -293,7 +293,7 @@ export default function AdminCategoriesPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end gap-2">
                           <button
-                            onClick={() => router.push(`/admin/categories/${category.id}/edit`)}
+                            onClick={() => router.push(`/admin/categories/${category.id}/edit` as any)}
                             className="text-blue-600 hover:text-blue-900"
                           >
                             <Edit className="w-4 h-4" />

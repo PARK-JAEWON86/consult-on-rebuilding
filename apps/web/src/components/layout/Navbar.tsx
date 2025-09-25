@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle } from 'lucide-react';
+import { useViewMode } from '@/contexts/ViewModeContext';
+import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface NavItem {
@@ -17,8 +18,12 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, isAuthenticated, logout, isLogoutLoading } = useAuth();
+  const { viewMode, switchToExpertMode, switchToUserMode } = useViewMode();
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<"user" | "expert">("user");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 관리자 권한 확인 함수
+  const isAdmin = user?.roles?.includes('ADMIN');
 
   // 디버깅 로그 제거됨 - 무한 루프 방지
 
@@ -34,37 +39,32 @@ export default function Navbar() {
     }
   };
 
-  // 뷰 모드 변경 함수
-  const handleViewModeChange = (mode: "user" | "expert") => {
-    setViewMode(mode);
-    localStorage.setItem('consulton-viewMode', JSON.stringify(mode));
-  };
+  // 기존 viewMode 로직은 Context로 이동되었습니다
 
-  // 뷰 모드 초기화
+  // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedViewMode = localStorage.getItem('consulton-viewMode');
-      if (storedViewMode) {
-        setViewMode(JSON.parse(storedViewMode));
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
       }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, []);
+  }, [showUserMenu]);
 
   const authenticatedNavItems: NavItem[] = [
-    {
-      href: '/dashboard',
-      label: '대시보드',
-      ariaLabel: '대시보드'
-    },
     {
       href: '/experts',
       label: '전문가 찾기',
       ariaLabel: '전문가 찾기'
     },
     {
-      href: '/credits',
-      label: '크레딧',
-      ariaLabel: '크레딧 충전'
+      href: '/community',
+      label: '커뮤니티',
+      ariaLabel: '커뮤니티'
     }
   ];
 
@@ -75,14 +75,9 @@ export default function Navbar() {
       ariaLabel: '전문가 찾기'
     },
     {
-      href: '/auth/login',
-      label: '로그인',
-      ariaLabel: '로그인 페이지로 이동'
-    },
-    {
-      href: '/auth/register',
-      label: '회원가입',
-      ariaLabel: '회원가입 페이지로 이동'
+      href: '/community',
+      label: '커뮤니티',
+      ariaLabel: '커뮤니티'
     }
   ];
 
@@ -112,12 +107,26 @@ export default function Navbar() {
               </Link>
             ))}
 
+            {/* 비인증 사용자를 위한 로그인 버튼 */}
+            {!isAuthenticated && (
+              <Button
+                onClick={() => router.push('/auth/login')}
+                variant="primary"
+                size="sm"
+                className="ml-2"
+              >
+                로그인
+              </Button>
+            )}
+
             {/* 인증된 사용자 메뉴 */}
             {isAuthenticated && user && (
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="true"
                 >
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     {user.avatarUrl ? (
@@ -132,29 +141,60 @@ export default function Navbar() {
                       </span>
                     )}
                   </div>
-                      <span>{user.name || '사용자'}</span>
+                      <span>{user.name || '사용자'}{isAdmin && ' (관리자)'}</span>
                 </button>
 
                 {/* 사용자 드롭다운 메뉴 */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                    role="menu"
+                    aria-orientation="vertical"
+                  >
                     <div className="py-1">
                       <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}</p>
+                        <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}{isAdmin && ' (관리자)'}</p>
                         <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                       
+                      {/* 대시보드 메뉴 - 현재 모드에 따라 표시 */}
+                      {viewMode === "expert" && user?.roles?.includes('EXPERT') ? (
+                        <Link
+                          href="/dashboard/expert"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <BarChart3 className="w-4 h-4 mr-3" />
+                          전문가 대시보드
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <Home className="w-4 h-4 mr-3" />
+                          클라이언트 대시보드
+                        </Link>
+                      )}
+
+                      <div className="border-t border-gray-100 my-1" />
+
                       {/* 전문가 계정이면 모드 전환, 일반 사용자면 전문가 지원 */}
                       {user?.roles?.includes('EXPERT') ? (
                         <button
                           onClick={() => {
-                            const nextMode = viewMode === "expert" ? "user" : "expert";
-                            handleViewModeChange(nextMode);
-                            const target = nextMode === "expert" ? "/dashboard/expert" : "/dashboard";
-                            router.push(target);
+                            if (viewMode === "expert") {
+                              switchToUserMode();
+                            } else {
+                              switchToExpertMode();
+                            }
                             setShowUserMenu(false);
                           }}
                           className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          role="menuitem"
                         >
                           <ArrowLeftRight className="w-4 h-4 mr-3" />
                           <span>
@@ -168,6 +208,7 @@ export default function Navbar() {
                             setShowUserMenu(false);
                           }}
                           className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          role="menuitem"
                         >
                           <ArrowLeftRight className="w-4 h-4 mr-3" />
                           <span>전문가 지원하기</span>
@@ -175,9 +216,10 @@ export default function Navbar() {
                       )}
 
                       <Link
-                        href={"/dashboard/profile" as any}
+                        href={(viewMode === "expert" ? "/dashboard/expert/profile" : "/dashboard/profile") as any}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
                       >
                         <User className="w-4 h-4 mr-3" />
                         프로필
@@ -185,9 +227,10 @@ export default function Navbar() {
                       
                       
                       <Link
-                        href={"/dashboard/settings" as any}
+                        href={(viewMode === "expert" ? "/dashboard/expert/settings" : "/dashboard/settings") as any}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
                       >
                         <Settings className="w-4 h-4 mr-3" />
                         설정
@@ -196,10 +239,11 @@ export default function Navbar() {
 
                       <button
                         onClick={() => {
-                          router.push("/community" as any);
+                          router.push("/community");
                           setShowUserMenu(false);
                         }}
                         className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        role="menuitem"
                       >
                         <HelpCircle className="w-4 h-4 mr-3" />
                         <span>도움말 및 지원</span>
@@ -211,6 +255,7 @@ export default function Navbar() {
                         onClick={handleLogout}
                         disabled={isLogoutLoading}
                         className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        role="menuitem"
                       >
                         <LogOut className="w-4 h-4 mr-3" />
                         {isLogoutLoading ? '로그아웃 중...' : '로그아웃'}
@@ -254,6 +299,23 @@ export default function Navbar() {
                 </Link>
               ))}
 
+              {/* 비인증 사용자를 위한 로그인 버튼 */}
+              {!isAuthenticated && (
+                <div className="px-3 py-2">
+                  <Button
+                    onClick={() => {
+                      router.push('/auth/login');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    variant="primary"
+                    size="sm"
+                    className="w-full"
+                  >
+                    로그인
+                  </Button>
+                </div>
+              )}
+
               {/* 모바일에서 인증된 사용자 정보 */}
               {isAuthenticated && user && (
                 <div className="border-t border-gray-200 pt-4 mt-4">
@@ -272,20 +334,44 @@ export default function Navbar() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}</p>
+                      <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}{isAdmin && ' (관리자)'}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
                     </div>
                   </div>
                   
                   <div className="mt-2 space-y-1">
+                    {/* 대시보드 메뉴 - 현재 모드에 따라 표시 */}
+                    {viewMode === "expert" && user?.roles?.includes('EXPERT') ? (
+                      <Link
+                        href="/dashboard/expert"
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <BarChart3 className="w-4 h-4 inline mr-2" />
+                        전문가 대시보드
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/dashboard"
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Home className="w-4 h-4 inline mr-2" />
+                        클라이언트 대시보드
+                      </Link>
+                    )}
+
+                    <div className="border-t border-gray-200 my-2" />
+
                     {/* 전문가 계정이면 모드 전환, 일반 사용자면 전문가 지원 */}
                     {user?.roles?.includes('EXPERT') ? (
                       <button
                         onClick={() => {
-                          const nextMode = viewMode === "expert" ? "user" : "expert";
-                          handleViewModeChange(nextMode);
-                          const target = nextMode === "expert" ? "/dashboard/expert" : "/dashboard";
-                          router.push(target);
+                          if (viewMode === "expert") {
+                            switchToUserMode();
+                          } else {
+                            switchToExpertMode();
+                          }
                           setIsMobileMenuOpen(false);
                         }}
                         className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
@@ -307,7 +393,7 @@ export default function Navbar() {
                     )}
 
                     <Link
-                      href={"/dashboard/profile" as any}
+                      href={(viewMode === "expert" ? "/dashboard/expert/profile" : "/dashboard/profile") as any}
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -317,7 +403,7 @@ export default function Navbar() {
                     
                     
                     <Link
-                      href={"/dashboard/settings" as any}
+                      href={(viewMode === "expert" ? "/dashboard/expert/settings" : "/dashboard/settings") as any}
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -328,7 +414,7 @@ export default function Navbar() {
 
                     <button
                       onClick={() => {
-                        router.push("/community" as any);
+                        router.push("/community");
                         setIsMobileMenuOpen(false);
                       }}
                       className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"

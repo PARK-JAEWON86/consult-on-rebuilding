@@ -15,6 +15,16 @@ interface CategoryFormData {
   isActive: boolean;
 }
 
+interface CategoryFormErrors {
+  slug?: string;
+  nameKo?: string;
+  nameEn?: string;
+  icon?: string;
+  description?: string;
+  order?: string;
+  isActive?: string;
+}
+
 export default function NewCategoryPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -30,11 +40,11 @@ export default function NewCategoryPage() {
   });
   
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Partial<CategoryFormData>>({});
+  const [errors, setErrors] = useState<CategoryFormErrors>({});
 
   // 권한 확인
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'ADMIN')) {
+    if (!isLoading && (!isAuthenticated || !user?.roles?.includes('ADMIN'))) {
       router.push('/');
     }
   }, [isAuthenticated, user, isLoading, router]);
@@ -47,16 +57,16 @@ export default function NewCategoryPage() {
       .replace(/\s+/g, '-')
       .replace(/[가-힣]/g, (char) => {
         const map: { [key: string]: string } = {
-          '가': 'ga', '나': 'na', '다': 'da', '라': 'ra', '마': 'ma',
+          '가': 'ga', '나': 'na', '다': 'da', '라': 'ra', '매': 'ma',
           '바': 'ba', '사': 'sa', '아': 'a', '자': 'ja', '차': 'cha',
           '카': 'ka', '타': 'ta', '파': 'pa', '하': 'ha',
           '법': 'law', '세': 'tax', '노': 'labor', '개': 'dev',
           '디': 'design', '마': 'marketing', '재': 'finance',
           '창': 'startup', '영': 'sales', '인': 'hr', '교': 'edu',
-          '번': 'translation', '음': 'music', '예': 'art', '영': 'video',
+          '번': 'translation', '음': 'music', '예': 'art', '비': 'video',
           '건': 'health', '반': 'pet', '여': 'travel', '요': 'cooking',
           '뷰': 'beauty', '부': 'realestate', '육': 'parenting',
-          '커': 'career', '상': 'product', '리': 'research', '마': 'mindset'
+          '커': 'career', '상': 'product', '리': 'research', '심': 'mindset'
         };
         return map[char] || char;
       });
@@ -78,7 +88,7 @@ export default function NewCategoryPage() {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<CategoryFormData> = {};
+    const newErrors: CategoryFormErrors = {};
 
     if (!formData.slug.trim()) {
       newErrors.slug = '슬러그는 필수입니다';
@@ -161,7 +171,7 @@ export default function NewCategoryPage() {
     );
   }
 
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  if (!isAuthenticated || !user?.roles?.includes('ADMIN')) {
     return null;
   }
 

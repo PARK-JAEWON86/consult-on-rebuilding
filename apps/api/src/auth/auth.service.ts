@@ -27,7 +27,7 @@ export class AuthService {
   async register({ email, passwordHash, name }: { email: string; passwordHash: string; name: string }) {
     // 1) 사용자 생성 (email unique)
     const user = await this.prisma.user.create({
-      data: { email, passwordHash, name },
+      data: { email, passwordHash, name, roles: JSON.stringify(['USER']) },
     });
 
     // 2) 인증 레코드 발급 + 이메일 발송
@@ -52,20 +52,14 @@ export class AuthService {
       data: { userId, codeHash, expiresAt },
     });
 
-    const verifyUrlBase = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const link = `${verifyUrlBase}/verify-email?token=${encodeURIComponent(token)}`;
+    // 사용자 정보 가져오기
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true }
+    });
 
-    const html = `
-      <div style="font-family:Arial,sans-serif">
-        <h2>Consult On 이메일 인증</h2>
-        <p>아래 버튼을 눌러 이메일 인증을 완료해 주세요. 유효시간은 1시간입니다.</p>
-        <p><a href="${link}" style="display:inline-block;padding:10px 16px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px">이메일 인증하기</a></p>
-        <p>또는 다음 링크를 복사해 브라우저에 붙여넣기:<br>${link}</p>
-        <p style="color:#6b7280;font-size:12px">본 메일은 발신전용입니다.</p>
-      </div>
-    `;
-
-    await this.mail.sendMail(email, 'Consult On 이메일 인증', html);
+    // 새로운 이메일 인증 메서드 사용
+    await this.mail.sendVerificationEmail(email, token, user?.name || undefined);
 
     return { id: ev.id };
   }
@@ -221,7 +215,18 @@ export class AuthService {
       })
     }
 
-    return { id: user.id, email: user.email, name: user.name }
+    // roles가 JSON 문자열인 경우 파싱
+    let roles = user.roles
+    if (typeof roles === 'string') {
+      try {
+        roles = JSON.parse(roles)
+      } catch (error) {
+        console.error('Failed to parse user roles:', error)
+        roles = ['USER'] // 기본값
+      }
+    }
+
+    return { id: user.id, email: user.email, name: user.name, roles }
   }
 
   async validateOAuthUser(profile: {

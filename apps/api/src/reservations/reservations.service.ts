@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreditsService } from '../credits/credits.service';
+import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ulid } from 'ulid';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class ReservationsService {
   constructor(
     private prisma: PrismaService,
     private creditsService: CreditsService,
+    private expertLevelsService: ExpertLevelsService,
   ) {}
 
   async create(dto: { userId: number; expertId: number; startAt: string; endAt: string; note?: string }) {
@@ -21,10 +23,17 @@ export class ReservationsService {
       });
     }
 
-    // 전문가 단가 조회
+    // 전문가 정보 조회
     const expert = await this.prisma.expert.findUnique({
       where: { id: dto.expertId },
-      select: { ratePerMin: true }
+      select: {
+        ratePerMin: true,
+        totalSessions: true,
+        ratingAvg: true,
+        experience: true,
+        reviewCount: true,
+        repeatClients: true
+      }
     });
 
     if (!expert) {
@@ -34,10 +43,25 @@ export class ReservationsService {
       });
     }
 
+    // 전문가 레벨별 크레딧 계산 (실시간)
+    const stats = {
+      totalSessions: expert.totalSessions || 0,
+      avgRating: expert.ratingAvg || 0,
+      reviewCount: expert.reviewCount || 0,
+      repeatClients: expert.repeatClients || 0,
+      likeCount: 0
+    };
+
+    const rankingScore = this.expertLevelsService.calculateRankingScore(stats);
+    const expertLevel = this.expertLevelsService.calculateLevelByScore(rankingScore);
+    const creditsPerMinute = this.expertLevelsService.calculateCreditsByLevel(expertLevel);
+
+    console.log(`전문가 ${dto.expertId} 레벨 정보: Lv.${expertLevel}, 크레딧/분: ${creditsPerMinute}`);
+
     // 예약 길이(분) 계산
     const durationMs = end.getTime() - start.getTime();
     const durationMin = Math.ceil(durationMs / 60_000); // 분 단위로 올림
-    const cost = Math.max(0, Math.round(expert.ratePerMin * durationMin));
+    const cost = Math.max(0, Math.round(creditsPerMinute * durationMin));
 
     // 사용자 잔액 확인
     const balance = await this.creditsService.getBalance(dto.userId);
@@ -180,15 +204,16 @@ export class ReservationsService {
     return this.prisma.reservation.findMany({
       where: { userId, NOT: { status: 'CANCELED' } },
       orderBy: { createdAt: 'desc' },
-      select: { 
+      select: {
         id: true,        // 추가: ensureSession에서 필요
-        displayId: true, 
-        expertId: true, 
-        startAt: true, 
-        endAt: true, 
-        status: true, 
+        displayId: true,
+        userId: true,    // 추가: 프론트엔드에서 필요
+        expertId: true,
+        startAt: true,
+        endAt: true,
+        status: true,
         cost: true,
-        note: true 
+        note: true
       },
     });
   }

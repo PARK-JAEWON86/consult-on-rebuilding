@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { api, ApiResponse } from './api';
 
 export interface Category {
   id: number;
@@ -12,20 +10,15 @@ export interface Category {
   order: number;
 }
 
-export interface CategoriesResponse {
-  success: boolean;
-  data: Category[];
-}
-
 // 퍼블릭 카테고리 목록 조회
 export async function getCategoriesPublic(): Promise<Category[]> {
   try {
-    const response = await axios.get<CategoriesResponse>(`${API_BASE_URL}/v1/categories`);
-    
-    if (response.data.success) {
-      return response.data.data;
+    const response = await api.get<Category[]>('/categories');
+
+    if (response.success && response.data) {
+      return response.data;
     }
-    
+
     throw new Error('Failed to fetch categories');
   } catch (error) {
     console.error('Error fetching categories:', error);

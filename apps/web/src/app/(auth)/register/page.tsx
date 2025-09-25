@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
-import { register, resendVerification } from '@/src/lib/auth';
+import { register, resendVerification } from '@/lib/auth';
 
 const registerSchema = z.object({
   email: z.string().email('올바른 이메일을 입력해주세요'),

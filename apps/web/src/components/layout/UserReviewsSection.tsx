@@ -15,6 +15,9 @@ interface Review {
   content: string;
   isPublic: boolean;
   createdAt: string;
+  user?: {
+    name: string;
+  };
 }
 
 type Props = {
@@ -57,10 +60,10 @@ export default function UserReviewsSection({
     return (
       <section className="w-full py-20 bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="w-full px-6 text-center mb-16">
-          <h2 id="reviews-title" className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <h2 id="reviews-title" className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             {title}
           </h2>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
+          <p className="text-lg text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
         </div>
         <div className="space-y-8">
           {/* First row skeleton */}
@@ -85,10 +88,10 @@ export default function UserReviewsSection({
     return (
       <section className="w-full py-20 bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="w-full px-6 text-center mb-12">
-          <h2 id="reviews-title" className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <h2 id="reviews-title" className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             {title}
           </h2>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
+          <p className="text-lg text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
         </div>
         <div className="text-center text-gray-500">
           리뷰를 불러오는 중 문제가 발생했습니다.
@@ -109,29 +112,32 @@ export default function UserReviewsSection({
     return (
       <section className="w-full py-20 bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="w-full px-6 text-center mb-12">
-          <h2 id="reviews-title" className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <h2 id="reviews-title" className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             {title}
           </h2>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
+          <p className="text-lg text-gray-600 max-w-4xl mx-auto leading-relaxed">{description}</p>
         </div>
         <div className="text-center text-gray-500">아직 리뷰가 없습니다. 첫 번째 리뷰를 남겨보세요!</div>
       </section>
     );
   }
 
-  const maskUserId = (userId: number) => {
-    const userStr = `사용자${userId}`;
-    if (userStr.length <= 2) {
-      return userStr.charAt(0) + '*';
+  const maskUserName = (userName: string) => {
+    if (userName.length <= 1) {
+      return userName;
     }
-    return userStr.charAt(0) + '*'.repeat(userStr.length - 2) + userStr.charAt(userStr.length - 1);
+    if (userName.length === 2) {
+      return userName.charAt(0) + '*';
+    }
+    // 3글자 이상인 경우 가운데 글자들을 *로 마스킹
+    return userName.charAt(0) + '*'.repeat(userName.length - 2) + userName.charAt(userName.length - 1);
   };
 
   const Card = ({ r, tone = 'blue' as 'blue' | 'emerald' }: { r: Review; tone?: 'blue' | 'emerald' }) => (
     <div className="bg-white rounded-2xl p-6 border-0 w-[340px] flex-shrink-0 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
       <div className="flex items-center gap-3 mb-3">
         <h4 className="font-bold text-gray-900 text-lg">
-          {maskUserId(r.userId)}
+          {r.user?.name ? maskUserName(r.user.name) : `사용자${r.userId}`}
         </h4>
         <div className={`w-1.5 h-1.5 ${tone === 'blue' ? 'bg-blue-400' : 'bg-emerald-400'} rounded-full`} />
         <span
@@ -160,8 +166,8 @@ export default function UserReviewsSection({
     <section className="w-full py-20 bg-gradient-to-br from-blue-50 to-indigo-100" aria-labelledby="reviews-title">
       <div className="w-full px-6">
         <div className="text-center mb-16 max-w-4xl mx-auto">
-          <h2 id="reviews-title" className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">{title}</h2>
-          <p className="text-xl text-gray-600 leading-relaxed">{description}</p>
+          <h2 id="reviews-title" className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{title}</h2>
+          <p className="text-lg text-gray-600 leading-relaxed">{description}</p>
         </div>
 
         {/* First row - slides left */}

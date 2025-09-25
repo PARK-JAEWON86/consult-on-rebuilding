@@ -17,6 +17,13 @@ export class ReviewsService {
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: {
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
 
     return { reviews };
@@ -39,19 +46,33 @@ export class ReviewsService {
     }
 
     try {
-      const review = await this.prisma.review.create({
-        data: {
-          displayId: ulid(),
-          userId: data.userId,
-          expertId: data.expertId,
-          reservationId: data.reservationId,
-          rating: data.rating,
-          content: data.content,
-          isPublic: data.isPublic ?? true,
-        },
+      // 트랜잭션으로 리뷰 생성과 reviewCount 업데이트를 동시에 처리
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // 1. 리뷰 생성
+        const review = await prisma.review.create({
+          data: {
+            displayId: ulid(),
+            userId: data.userId,
+            expertId: data.expertId,
+            reservationId: data.reservationId,
+            rating: data.rating,
+            content: data.content,
+            isPublic: data.isPublic ?? true,
+          },
+        });
+
+        // 2. Expert의 reviewCount 증가 (공개 리뷰인 경우에만)
+        if (data.isPublic !== false) {
+          await prisma.expert.update({
+            where: { id: data.expertId },
+            data: { reviewCount: { increment: 1 } },
+          });
+        }
+
+        return review;
       });
 
-      return { displayId: review.displayId };
+      return { displayId: result.displayId };
     } catch (error: any) {
       // P2002: Unique constraint violation (reservationId가 이미 존재)
       if (error.code === 'P2002') {

@@ -22,7 +22,7 @@ import {
 import { JwtGuard } from '../auth/jwt.guard';
 import { User } from '../auth/user.decorator';
 
-@Controller('v1/categories')
+@Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 

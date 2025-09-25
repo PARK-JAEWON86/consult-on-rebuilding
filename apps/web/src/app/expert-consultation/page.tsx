@@ -94,9 +94,9 @@ export default function ExpertConsultationPage() {
   );
   
   // 노트 기능
-  const userId = user?.id || 1;
+  const userId = Number(user?.id) || 1;
   const { content: noteContent, updateContent: updateNote, save: saveNote, saving: noteSaving } = useSessionNote(
-    sessionDetail?.displayId || '', 
+    sessionDetail?.displayId || '',
     userId
   );
   
@@ -124,7 +124,7 @@ export default function ExpertConsultationPage() {
   // 예약 데이터 로드
   const { data: reservationsData, isLoading: isLoadingReservations } = useQuery({
     queryKey: ['reservations', user?.id],
-    queryFn: () => listReservationsByUser(user?.id || 0),
+    queryFn: () => listReservationsByUser(Number(user?.id) || 0),
     enabled: !!user?.id && isAuthenticated,
   });
 

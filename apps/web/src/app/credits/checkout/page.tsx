@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -8,8 +8,34 @@ import Link from 'next/link';
 
 function CheckoutContent() {
   const sp = useSearchParams();
-  const orderId = sp.get('orderId') || '';
-  const amount = parseInt(sp.get('amount') || '0', 10);
+  const [orderId, setOrderId] = useState('');
+  const [amount, setAmount] = useState(0);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const orderIdParam = sp.get('orderId') || '';
+      const amountParam = parseInt(sp.get('amount') || '0', 10);
+      setOrderId(orderIdParam);
+      setAmount(amountParam);
+      setIsReady(true);
+    } catch (error) {
+      console.error('Error parsing search params:', error);
+      setIsReady(true);
+    }
+  }, [sp]);
+
+  if (!isReady) {
+    return (
+      <Card className="text-center py-12">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+        </div>
+      </Card>
+    );
+  }
 
   if (!orderId || !amount) {
     return (
