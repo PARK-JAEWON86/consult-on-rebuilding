@@ -47,6 +47,24 @@ export class ExpertsController {
     return { success: true, data };
   }
 
+  @Get('schedule/today')
+  @UseGuards(JwtGuard)
+  async todaySchedule(@Request() req: any) {
+    const userId = req.user.id;
+    const data = await this.svc.getTodaySchedule(userId);
+
+    return { success: true, data };
+  }
+
+  @Get('revenue/monthly')
+  @UseGuards(JwtGuard)
+  async monthlyRevenue(@Request() req: any) {
+    const userId = req.user.id;
+    const data = await this.svc.getMonthlyRevenue(userId);
+
+    return { success: true, data };
+  }
+
   @Get(':displayId/profile')
   async getProfile(@Param('displayId') displayId: string) {
     const data = await this.svc.getExpertProfile(displayId);

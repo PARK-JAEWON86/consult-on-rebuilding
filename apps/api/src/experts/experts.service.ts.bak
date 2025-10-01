@@ -5,12 +5,12 @@ import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ulid } from 'ulid';
 import { JsonValue } from '@prisma/client/runtime/library';
 
-type ListParams = {
-  page: number;
-  size: number;
-  q?: string;
-  category?: string;
-  sort?: string
+type ListParams = { 
+  page: number; 
+  size: number; 
+  q?: string; 
+  category?: string; 
+  sort?: string 
 };
 
 @Injectable()
@@ -380,7 +380,7 @@ export class ExpertsService {
       include: {
         reservations: {
           include: {
-            user: true,
+            reservation: true,
           },
         },
         reviews: true,
@@ -402,20 +402,12 @@ export class ExpertsService {
       };
     }
 
-    // Get all sessions for this expert's reservations
-    const reservationIds = expert.reservations.map(r => r.id);
-    const sessions = await this.prisma.session.findMany({
-      where: {
-        reservationId: { in: reservationIds },
-      },
-    });
-
     // Calculate consultation statistics
-    const totalConsultations = sessions.length;
-    const completedConsultations = sessions.filter(
+    const totalConsultations = expert.reservations.length;
+    const completedConsultations = expert.reservations.filter(
       (session) => session.status === 'COMPLETED',
     ).length;
-    const pendingConsultations = sessions.filter(
+    const pendingConsultations = expert.reservations.filter(
       (session) => session.status === 'SCHEDULED' || session.status === 'IN_PROGRESS',
     ).length;
 
@@ -423,18 +415,18 @@ export class ExpertsService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const completedReservations = expert.reservations.filter(
-      (reservation) => reservation.status === 'CONFIRMED',
+    const completedSessions = expert.reservations.filter(
+      (session) => session.status === 'COMPLETED' && session.reservation,
     );
 
-    const totalEarnings = completedReservations.reduce(
-      (sum, reservation) => sum + (reservation.cost || 0),
+    const totalEarnings = completedSessions.reduce(
+      (sum, session) => sum + (session.reservation?.total_price || 0),
       0,
     );
 
-    const thisMonthEarnings = completedReservations
-      .filter((reservation) => reservation.endAt && reservation.endAt >= startOfMonth)
-      .reduce((sum, reservation) => sum + (reservation.cost || 0), 0);
+    const thisMonthEarnings = completedSessions
+      .filter((session) => session.end_time && session.end_time >= startOfMonth)
+      .reduce((sum, session) => sum + (session.reservation?.total_price || 0), 0);
 
     // Calculate average rating
     const averageRating =
@@ -444,25 +436,25 @@ export class ExpertsService {
 
     // Calculate unique clients
     const uniqueClients = new Set(
-      completedReservations.map((reservation) => reservation.userId).filter(Boolean),
+      completedSessions.map((session) => session.reservation?.user_id).filter(Boolean),
     );
     const totalClients = uniqueClients.size;
 
     // Calculate new clients this month
     const newClientsThisMonth = new Set(
-      completedReservations
-        .filter((reservation) => reservation.endAt && reservation.endAt >= startOfMonth)
-        .map((reservation) => reservation.userId)
+      completedSessions
+        .filter((session) => session.end_time && session.end_time >= startOfMonth)
+        .map((session) => session.reservation?.user_id)
         .filter(Boolean),
     );
 
     // Calculate attendance rate
-    const scheduledReservations = expert.reservations.filter(
-      (reservation) => reservation.status !== 'CANCELED',
+    const scheduledSessions = expert.reservations.filter(
+      (session) => session.status !== 'CANCELED',
     );
     const attendanceRate =
-      scheduledReservations.length > 0
-        ? (completedConsultations / scheduledReservations.length) * 100
+      scheduledSessions.length > 0
+        ? (completedConsultations / scheduledSessions.length) * 100
         : 0;
 
     return {
@@ -497,24 +489,27 @@ export class ExpertsService {
       const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
       const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59);
 
-      // Get completed reservations for this month
-      const reservations = await this.prisma.reservation.findMany({
+      // Get completed sessions for this month
+      const sessions = await this.prisma.consultationSession.findMany({
         where: {
-          expertId: expert.id,
-          status: 'CONFIRMED',
-          endAt: {
+          expert_id: expert.id,
+          status: 'COMPLETED',
+          end_time: {
             gte: startOfMonth,
             lte: endOfMonth,
           },
         },
+        include: {
+          reservation: true,
+        },
       });
 
-      const revenue = reservations.reduce(
-        (sum, reservation) => sum + (reservation.cost || 0),
+      const revenue = sessions.reduce(
+        (sum, session) => sum + (session.reservation?.total_price || 0),
         0,
       );
 
-      const sessionCount = reservations.length;
+      const sessionCount = sessions.length;
 
       monthlyData.push({
         month: targetDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short' }),
@@ -536,55 +531,53 @@ export class ExpertsService {
       return [];
     }
 
-    // Get today's reservations
+    // Get today's consultation sessions
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const todayReservations = await this.prisma.reservation.findMany({
+    const todaySessions = await this.prisma.consultationSession.findMany({
       where: {
-        expertId: expert.id,
-        startAt: {
+        expert_id: expert.id,
+        scheduled_start_time: {
           gte: startOfDay,
           lt: endOfDay,
         },
         status: {
-          in: ['PENDING', 'CONFIRMED'],
+          in: ['SCHEDULED', 'IN_PROGRESS'],
         },
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        reservation: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
       orderBy: {
-        startAt: 'asc',
+        scheduled_start_time: 'asc',
       },
     });
 
-    return todayReservations.map((reservation) => {
-      // Calculate duration in minutes
-      const durationMs = reservation.endAt.getTime() - reservation.startAt.getTime();
-      const durationMinutes = Math.round(durationMs / (1000 * 60));
-
-      return {
-        id: reservation.id,
-        displayId: reservation.displayId,
-        time: reservation.startAt,
-        endTime: reservation.endAt,
-        duration: durationMinutes,
-        status: reservation.status,
-        clientName: reservation.user?.name || '알 수 없음',
-        clientEmail: reservation.user?.email,
-        consultationType: 'VIDEO',
-        price: reservation.cost || 0,
-      };
-    });
+    return todaySessions.map((session) => ({
+      id: session.id,
+      displayId: session.display_id,
+      time: session.scheduled_start_time,
+      endTime: session.scheduled_end_time,
+      duration: session.duration_minutes,
+      status: session.status,
+      clientName: session.reservation?.user?.name || '알 수 없음',
+      clientEmail: session.reservation?.user?.email,
+      consultationType: session.reservation?.consultation_type || 'VIDEO',
+      price: session.reservation?.total_price || 0,
+    }));
   }
 
   async getExpertProfile(displayId: string) {

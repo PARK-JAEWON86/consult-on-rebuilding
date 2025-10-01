@@ -42,4 +42,15 @@ export class AnalyticsController {
   async getExpertFunnel() {
     return this.service.getExpertFunnel()
   }
+
+  @Get('detailed')
+  @UseGuards(AdminRoleGuard)
+  @RequirePermission(AdminPermission.VIEW_ANALYTICS)
+  async getDetailedAnalytics(@Query('period') period?: '7d' | '30d' | '90d' | '1y') {
+    const data = await this.service.getDetailedAnalytics(period || '30d')
+    return {
+      success: true,
+      data,
+    }
+  }
 }

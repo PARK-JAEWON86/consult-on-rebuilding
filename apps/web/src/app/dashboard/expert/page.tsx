@@ -1,12 +1,41 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { api } from '@/lib/api';
+
+interface ExpertStats {
+  totalConsultations: number;
+  completedConsultations: number;
+  pendingConsultations: number;
+  totalEarnings: number;
+  averageRating: number;
+  totalClients: number;
+  thisMonthEarnings: number;
+  attendanceRate: number;
+  newClients: number;
+}
+
+interface TodayScheduleItem {
+  id: number;
+  displayId: string;
+  time: string;
+  endTime: string;
+  duration: number;
+  status: string;
+  clientName: string;
+  clientEmail?: string;
+  consultationType: string;
+  price: number;
+}
 
 export default function ExpertDashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const [stats, setStats] = useState<ExpertStats | null>(null);
+  const [schedule, setSchedule] = useState<TodayScheduleItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -14,7 +43,35 @@ export default function ExpertDashboardPage() {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (user) {
+      loadExpertData();
+    }
+  }, [user]);
+
+  async function loadExpertData() {
+    try {
+      setIsLoadingData(true);
+      const [statsResponse, scheduleResponse] = await Promise.all([
+        api.get<{ success: boolean; data: ExpertStats }>('/experts/stats'),
+        api.get<{ success: boolean; data: TodayScheduleItem[] }>('/experts/schedule/today'),
+      ]);
+
+      if (statsResponse.data.success) {
+        setStats(statsResponse.data.data);
+      }
+
+      if (scheduleResponse.data.success) {
+        setSchedule(scheduleResponse.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load expert data:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }
+
+  if (isLoading || isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -26,8 +83,33 @@ export default function ExpertDashboardPage() {
   }
 
   if (!user) {
-    return null; // Will redirect to login
+    return null;
   }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+    }).format(amount);
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getConsultationTypeLabel = (type: string) => {
+    switch (type) {
+      case 'VIDEO':
+        return '비디오 상담';
+      case 'VOICE':
+        return '음성 상담';
+      case 'TEXT':
+        return '텍스트 상담';
+      default:
+        return type;
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
@@ -54,7 +136,7 @@ export default function ExpertDashboardPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-600">오늘의 상담</p>
-              <p className="text-2xl font-bold text-blue-900">3건</p>
+              <p className="text-2xl font-bold text-blue-900">{schedule.length}건</p>
             </div>
           </div>
         </div>
@@ -69,7 +151,7 @@ export default function ExpertDashboardPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-600">대기 중인 예약</p>
-              <p className="text-2xl font-bold text-orange-900">7건</p>
+              <p className="text-2xl font-bold text-orange-900">{stats?.pendingConsultations || 0}건</p>
             </div>
           </div>
         </div>
@@ -84,7 +166,7 @@ export default function ExpertDashboardPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-600">이번 달 수익</p>
-              <p className="text-2xl font-bold text-green-900">₩1,250,000</p>
+              <p className="text-2xl font-bold text-green-900">{formatCurrency(stats?.thisMonthEarnings || 0)}</p>
             </div>
           </div>
         </div>
@@ -99,7 +181,7 @@ export default function ExpertDashboardPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-600">평균 평점</p>
-              <p className="text-2xl font-bold text-purple-900">4.8/5.0</p>
+              <p className="text-2xl font-bold text-purple-900">{stats?.averageRating || 0}/5.0</p>
             </div>
           </div>
         </div>
@@ -182,28 +264,31 @@ export default function ExpertDashboardPage() {
             전체 일정 보기
           </button>
         </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div>
-              <p className="font-medium text-gray-900">김철수님 - 법률 상담</p>
-              <p className="text-sm text-gray-600">계약서 검토 및 법적 조언</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-blue-600">14:00 - 15:00</p>
-              <p className="text-xs text-gray-500">비디오 상담</p>
-            </div>
+        {schedule.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            오늘 예정된 상담이 없습니다.
           </div>
-          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-            <div>
-              <p className="font-medium text-gray-900">이영희님 - 심리 상담</p>
-              <p className="text-sm text-gray-600">스트레스 관리 상담</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-green-600">16:00 - 17:00</p>
-              <p className="text-xs text-gray-500">음성 상담</p>
-            </div>
+        ) : (
+          <div className="space-y-3">
+            {schedule.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
+              >
+                <div>
+                  <p className="font-medium text-gray-900">{item.clientName} - {getConsultationTypeLabel(item.consultationType)}</p>
+                  <p className="text-sm text-gray-600">{item.duration}분 상담</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-blue-600">
+                    {formatTime(item.time)} - {formatTime(item.endTime)}
+                  </p>
+                  <p className="text-xs text-gray-500">{formatCurrency(item.price)}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
       {/* 퀵 액션 */}
