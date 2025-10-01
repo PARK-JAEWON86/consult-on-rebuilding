@@ -19,7 +19,11 @@ model User {
   providerId         String?
   emailVerifiedAt    DateTime?
   roles              Json
+  phoneNumber        String?
+  phoneVerified      Boolean             @default(false)
+  phoneVerifiedAt    DateTime?
   emailVerifications EmailVerification[]
+  phoneVerifications PhoneVerification[]
   reviews            Review[]
   notifications      Notification[]
   paymentMethods     PaymentMethod[]
@@ -27,6 +31,9 @@ model User {
   communityPosts     CommunityPost[]
   communityComments  CommunityComment[]
   communityLikes     CommunityLike[]
+  expert             Expert?
+  reservations       Reservation[]
+  adminUser          AdminUser?
 
   @@unique([provider, providerId])
 }
@@ -34,6 +41,7 @@ model User {
 model Expert {
   id                 Int              @id @default(autoincrement())
   displayId          String           @unique
+  userId             Int?             @unique
   name               String
   title              String?
   categories         Json
@@ -44,7 +52,6 @@ model Expert {
   isActive           Boolean          @default(true)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  ratePerMin         Int              @default(1000)
   availability       Json
   avgSessionDuration Int              @default(60)
   cancellationPolicy String?
@@ -81,6 +88,8 @@ model Expert {
   categoryLinks      ExpertCategory[]
   reviews            Review[]
   availabilitySlots  ExpertAvailability[]
+  reservations       Reservation[]
+  user               User?            @relation(fields: [userId], references: [id])
 }
 
 model Category {
@@ -121,6 +130,8 @@ model Reservation {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   cost      Int               @default(0)
+  user      User              @relation(fields: [userId], references: [id])
+  expert    Expert            @relation(fields: [expertId], references: [id])
 
   @@unique([expertId, startAt])
   @@index([userId, createdAt])
@@ -238,6 +249,22 @@ model EmailVerification {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model PhoneVerification {
+  id           Int       @id @default(autoincrement())
+  userId       Int?
+  phoneNumber  String
+  code         String
+  expiresAt    DateTime
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  attempts     Int       @default(0)
+  user         User?     @relation(fields: [userId], references: [id])
+
+  @@index([phoneNumber])
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 model AIUsage {
@@ -510,4 +537,60 @@ enum ExpertDayOfWeek {
   FRIDAY
   SATURDAY
   SUNDAY
+}
+
+model AdminUser {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  role        AdminRole @default(MODERATOR)
+  permissions Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  ANALYST
+}
+
+model DailyMetrics {
+  id                    Int      @id @default(autoincrement())
+  date                  DateTime @unique @db.Date
+  newUsers              Int      @default(0)
+  newExpertApplications Int      @default(0)
+  approvedExperts       Int      @default(0)
+  rejectedExperts       Int      @default(0)
+  totalReservations     Int      @default(0)
+  completedReservations Int      @default(0)
+  canceledReservations  Int      @default(0)
+  totalRevenue          Int      @default(0)
+  avgReservationValue   Float    @default(0)
+  activeUsers           Int      @default(0)
+  newReviews            Int      @default(0)
+  avgRating             Float    @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([date])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int
+  action      String
+  targetType  String
+  targetId    Int
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }

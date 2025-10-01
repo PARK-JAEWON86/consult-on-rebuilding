@@ -34,7 +34,8 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser)
-  const [isLoading, setIsLoading] = useState(false)
+  // 초기 로딩 상태를 true로 설정하여 인증 확인 중임을 표시
+  const [isLoading, setIsLoading] = useState(!initialUser)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [isRegisterLoading, setIsRegisterLoading] = useState(false)
   const [isLogoutLoading, setIsLogoutLoading] = useState(false)
@@ -43,21 +44,33 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   // 사용자 정보 새로고침
   const refreshUser = async () => {
+    console.log('🔄 AuthProvider: Starting refreshUser')
     setIsLoading(true)
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
+      console.log('🌐 AuthProvider: API URL:', apiUrl)
+      console.log('🌐 AuthProvider: Making API call to /auth/me')
       const response = await api.get('/auth/me')
-      console.log('Auth API response:', response)
+      console.log('📥 Auth API response:', response)
+
       if (response.success && response.data && response.data.user) {
-        console.log('User data:', response.data.user)
+        console.log('✅ User data found:', response.data.user)
         setUser(response.data.user)
       } else {
+        console.log('❌ No user data in response, setting user to null')
         setUser(null)
       }
     } catch (error) {
-      console.error('Failed to refresh user:', error)
+      console.error('🚨 Failed to refresh user:', error)
+      console.error('Error details:', {
+        message: error.message,
+        status: (error as any).status,
+        stack: error.stack
+      })
       setUser(null)
     } finally {
       setIsLoading(false)
+      console.log('🏁 AuthProvider: refreshUser completed')
     }
   }
 
@@ -70,13 +83,29 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
         // 로그인 성공 후 사용자 정보 새로고침
         await refreshUser()
 
-        // redirect 파라미터가 있으면 해당 페이지로, 없으면 dashboard로
+        // 사용자 정보 가져오기
+        const meResponse = await api.get('/auth/me')
+        const loggedInUser = meResponse.success ? meResponse.data?.user : null
+
+        // redirect 파라미터가 있으면 해당 페이지로
         const urlParams = new URLSearchParams(window.location.search)
         const redirectPath = urlParams.get('redirect')
+
         if (redirectPath) {
           router.push(decodeURIComponent(redirectPath) as any)
         } else {
-          router.push('/dashboard')
+          // 관리자 계정이면 관리자 대시보드로, 아니면 일반 대시보드로
+          const roles = Array.isArray(loggedInUser?.roles)
+            ? loggedInUser.roles
+            : typeof loggedInUser?.roles === 'string'
+              ? JSON.parse(loggedInUser.roles)
+              : []
+
+          if (roles.includes('ADMIN')) {
+            router.push('/admin')
+          } else {
+            router.push('/dashboard')
+          }
         }
       }
     } catch (error) {
@@ -133,7 +162,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   // Google 로그인
   const googleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
     window.location.href = `${apiUrl}/auth/google`
   }
 
@@ -154,7 +183,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   // 페이지 로드 시 인증 상태 확인 및 Google 로그인 후 리다이렉트 처리
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
-    
+
     if (urlParams.get('auth') === 'success') {
       // Google 로그인 성공 후 상태 확인
       setTimeout(() => {
@@ -164,8 +193,8 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
         newUrl.searchParams.delete('auth')
         window.history.replaceState({}, '', newUrl.toString())
       }, 500)
-    } else if (!user && !isLoading) {
-      // 초기 로드 시 사용자 정보가 없으면 새로고침
+    } else if (!initialUser) {
+      // initialUser가 없으면 (서버에서 인증 정보를 받지 못한 경우) 클라이언트에서 확인
       refreshUser()
     }
   }, [])

@@ -15,8 +15,9 @@ async function main() {
     update: {},
     create: {
       email: 'user1@test.com',
-      name: '김철수',
+      name: '김민준',
       passwordHash: testPassword,
+      roles: ['user'],
     },
   });
 
@@ -25,8 +26,42 @@ async function main() {
     update: {},
     create: {
       email: 'user2@test.com',
-      name: '이영희',
+      name: '이서연',
       passwordHash: testPassword,
+      roles: ['user'],
+    },
+  });
+
+  const expertUser1 = await prisma.user.upsert({
+    where: { email: 'expert1@test.com' },
+    update: {},
+    create: {
+      email: 'expert1@test.com',
+      name: '박지훈',
+      passwordHash: testPassword,
+      roles: ['expert'],
+    },
+  });
+
+  const expertUser2 = await prisma.user.upsert({
+    where: { email: 'expert2@test.com' },
+    update: {},
+    create: {
+      email: 'expert2@test.com',
+      name: '최수진',
+      passwordHash: testPassword,
+      roles: ['expert'],
+    },
+  });
+
+  const expertUser3 = await prisma.user.upsert({
+    where: { email: 'expert3@test.com' },
+    update: {},
+    create: {
+      email: 'expert3@test.com',
+      name: '정우성',
+      passwordHash: testPassword,
+      roles: ['expert'],
     },
   });
 
@@ -38,13 +73,34 @@ async function main() {
     update: {},
     create: {
       displayId: 'expert-001',
-      name: '박변호사',
+      userId: expertUser1.id,
+      name: '박지훈',
       title: '법무 전문가',
       categories: ['law', 'contract'],
       bio: '15년 경력의 법무 전문가입니다.',
       ratingAvg: 4.8,
       reviewCount: 127,
-      ratePerMin: 2000,
+      hourlyRate: 120000,
+      availability: {
+        timezone: 'Asia/Seoul',
+        schedule: {
+          monday: [{ start: '09:00', end: '18:00' }],
+          tuesday: [{ start: '09:00', end: '18:00' }],
+          wednesday: [{ start: '09:00', end: '18:00' }],
+          thursday: [{ start: '09:00', end: '18:00' }],
+          friday: [{ start: '09:00', end: '18:00' }]
+        }
+      },
+      certifications: ['변호사 자격증', '기업법무 전문가'],
+      consultationTypes: ['video', 'audio', 'chat'],
+      contactInfo: { email: 'park.lawyer@example.com', phone: '010-1234-5678' },
+      education: ['서울대학교 법학과', '사법연수원 수료'],
+      experience: 15,
+      languages: ['Korean', 'English'],
+      portfolioFiles: [],
+      portfolioItems: ['계약서 검토', '법인 설립', '노동법 상담'],
+      socialProof: { testimonials: [], achievements: [] },
+      specialties: ['계약법', '노동법', '기업법무']
     },
   });
 
@@ -53,13 +109,34 @@ async function main() {
     update: {},
     create: {
       displayId: 'expert-002',
-      name: '최세무사',
+      userId: expertUser2.id,
+      name: '최수진',
       title: '세무 전문가',
       categories: ['tax', 'accounting'],
       bio: '중소기업 세무 전문가입니다.',
       ratingAvg: 4.6,
       reviewCount: 89,
-      ratePerMin: 1500,
+      hourlyRate: 90000,
+      availability: {
+        timezone: 'Asia/Seoul',
+        schedule: {
+          monday: [{ start: '10:00', end: '17:00' }],
+          tuesday: [{ start: '10:00', end: '17:00' }],
+          wednesday: [{ start: '10:00', end: '17:00' }],
+          thursday: [{ start: '10:00', end: '17:00' }],
+          friday: [{ start: '10:00', end: '17:00' }]
+        }
+      },
+      certifications: ['세무사 자격증', '회계사 자격증'],
+      consultationTypes: ['video', 'audio', 'chat'],
+      contactInfo: { email: 'choi.tax@example.com', phone: '010-2345-6789' },
+      education: ['연세대학교 경영학과', '세무사 시험 합격'],
+      experience: 10,
+      languages: ['Korean'],
+      portfolioFiles: [],
+      portfolioItems: ['세무신고', '회계감사', '절세방안'],
+      socialProof: { testimonials: [], achievements: [] },
+      specialties: ['법인세', '소득세', '부가가치세']
     },
   });
 
@@ -68,13 +145,35 @@ async function main() {
     update: {},
     create: {
       displayId: 'expert-003',
-      name: '정컨설턴트',
+      userId: expertUser3.id,
+      name: '정우성',
       title: '경영 컨설팅',
       categories: ['business', 'startup'],
       bio: '스타트업 및 중소기업 경영 컨설팅 전문가입니다.',
       ratingAvg: 4.9,
       reviewCount: 203,
-      ratePerMin: 3000,
+      hourlyRate: 180000,
+      availability: {
+        timezone: 'Asia/Seoul',
+        schedule: {
+          monday: [{ start: '08:00', end: '20:00' }],
+          tuesday: [{ start: '08:00', end: '20:00' }],
+          wednesday: [{ start: '08:00', end: '20:00' }],
+          thursday: [{ start: '08:00', end: '20:00' }],
+          friday: [{ start: '08:00', end: '20:00' }],
+          saturday: [{ start: '10:00', end: '16:00' }]
+        }
+      },
+      certifications: ['경영지도사', 'MBA'],
+      consultationTypes: ['video', 'audio', 'chat'],
+      contactInfo: { email: 'jung.consultant@example.com', phone: '010-3456-7890' },
+      education: ['KAIST 경영대학원 MBA', '서울대학교 경영학과'],
+      experience: 12,
+      languages: ['Korean', 'English', 'Chinese'],
+      portfolioFiles: [],
+      portfolioItems: ['사업계획서 작성', '투자유치', '조직개편'],
+      socialProof: { testimonials: [], achievements: [] },
+      specialties: ['스타트업 경영', '투자유치', '사업전략']
     },
   });
 
@@ -260,8 +359,8 @@ async function main() {
   console.log('🎉 Database seeding completed successfully!');
   console.log(`
 📊 Created data summary:
-- Users: 2 (with passwords)
-- Experts: 3  
+- Users: 5 (2 clients + 3 experts with passwords)
+- Experts: 3
 - Reservations: 3 (1 past, 2 future)
 - Sessions: 3
 - Reviews: 6
@@ -269,8 +368,14 @@ async function main() {
 - Credit Transactions: 2
 
 🔐 Test Login Credentials:
+👥 Client Accounts:
 - Email: user1@test.com / Password: password123
 - Email: user2@test.com / Password: password123
+
+👨‍⚕️ Expert Accounts:
+- Email: expert1@test.com / Password: password123 (박지훈)
+- Email: expert2@test.com / Password: password123 (최수진)
+- Email: expert3@test.com / Password: password123 (정우성)
 
 🔗 Test URLs:
 - Login: /auth/login

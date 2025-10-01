@@ -127,8 +127,8 @@ export default function CreditsClient({ user }: CreditsClientProps) {
   ];
 
   return (
-    <main className="w-full px-6 py-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="w-full">
+      <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
         {/* 헤더 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">크레딧 충전</h1>

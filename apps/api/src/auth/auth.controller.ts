@@ -4,6 +4,8 @@ import { AuthService } from './auth.service'
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe'
 import { registerDto, loginDto, verifyEmailDto, resendDto } from './dto/auth.dto'
 import type { RegisterDto, LoginDto } from './dto/auth.dto'
+import { sendPhoneVerificationDto, verifyPhoneCodeDto } from './dto/phone-verification.dto'
+import type { SendPhoneVerificationDto, VerifyPhoneCodeDto } from './dto/phone-verification.dto'
 import { JwtGuard } from './jwt.guard'
 import { GoogleGuard } from './google.guard'
 import { User } from './user.decorator'
@@ -176,5 +178,55 @@ export class AuthController {
     const r = await this.auth.resendVerification(email);
     if (!r.ok) return fail(r.code!, r.message!);
     return ok({ sent: true });
+  }
+
+  // ==================== Phone Verification ====================
+
+  @Post('send-phone-verification')
+  @UsePipes(new ZodValidationPipe(sendPhoneVerificationDto))
+  async sendPhoneVerification(
+    @Body() dto: SendPhoneVerificationDto,
+    @Req() req: Request & { user?: any }
+  ) {
+    const userId = req.user?.id; // Optional: 로그인된 사용자
+    const result = await this.auth.sendPhoneVerification(dto.phoneNumber, userId);
+
+    if (!result.ok) {
+      return fail(result.code!, result.message!);
+    }
+
+    return ok({
+      sent: true,
+      expiresAt: result.expiresAt
+    });
+  }
+
+  @Post('verify-phone-code')
+  @UsePipes(new ZodValidationPipe(verifyPhoneCodeDto))
+  async verifyPhoneCode(
+    @Body() dto: VerifyPhoneCodeDto,
+    @Req() req: Request & { user?: any }
+  ) {
+    const userId = req.user?.id; // Optional: 로그인된 사용자
+    const result = await this.auth.verifyPhoneCode(dto.phoneNumber, dto.code, userId);
+
+    if (!result.ok) {
+      return fail(result.code!, result.message!);
+    }
+
+    return ok({
+      verified: true,
+      token: result.token
+    });
+  }
+
+  @Get('check-phone-verification')
+  async checkPhoneVerification(@Query('phoneNumber') phoneNumber: string) {
+    if (!phoneNumber || !/^01[0-9]{8,9}$/.test(phoneNumber)) {
+      return fail('INVALID_PHONE', '올바른 휴대폰 번호를 입력해주세요');
+    }
+
+    const verified = await this.auth.checkPhoneVerification(phoneNumber);
+    return ok({ verified });
   }
 }

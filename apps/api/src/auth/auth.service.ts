@@ -205,7 +205,32 @@ export class AuthService {
 
   async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: {
+        expert: {
+          select: {
+            id: true,
+            displayId: true,
+            hourlyRate: true,
+            name: true,
+            title: true,
+            specialty: true,
+            bio: true,
+            avatarUrl: true,
+            ratingAvg: true,
+            reviewCount: true,
+            isActive: true,
+            level: true,
+            responseTime: true
+          }
+        }
+      }
+    })
+
+    // 전문가 지원 상태 확인
+    const expertApplication = await this.prisma.expertApplication.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
     })
 
     if (!user) {
@@ -226,7 +251,23 @@ export class AuthService {
       }
     }
 
-    return { id: user.id, email: user.email, name: user.name, roles }
+    const result: any = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles,
+      avatarUrl: user.avatarUrl,
+      emailVerifiedAt: user.emailVerifiedAt,
+      expertApplicationStatus: expertApplication?.status || null,
+      expertApplicationId: expertApplication?.id || null
+    }
+
+    // Expert 정보가 있는 경우 추가
+    if (user.expert) {
+      result.expert = user.expert
+    }
+
+    return result
   }
 
   async validateOAuthUser(profile: {
@@ -298,5 +339,144 @@ export class AuthService {
 
   async storeRefreshToken(jti: string, userId: number, ttlSec: number) {
     await this.redis.setRefreshToken(jti, userId, ttlSec)
+  }
+
+  // ==================== Phone Verification ====================
+
+  /**
+   * 휴대폰 인증번호 발송
+   * @param phoneNumber - 휴대폰 번호 (예: 01012345678)
+   * @param userId - Optional: 로그인된 사용자 ID (전문가 등록 시)
+   */
+  async sendPhoneVerification(phoneNumber: string, userId?: number) {
+    // 최근 발송 확인 (3분 쿨다운)
+    const recentVerification = await this.prisma.phoneVerification.findFirst({
+      where: { phoneNumber },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const cooldownSec = 180; // 3분
+    if (recentVerification && Date.now() - recentVerification.createdAt.getTime() < cooldownSec * 1000) {
+      const remainingTime = Math.ceil((cooldownSec * 1000 - (Date.now() - recentVerification.createdAt.getTime())) / 1000);
+      return {
+        ok: false,
+        code: 'TOO_FREQUENT',
+        message: `${remainingTime}초 후에 다시 시도해주세요.`,
+      };
+    }
+
+    // 6자리 랜덤 코드 생성
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3분 후 만료
+
+    // DB에 저장
+    await this.prisma.phoneVerification.create({
+      data: {
+        phoneNumber,
+        code,
+        expiresAt,
+        userId: userId || null,
+      },
+    });
+
+    // TODO: SMS 발송 구현 (NCP SENS, Twilio 등)
+    // 현재는 개발 모드로 콘솔에 출력
+    console.log(`[SMS] ${phoneNumber}로 인증번호 발송: ${code}`);
+
+    return {
+      ok: true,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  /**
+   * 휴대폰 인증번호 확인
+   * @param phoneNumber - 휴대폰 번호
+   * @param code - 6자리 인증번호
+   * @param userId - Optional: 로그인된 사용자 ID
+   */
+  async verifyPhoneCode(phoneNumber: string, code: string, userId?: number) {
+    const now = new Date();
+
+    // 최근 유효한 인증번호 찾기
+    const verification = await this.prisma.phoneVerification.findFirst({
+      where: {
+        phoneNumber,
+        expiresAt: { gt: now },
+        verifiedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verification) {
+      return {
+        ok: false,
+        code: 'INVALID_OR_EXPIRED',
+        message: '유효하지 않거나 만료된 인증번호입니다.',
+      };
+    }
+
+    // 시도 횟수 체크 (최대 5회)
+    if (verification.attempts >= 5) {
+      return {
+        ok: false,
+        code: 'TOO_MANY_ATTEMPTS',
+        message: '인증 시도 횟수를 초과했습니다. 새로운 인증번호를 요청해주세요.',
+      };
+    }
+
+    // 코드 확인
+    if (verification.code !== code) {
+      // 시도 횟수 증가
+      await this.prisma.phoneVerification.update({
+        where: { id: verification.id },
+        data: { attempts: verification.attempts + 1 },
+      });
+
+      return {
+        ok: false,
+        code: 'INVALID_CODE',
+        message: '인증번호가 일치하지 않습니다.',
+      };
+    }
+
+    // 인증 성공 처리
+    await this.prisma.phoneVerification.update({
+      where: { id: verification.id },
+      data: { verifiedAt: now },
+    });
+
+    // 사용자 정보 업데이트 (로그인된 경우)
+    if (userId) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          phoneNumber,
+          phoneVerified: true,
+          phoneVerifiedAt: now,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      verified: true,
+      token: verification.id.toString(), // 나중에 참조용
+    };
+  }
+
+  /**
+   * 휴대폰 인증 상태 확인
+   */
+  async checkPhoneVerification(phoneNumber: string): Promise<boolean> {
+    const verification = await this.prisma.phoneVerification.findFirst({
+      where: {
+        phoneNumber,
+        verifiedAt: { not: null },
+      },
+      orderBy: { verifiedAt: 'desc' },
+    });
+
+    return !!verification;
   }
 }

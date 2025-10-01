@@ -38,8 +38,8 @@ echo "🌱 테스트 데이터 생성..."
 pnpm prisma db seed
 
 # 백엔드 서버 백그라운드 실행
-echo "🚀 백엔드 서버 실행 (포트 3001)..."
-PORT=3001 pnpm start:dev > ../../backend.log 2>&1 &
+echo "🚀 백엔드 서버 실행 (포트 4000)..."
+pnpm start:dev > ../../backend.log 2>&1 &
 BACKEND_PID=$!
 
 cd ../..
@@ -67,9 +67,9 @@ echo ""
 echo "✅ 개발 환경이 시작되었습니다!"
 echo ""
 echo "📍 접속 URL:"
-echo "   - 프론트엔드: http://localhost:3000"
-echo "   - 백엔드 API: http://localhost:3001"
-echo "   - 로그인 페이지: http://localhost:3000/auth/login"
+echo "   - 프론트엔드: http://localhost:3001"
+echo "   - 백엔드 API: http://localhost:4000"
+echo "   - 로그인 페이지: http://localhost:3001/auth/login"
 echo ""
 echo "🔐 테스트 계정:"
 echo "   - 이메일: user1@test.com"

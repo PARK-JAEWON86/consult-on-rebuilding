@@ -39,13 +39,15 @@ export class ExpertsService {
       ];
     }
 
-    // Category filter - prisma JSON field search
+    // Category filter - 정규화된 카테고리 테이블을 통해 검색
     if (category) {
-      // For JSON field searching in Prisma with MySQL
-      where.OR = [
-        ...(where.OR || []),
-        { specialty: { contains: category } }
-      ];
+      where.categoryLinks = {
+        some: {
+          category: {
+            slug: category
+          }
+        }
+      };
     }
 
     // Sorting
@@ -453,7 +455,6 @@ export class ExpertsService {
       description: profileData.description || profileData.bio,
       experience: profileData.experience,
       hourlyRate: profileData.hourlyRate,
-      pricePerMinute: profileData.pricePerMinute,
       cancellationPolicy: profileData.cancellationPolicy,
       isProfileComplete: profileData.isProfileComplete || false,
       mbti: profileData.mbti,

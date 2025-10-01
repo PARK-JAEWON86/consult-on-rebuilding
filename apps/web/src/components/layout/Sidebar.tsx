@@ -13,25 +13,17 @@ import {
   MessageCircle,
   Users,
   FileText,
-  Settings,
-  Bell,
   Star,
   CreditCard,
   PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Calendar,
   Phone,
   Video,
   TrendingUp,
 } from "lucide-react";
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  credits: number;
-  expertLevel: string;
-  role?: 'expert' | 'client' | 'admin';
-}
 
 
 interface SidebarProps {
@@ -39,6 +31,7 @@ interface SidebarProps {
   onClose?: () => void;
   onToggle?: () => void;
   variant?: "user" | "expert"; // 명시적으로 강제 가능
+  updateCSSVariable?: boolean; // CSS 변수 업데이트 제어
 }
 
 interface MenuItem {
@@ -65,10 +58,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   onToggle,
   variant,
+  updateCSSVariable = true,
 }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { viewMode } = useViewMode();
 
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
@@ -85,6 +79,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [nextSettlementDate, setNextSettlementDate] = useState<Date>(new Date());
   const [daysUntilSettlement, setDaysUntilSettlement] = useState<number>(0);
   const [settlementAmount, setSettlementAmount] = useState<number>(0);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
 
   // 정산 정보 계산 함수들
   const getNextSettlementDate = (): Date => {
@@ -271,6 +267,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     return "user";
   }, [variant, pathname, isHydrated, viewMode, user?.roles, isAuthenticated]);
 
+  // 사이드바 축소 상태를 CSS 변수로 설정 (전문가 모드에서는 IconOnlySidebar가 관리)
+  useEffect(() => {
+    if (updateCSSVariable && effectiveVariant !== "expert" && typeof window !== "undefined") {
+      document.documentElement.style.setProperty(
+        '--sidebar-width',
+        isCollapsed ? '64px' : '256px'
+      );
+    }
+  }, [isCollapsed, updateCSSVariable, effectiveVariant]);
+
+  // 모든 페이지에서 DashboardLayout의 IconOnlySidebar 사용하도록 완전 비활성화
+  // 기존 Sidebar는 더 이상 사용하지 않음
+  return null;
+
   // 하이드레이션 완료 체크 - 초기값이 true로 설정되어 있으므로 추가 로직 불필요
 
   // viewMode는 Context에서 자동으로 동기화됩니다
@@ -357,7 +367,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const primaryMenu: MenuItem[] = useMemo(() => {
     console.log('메뉴 재계산:', { effectiveVariant, user, isAuthenticated, viewMode });
     
-    if (effectiveVariant === "expert") {
+    if ((effectiveVariant as string) === "expert") {
       return [
         { id: "home", name: "대시보드", icon: Home, path: "/dashboard/expert" },
         {
@@ -504,7 +514,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       console.log('로그인된 사용자 메뉴 클릭:', { item: item.id, userRoles: user.roles, effectiveVariant });
       
       // 전문가 모드에서 전문가 전용 메뉴 클릭 시
-      if (effectiveVariant === "expert" && user.roles?.includes("EXPERT")) {
+      if ((effectiveVariant as string) === "expert" && user.roles?.includes("EXPERT")) {
         console.log('전문가 모드에서 전문가 메뉴 클릭:', item.id);
         router.push(item.path as any);
         if (onClose) onClose();
@@ -512,7 +522,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       }
 
       // 클라이언트 모드에서 일반 사용자 메뉴 클릭 시
-      if (effectiveVariant === "user" && (user.roles?.includes("USER") || user.roles?.includes("ADMIN"))) {
+      if ((effectiveVariant as string) === "user" && (user.roles?.includes("USER") || user.roles?.includes("ADMIN"))) {
         console.log('클라이언트 모드에서 일반 사용자 메뉴 클릭:', item.id);
         router.push(item.path as any);
         if (onClose) onClose();
@@ -702,10 +712,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={`fixed top-0 left-0 bottom-0 z-30 ${
-          effectiveVariant === "expert" 
-            ? "bg-gradient-to-b from-blue-50 to-indigo-50 border-r border-blue-200" 
+          (effectiveVariant as string) === "expert"
+            ? "bg-gradient-to-b from-blue-50 to-indigo-50 border-r border-blue-200"
             : "bg-white border-r border-gray-200"
-        } transform transition-transform duration-300 lg:translate-x-0 w-64 ${
+        } transform transition-all duration-300 lg:translate-x-0 ${
+          isCollapsed ? "w-16" : "w-64"
+        } ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -717,11 +729,28 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           {/* 메인 컨텐츠 영역 */}
           <div className="flex-1 flex flex-col min-h-0 px-3 py-4">
+            {/* 접기 버튼 */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className={`p-2 text-gray-600 hover:text-gray-800 transition-colors ${
+                  isCollapsed ? 'mx-auto' : ''
+                }`}
+                title={isCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+              >
+                {isCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
             {/* 고정 메뉴 영역 */}
             <nav className="space-y-1 flex-shrink-0 mb-4">
               {!isHydrated ? (
                 // 로딩 상태의 메뉴 스켈레톤
-                Array.from({ length: effectiveVariant === "expert" ? 7 : 6 }).map((_, index) => (
+                Array.from({ length: (effectiveVariant as string) === "expert" ? 7 : 6 }).map((_, index) => (
                   <div
                     key={index}
                     className="w-full flex items-center gap-3 rounded-md px-3 py-2"
@@ -743,46 +772,48 @@ const Sidebar: React.FC<SidebarProps> = ({
                       key={item.id}
                       onClick={() => handleNavigate(item)}
                       disabled={isDisabled}
-                      className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center ${
+                        isCollapsed ? "justify-center px-2" : "gap-3 px-3"
+                      } rounded-md py-2 text-sm font-medium transition-colors ${
                         isDisabled
                           ? "text-gray-400 cursor-not-allowed opacity-60"
                           : active
-                          ? effectiveVariant === "expert" 
-                            ? "bg-blue-100 text-blue-900" 
+                          ? (effectiveVariant as string) === "expert"
+                            ? "bg-blue-100 text-blue-900"
                             : "bg-gray-100 text-gray-900"
-                          : effectiveVariant === "expert"
+                          : (effectiveVariant as string) === "expert"
                             ? "text-blue-700 hover:bg-blue-50 hover:text-blue-900"
                             : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                       }`}
-                      title={isDisabled ? "로그인이 필요합니다" : ""}
+                      title={isDisabled ? "로그인이 필요합니다" : item.name}
                     >
                       <Icon
                         className={`h-5 w-5 ${
                           isDisabled 
                             ? "text-gray-400" 
                             : active 
-                            ? effectiveVariant === "expert" 
+                            ? (effectiveVariant as string) === "expert" 
                               ? "text-blue-900" 
                               : "text-gray-900"
-                            : effectiveVariant === "expert"
+                            : (effectiveVariant as string) === "expert"
                               ? "text-blue-600"
                               : "text-gray-500"
                         }`}
                       />
-                      <span>{item.name}</span>
+                      {!isCollapsed && <span>{item.name}</span>}
                       {/* 상담 요약 알림 표시 */}
-                      {item.id === "summary" && summaryNotificationCount > 0 && (
+                      {!isCollapsed && item.id === "summary" && summaryNotificationCount > 0 && (
                         <span className="ml-2 bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
                           {summaryNotificationCount}
                         </span>
                       )}
                       {/* 일반 알림 표시 */}
-                      {item.id === "notifications" && notificationCount > 0 && (
+                      {!isCollapsed && item.id === "notifications" && notificationCount > 0 && (
                         <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
                           {notificationCount}
                         </span>
                       )}
-                      {isDisabled && (
+                      {!isCollapsed && isDisabled && (
                         <span className="ml-auto text-xs text-gray-400">로그인 필요</span>
                       )}
                     </button>
@@ -792,7 +823,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </nav>
 
             {/* 스크롤 가능한 채팅 기록 영역 - AI 상담 메뉴 선택 시에만 표시 */}
-            {isAuthenticated && isActivePath("/chat") && (
+            {!isCollapsed && isAuthenticated && isActivePath("/chat") && (
               <div className="mt-16 flex-1 overflow-y-auto min-h-0">
                 <p className="px-3 text-xs font-semibold text-gray-400 mb-3">
                   AI 채팅 상담
@@ -894,7 +925,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {/* 스크롤 가능한 전문가 상담 일정 영역 - 전문가 상담 메뉴 선택 시에만 표시 */}
-            {isAuthenticated && isActivePath("/expert-consultation") && (
+            {!isCollapsed && isAuthenticated && isActivePath("/expert-consultation") && (
               <div className="mt-16 flex-1 overflow-y-auto min-h-0">
                 <p className="px-3 text-xs font-semibold text-gray-400 mb-3">
                   다가오는 상담 일정
@@ -942,46 +973,52 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* 크레딧/정산 정보 표시 - 하단 고정 */}
           {isAuthenticated && user && (
             <div className={`border-t p-3 flex-shrink-0 ${
-              effectiveVariant === "expert"
+              (effectiveVariant as string) === "expert"
                 ? "border-blue-200"
                 : "border-gray-200"
             }`}>
-              {effectiveVariant === "expert" ? (
+              {(effectiveVariant as string) === "expert" ? (
                 // 전문가 모드: 정산 정보 표시
                 <div className="bg-blue-50 rounded-md px-3 py-2">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} mb-2`}>
                     <TrendingUp className="h-5 w-5 text-blue-600" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900">
-                        다음 정산일
+                    {!isCollapsed && (
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900">
+                          다음 정산일
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          {nextSettlementDate.toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric'
+                          })} ({daysUntilSettlement}일 후)
+                        </div>
                       </div>
-                      <div className="text-xs text-blue-600">
-                        {nextSettlementDate.toLocaleDateString('ko-KR', {
-                          month: 'short',
-                          day: 'numeric'
-                        })} ({daysUntilSettlement}일 후)
-                      </div>
+                    )}
+                  </div>
+                  {!isCollapsed && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600">정산 예정액</span>
+                      <span className="text-sm font-bold text-blue-700">
+                        {formatCredits(settlementAmount)}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">정산 예정액</span>
-                    <span className="text-sm font-bold text-blue-700">
-                      {formatCredits(settlementAmount)}
-                    </span>
-                  </div>
+                  )}
                 </div>
               ) : (
                 // 사용자 모드: 기존 크레딧 표시
-                <div className="flex items-center gap-3 rounded-md px-3 py-2 bg-gray-50">
+                <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"} rounded-md px-3 py-2 bg-gray-50`}>
                   <CreditCard className="h-5 w-5 text-gray-600" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900">
-                      보유 크레딧
+                  {!isCollapsed && (
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900">
+                        보유 크레딧
+                      </div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {user?.credits?.toLocaleString() || 0} 크레딧
+                      </div>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {user.credits?.toLocaleString() || 0} 크레딧
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>

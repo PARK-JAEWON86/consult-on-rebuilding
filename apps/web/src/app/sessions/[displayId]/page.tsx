@@ -9,10 +9,13 @@ import { useRtmChat } from '@/features/sessions/useRtmChat';
 import { useRtmMembers } from '@/features/sessions/useRtmMembers';
 import { useSessionTimer } from '@/features/sessions/useSessionTimer';
 import { useSessionNote } from '@/features/sessions/useSessionNote';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function SessionRoomPage() {
   const { displayId } = useParams<{ displayId: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const { rtcRef, rtmRef, loadRtc, loadRtm } = useDynamicAgora();
   const { messages, bind, send } = useRtmChat();
   const { members, bindMemberEvents, reset: resetMembers } = useRtmMembers();
@@ -24,15 +27,15 @@ export default function SessionRoomPage() {
   // 세션 상세 정보
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // 타이머 및 페이즈
   const { phase, timeLeft } = useSessionTimer(
     sessionDetail?.reservation?.startAt || null,
     sessionDetail?.reservation?.endAt || null
   );
 
-  // 노트 (임시 userId = 1)
-  const userId = 1;
+  // 노트 (사용자 ID)
+  const userId = user?.id || 1;
   const { content: noteContent, updateContent: updateNote, save: saveNote, saving: noteSaving } = useSessionNote(displayId, userId);
 
   // 세션 상태
@@ -78,26 +81,26 @@ export default function SessionRoomPage() {
   // 자동 입장 처리
   useEffect(() => {
     if (!sessionDetail?.reservation) return;
-    
+
     const interval = setInterval(() => {
       if (phase === 'OPEN' && autoJoin && !joined && !joining) {
         join();
       }
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [phase, autoJoin, joined, joining, sessionDetail]);
 
   // 네트워크 품질 모니터링
   useEffect(() => {
     if (!joined || !rtcRef.current) return;
-    
+
     const interval = setInterval(() => {
       try {
         const client = rtcRef.current;
         const stats = client.getRTCStats?.();
         setRtcStats(stats || null);
-        
+
         // 원격 사용자 통계 (가능한 범위 내에서)
         const users = (client as any)?._users;
         if (users) {
@@ -111,7 +114,7 @@ export default function SessionRoomPage() {
         // 통계 수집 실패는 무시
       }
     }, 2000);
-    
+
     return () => clearInterval(interval);
   }, [joined]);
 
@@ -138,7 +141,9 @@ export default function SessionRoomPage() {
           remoteWrapRef.current.innerHTML = '';
           const div = document.createElement('div');
           div.style.width = '100%';
-          div.style.height = '360px';
+          div.style.height = '100%';
+          div.style.borderRadius = '8px';
+          div.style.overflow = 'hidden';
           remoteWrapRef.current.appendChild(div);
           user.videoTrack?.play(div);
         }
@@ -199,7 +204,7 @@ export default function SessionRoomPage() {
     if (sessionDetail?.reservation) {
       setShowReviewModal(true);
     } else {
-      router.replace('/me/reservations');
+      router.replace('/dashboard/reservations');
     }
   };
 
@@ -240,7 +245,9 @@ export default function SessionRoomPage() {
         localWrapRef.current.innerHTML = '';
         const div = document.createElement('div');
         div.style.width = '100%';
-        div.style.height = '360px';
+        div.style.height = '100%';
+        div.style.borderRadius = '8px';
+        div.style.overflow = 'hidden';
         localWrapRef.current.appendChild(div);
         localTracksRef.current.cam.play(div);
       }
@@ -265,25 +272,27 @@ export default function SessionRoomPage() {
       try {
         const screenTrack = await RTC.createScreenVideoTrack({ encoderConfig: 'auto' }, 'auto');
         screenTrackRef.current = screenTrack;
-        
+
         // 기존 카메라 트랙 언퍼블리시
         if (localTracksRef.current.cam && camOn) {
           try { await client.unpublish([localTracksRef.current.cam]); } catch {}
         }
-        
+
         // 화면공유 트랙 퍼블리시
         await client.publish([screenTrack]);
-        
+
         // 로컬 프리뷰
         if (localWrapRef.current) {
           localWrapRef.current.innerHTML = '';
           const div = document.createElement('div');
           div.style.width = '100%';
-          div.style.height = '360px';
+          div.style.height = '100%';
+          div.style.borderRadius = '8px';
+          div.style.overflow = 'hidden';
           localWrapRef.current.appendChild(div);
           (screenTrack as any).play(div);
         }
-        
+
         setScreenOn(true);
       } catch (error) {
         console.error('Screen share failed:', error);
@@ -298,7 +307,7 @@ export default function SessionRoomPage() {
           screenTrackRef.current.close();
           screenTrackRef.current = null;
         }
-        
+
         // 카메라가 켜져있었다면 다시 퍼블리시
         if (localTracksRef.current.cam && camOn) {
           await client.publish([localTracksRef.current.cam]);
@@ -306,14 +315,16 @@ export default function SessionRoomPage() {
             localWrapRef.current.innerHTML = '';
             const div = document.createElement('div');
             div.style.width = '100%';
-            div.style.height = '360px';
+            div.style.height = '100%';
+            div.style.borderRadius = '8px';
+            div.style.overflow = 'hidden';
             localWrapRef.current.appendChild(div);
             localTracksRef.current.cam.play(div);
           }
         } else if (localWrapRef.current) {
           localWrapRef.current.innerHTML = '';
         }
-        
+
         setScreenOn(false);
       } catch (error) {
         console.error('Stop screen share failed:', error);
@@ -324,7 +335,7 @@ export default function SessionRoomPage() {
   // 후기 제출
   const submitReview = async () => {
     if (!sessionDetail?.reservation || reviewData.content.length < 10) return;
-    
+
     try {
       await createReview({
         userId,
@@ -334,10 +345,10 @@ export default function SessionRoomPage() {
         content: reviewData.content,
         isPublic: true
       });
-      
+
       alert('후기가 등록되었습니다.');
       setShowReviewModal(false);
-      router.replace('/me/reservations');
+      router.replace('/dashboard/reservations');
     } catch (error) {
       console.error('Review submission failed:', error);
       alert('후기 등록에 실패했습니다. 다시 시도해주세요.');
@@ -350,19 +361,23 @@ export default function SessionRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 사용자 역할 판단 (expert인지 client인지)
+  const userRole = user?.role || 'user';
+  const dashboardVariant = userRole === 'expert' ? 'expert' : 'user';
+
   if (loading) {
     return (
-      <main className="container mx-auto px-4 py-6">
+      <DashboardLayout variant={dashboardVariant}>
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">세션 정보를 불러오는 중...</div>
         </div>
-      </main>
+      </DashboardLayout>
     );
   }
 
   return (
-    <>
-      <main className="container mx-auto px-4 py-6 space-y-4">
+    <DashboardLayout variant={dashboardVariant}>
+      <div className="max-w-7xl mx-auto space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">상담 세션</h1>
@@ -385,7 +400,7 @@ export default function SessionRoomPage() {
                 세션 종료
               </span>
             )}
-            
+
             <select
               value={role}
               onChange={(e)=>setRole(e.target.value as any)}
@@ -406,11 +421,11 @@ export default function SessionRoomPage() {
               />
               자동 입장
             </label>
-            
+
             {!joined ? (
-              <button 
-                onClick={join} 
-                disabled={joining || phase === 'WAIT' || phase === 'CLOSED'} 
+              <button
+                onClick={join}
+                disabled={joining || phase === 'WAIT' || phase === 'CLOSED'}
                 className="rounded-lg border px-4 py-2 disabled:opacity-50"
               >
                 {joining ? '입장 중…' : '입장하기'}
@@ -451,190 +466,180 @@ export default function SessionRoomPage() {
           </div>
         </div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* 좌: 채팅/노트 (확장) */}
-          <div className="lg:col-span-3">
-            {/* 네트워크 품질 (상단 작은 카드) */}
-            {joined && (
-              <div className="rounded-2xl border p-3 mb-4">
-                <div className="text-sm font-medium mb-2">네트워크 품질</div>
-                <div className="text-xs space-y-1">
-                  <div className="flex justify-between">
-                    <span>Local:</span>
-                    <span>
-                      {rtcStats?.uplinkBitrate ? `${Math.round(rtcStats.uplinkBitrate / 1000)}kbps` : '-'} / 
-                      {rtcStats?.rtt ? ` ${rtcStats.rtt}ms` : ' -ms'} / 
-                      {rtcStats?.cpuUsage ? ` ${rtcStats.cpuUsage}%` : ' -%'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Remote:</span>
-                    <span>
-                      {remoteStats?.downlinkBitrate ? `${Math.round(remoteStats.downlinkBitrate / 1000)}kbps` : '-'} / 
-                      {remoteStats?.receiveDelay ? ` ${remoteStats.receiveDelay}ms` : ' -ms'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 참가자 목록 (상단 작은 카드) */}
-            <div className="rounded-2xl border p-3 mb-4">
-              <div className="text-sm font-medium mb-2">참가자</div>
-              <div className="flex flex-wrap gap-2">
-                {members.map(id => (
-                  <div key={id} className="flex items-center gap-1 bg-gray-100 rounded-full px-3 py-1">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-300 text-xs">
-                      {id[0]?.toUpperCase()}
-                    </span>
-                    <span className="text-xs">{id}{id === uid ? ' (나)' : ''}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 채팅/메모 탭 (메인) */}
-            <div className="rounded-2xl border p-4 flex flex-col h-[600px]">
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setActiveTab('chat')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    activeTab === 'chat' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                >
-                  채팅
-                </button>
-                <button
-                  onClick={() => setActiveTab('note')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    activeTab === 'note' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                >
-                  메모
-                </button>
-              </div>
-
-              {activeTab === 'chat' ? (
-                <>
-                  <div className="flex-1 overflow-auto space-y-3 pr-2 mb-4">
-                    {messages.map(m => (
-                      <div key={m.id} className={`max-w-[70%] rounded-xl px-4 py-3 text-sm ${
-                        m.uid === 'me' ? 'ml-auto bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <div className="text-xs opacity-70 mb-1">{m.uid}</div>
-                        <div className="leading-relaxed">{m.text}</div>
+        {/* 상담 영역 - 단일 컬럼 레이아웃 */}
+        <section className="space-y-6">
+          {/* 상단: 비디오 화면들 */}
+          <div className="bg-white rounded-2xl border p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">화상 상담</h3>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                {/* 참가자 정보 */}
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">참가자:</span>
+                  <div className="flex gap-2">
+                    {members.map(id => (
+                      <div key={id} className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1">
+                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-300 text-xs">
+                          {id[0]?.toUpperCase()}
+                        </span>
+                        <span className="text-xs">{id}{id === uid ? ' (나)' : ''}</span>
                       </div>
                     ))}
                   </div>
-                  <form
-                    className="flex gap-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const input = (e.currentTarget.elements.namedItem('msg') as HTMLInputElement);
-                      const v = input.value;
-                      send(v);
-                      input.value = '';
-                    }}
-                  >
-                    <input
-                      name="msg"
-                      placeholder="메시지를 입력하세요"
-                      className="flex-1 rounded-lg border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button className="rounded-lg bg-blue-600 text-white px-6 py-3 text-sm font-medium hover:bg-blue-700">
-                      전송
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <div className="flex-1">
-                    <textarea
-                      value={noteContent}
-                      onChange={(e) => updateNote(e.target.value)}
-                      placeholder="개인 메모를 작성하세요..."
-                      className="w-full h-full p-4 border rounded-lg resize-none text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                </div>
+
+                {/* 네트워크 품질 */}
+                {joined && rtcStats && (
+                  <div className="text-xs text-gray-500">
+                    네트워크: {rtcStats?.uplinkBitrate ? `${Math.round(rtcStats.uplinkBitrate / 1000)}kbps` : '-'} /
+                    {rtcStats?.rtt ? ` ${rtcStats.rtt}ms` : ' -ms'}
                   </div>
-                  <button
-                    onClick={() => saveNote(noteContent)}
-                    disabled={noteSaving}
-                    className="mt-3 rounded-lg bg-blue-600 text-white px-6 py-3 text-sm font-medium disabled:opacity-50 hover:bg-blue-700"
-                  >
-                    {noteSaving ? '저장 중...' : '저장'}
-                  </button>
-                </>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* 비디오 그리드 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-sm font-medium mb-2 text-gray-700">내 화면</div>
+                <div ref={localWrapRef} className="aspect-video rounded-lg bg-gray-200 overflow-hidden" />
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-sm font-medium mb-2 text-gray-700">상대방 화면</div>
+                <div ref={remoteWrapRef} className="aspect-video rounded-lg bg-gray-200 overflow-hidden" />
+              </div>
             </div>
           </div>
 
-          {/* 우: 비디오 화면들 (축소) */}
-          <aside className="space-y-4">
-            <div className="rounded-2xl border p-3">
-              <div className="text-sm font-medium mb-2">내 화면</div>
-              <div ref={localWrapRef} className="h-[180px] rounded-xl bg-gray-100" />
+          {/* 하단: 채팅/메모 영역 */}
+          <div className="bg-white rounded-2xl border p-6">
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  activeTab === 'chat' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                채팅
+              </button>
+              <button
+                onClick={() => setActiveTab('note')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  activeTab === 'note' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                메모
+              </button>
             </div>
-            <div className="rounded-2xl border p-3">
-              <div className="text-sm font-medium mb-2">상대 화면</div>
-              <div ref={remoteWrapRef} className="h-[180px] rounded-xl bg-gray-100" />
-            </div>
-          </aside>
+
+            {activeTab === 'chat' ? (
+              <div className="flex flex-col h-[400px]">
+                <div className="flex-1 overflow-auto space-y-3 pr-2 mb-4">
+                  {messages.map(m => (
+                    <div key={m.id} className={`max-w-[70%] rounded-xl px-4 py-3 text-sm ${
+                      m.uid === 'me' ? 'ml-auto bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
+                    }`}>
+                      <div className="text-xs opacity-70 mb-1">{m.uid}</div>
+                      <div className="leading-relaxed">{m.text}</div>
+                    </div>
+                  ))}
+                </div>
+                <form
+                  className="flex gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = (e.currentTarget.elements.namedItem('msg') as HTMLInputElement);
+                    const v = input.value;
+                    send(v);
+                    input.value = '';
+                  }}
+                >
+                  <input
+                    name="msg"
+                    placeholder="메시지를 입력하세요"
+                    className="flex-1 rounded-lg border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button className="rounded-lg bg-blue-600 text-white px-6 py-3 text-sm font-medium hover:bg-blue-700">
+                    전송
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="flex flex-col h-[400px]">
+                <div className="flex-1">
+                  <textarea
+                    value={noteContent}
+                    onChange={(e) => updateNote(e.target.value)}
+                    placeholder="개인 메모를 작성하세요..."
+                    className="w-full h-full p-4 border rounded-lg resize-none text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={() => saveNote(noteContent)}
+                  disabled={noteSaving}
+                  className="mt-3 rounded-lg bg-blue-600 text-white px-6 py-3 text-sm font-medium disabled:opacity-50 hover:bg-blue-700"
+                >
+                  {noteSaving ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            )}
+          </div>
         </section>
-      </main>
 
-      {/* 후기 모달 */}
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md" role="dialog" aria-modal="true">
-            <h3 className="text-lg font-semibold mb-4">상담 후기 작성</h3>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">별점</label>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
-                    className={`text-2xl ${star <= reviewData.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  >
-                    ★
-                  </button>
-                ))}
+        {/* 후기 모달 */}
+        {showReviewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md" role="dialog" aria-modal="true">
+              <h3 className="text-lg font-semibold mb-4">상담 후기 작성</h3>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">별점</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                      className={`text-2xl ${star <= reviewData.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">후기 (10-500자)</label>
-              <textarea
-                value={reviewData.content}
-                onChange={(e) => setReviewData(prev => ({ ...prev, content: e.target.value }))}
-                placeholder="상담에 대한 후기를 작성해주세요..."
-                className="w-full h-24 p-3 border rounded-lg resize-none text-sm"
-                maxLength={500}
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                {reviewData.content.length}/500자
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">후기 (10-500자)</label>
+                <textarea
+                  value={reviewData.content}
+                  onChange={(e) => setReviewData(prev => ({ ...prev, content: e.target.value }))}
+                  placeholder="상담에 대한 후기를 작성해주세요..."
+                  className="w-full h-24 p-3 border rounded-lg resize-none text-sm"
+                  maxLength={500}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  {reviewData.content.length}/500자
+                </div>
               </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowReviewModal(false)}
-                className="flex-1 rounded-lg border px-4 py-2 text-sm"
-              >
-                나중에
-              </button>
-              <button
-                onClick={submitReview}
-                disabled={reviewData.content.length < 10}
-                className="flex-1 rounded-lg bg-blue-600 text-white px-4 py-2 text-sm disabled:opacity-50"
-              >
-                제출
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  className="flex-1 rounded-lg border px-4 py-2 text-sm"
+                >
+                  나중에
+                </button>
+                <button
+                  onClick={submitReview}
+                  disabled={reviewData.content.length < 10}
+                  className="flex-1 rounded-lg bg-blue-600 text-white px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  제출
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </DashboardLayout>
   );
 }

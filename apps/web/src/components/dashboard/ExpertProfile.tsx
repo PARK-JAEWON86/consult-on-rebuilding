@@ -29,7 +29,8 @@ import {
   Instagram,
   Facebook,
   Youtube,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft
 } from "lucide-react";
 
 type ConsultationType = "video" | "chat" | "voice";
@@ -68,7 +69,7 @@ type ExpertProfileData = {
   consultationTypes: ConsultationType[];
   languages: string[];
   hourlyRate: number | string;
-  pricePerMinute?: number;
+  creditsPerMinute?: number;
   totalSessions: number;
   avgRating: number;
   level?: string | number;
@@ -103,13 +104,15 @@ interface ExpertProfileProps {
   onSave: (data: ExpertProfileData & { isProfileComplete: boolean }) => void;
   isEditing: boolean;
   onEditingChange: (editing: boolean) => void;
+  onBack?: () => void;
 }
 
 const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
   expertData,
   onSave,
   isEditing,
-  onEditingChange
+  onEditingChange,
+  onBack
 }, ref) => {
   const [formData, setFormData] = useState<ExpertProfileData>({
     name: "",
@@ -122,7 +125,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
     consultationTypes: [],
     languages: ["한국어"],
     hourlyRate: 0,
-    pricePerMinute: 0,
+    creditsPerMinute: 0,
     totalSessions: 0,
     avgRating: 0,
     level: "Tier 1 (Lv.1-99)",
@@ -405,6 +408,19 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
   // 편집 모드
   return (
     <div className="space-y-6">
+      {/* 뒤로가기 버튼 */}
+      {onBack && (
+        <div className="mb-4">
+          <button
+            onClick={onBack}
+            className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            뒤로가기
+          </button>
+        </div>
+      )}
+
       {/* 기본 정보 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
@@ -451,14 +467,40 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">시간당 요금 (원)</label>
-            <input
-              type="number"
-              value={formData.hourlyRate}
-              onChange={(e) => handleInputChange('hourlyRate', parseInt(e.target.value) || 0)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              min="0"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              분당 크레딧 <span className="text-blue-600 text-xs">(자동 계산)</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={formData.creditsPerMinute || 0}
+                readOnly
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+              />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="flex items-center text-xs text-gray-500">
+                  <span>크레딧</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <div className="flex-shrink-0">
+                  <svg className="h-4 w-4 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-xs text-blue-800">
+                  <p className="font-medium mb-1">크레딧은 전문가 레벨과 실적을 기반으로 자동 계산됩니다</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-blue-700">
+                    <li>총 상담 세션: {formData.totalSessions || 0}회</li>
+                    <li>평점: {formData.avgRating || 0}점</li>
+                    <li>완료율: {formData.completionRate || 0}%</li>
+                    <li>시간당 요금: {((formData.creditsPerMinute || 0) * 60).toLocaleString()} 크레딧</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

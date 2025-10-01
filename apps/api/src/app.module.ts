@@ -5,6 +5,7 @@ import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
 import { CategoriesModule } from './categories/categories.module'
 import { CommunityModule } from './community/community.module'
+import { ConsultationsModule } from './consultations/consultations.module'
 import { CreditsModule } from './credits/credits.module'
 import { ExpertsModule } from './experts/experts.module'
 import { FilesModule } from './files/files.module'
@@ -13,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { RedisModule } from './redis/redis.module'
 import { ReservationsModule } from './reservations/reservations.module'
+import { ReservationRequestsModule } from './reservation-requests/reservation-requests.module'
 import { ReviewsModule } from './reviews/reviews.module'
 import { SessionsModule } from './sessions/sessions.module'
 import { UsersModule } from './users/users.module'
@@ -22,6 +24,7 @@ import { ExpertLevelsModule } from './expert-levels/expert-levels.module'
 import { ExpertStatsModule } from './expert-stats/expert-stats.module'
 import { ChatModule } from './chat/chat.module'
 import { SettlementsModule } from './settlements/settlements.module'
+import { AdminModule } from './admin/admin.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -34,8 +37,10 @@ import { validateEnv } from './config/env.schema'
     PrismaModule,
     RedisModule,
     AuthModule,
+    AdminModule,
     CategoriesModule,
     CommunityModule,
+    ConsultationsModule,
     CreditsModule,
     AIUsageModule,
     ExpertsModule,
@@ -45,6 +50,7 @@ import { validateEnv } from './config/env.schema'
     HealthModule,
     PaymentsModule,
     ReservationsModule,
+    ReservationRequestsModule,
     ReviewsModule,
     SessionsModule,
     UsersModule,

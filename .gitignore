@@ -114,3 +114,8 @@ ehthumbs.db
 .env
 .env.local
 *.env
+
+# Database backups
+database/backups/
+*.sql
+*.sql.gz

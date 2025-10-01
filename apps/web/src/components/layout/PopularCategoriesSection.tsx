@@ -87,7 +87,7 @@ export default function PopularCategoriesSection({
         <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {isLoading ? (
             // 로딩 상태: 스켈레톤 UI 표시
-            Array.from({ length: 5 }).map((_, index) => (
+            Array.from({ length: 11 }).map((_, index) => (
               <div
                 key={index}
                 className="bg-white rounded-xl p-3 sm:p-4 text-center min-h-[120px] sm:min-h-[160px] flex flex-col justify-center animate-pulse"
@@ -100,51 +100,53 @@ export default function PopularCategoriesSection({
               </div>
             ))
           ) : (
-            categories.slice(0, 5).map((category) => {
-              const IconComponent = getIconComponent(category.icon as string);
-              return (
-                <div
-                  key={category.id}
-                  className="bg-white rounded-xl p-3 sm:p-4 text-center hover:shadow-lg transition-shadow duration-200 cursor-pointer min-h-[120px] sm:min-h-[160px] flex flex-col justify-center"
-                >
-                  <div className="flex justify-center mb-2 sm:mb-3">
-                    <IconComponent className="h-6 w-6 sm:h-10 sm:w-10 text-blue-600" />
+            <>
+              {categories.slice(0, 11).map((category) => {
+                const IconComponent = getIconComponent(category.icon as string);
+                return (
+                  <div
+                    key={category.id}
+                    className="bg-white rounded-xl p-3 sm:p-4 text-center hover:shadow-lg transition-shadow duration-200 cursor-pointer min-h-[120px] sm:min-h-[160px] flex flex-col justify-center"
+                  >
+                    <div className="flex justify-center mb-2 sm:mb-3">
+                      <IconComponent className="h-6 w-6 sm:h-10 sm:w-10 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-xs sm:text-sm">
+                      {category.name}
+                    </h3>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {category.description}
+                    </p>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-xs sm:text-sm">
-                    {category.name}
-                  </h3>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {category.description}
-                  </p>
-                </div>
-              );
-            })
-          )}
+                );
+              })}
 
-          <div
-            onClick={() => setShowAllCategories(!showAllCategories)}
-            className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-3 sm:p-4 text-center hover:shadow-lg transition-all duration-200 cursor-pointer border-2 border-dashed border-blue-300 hover:border-blue-400 group min-h-[120px] sm:min-h-[160px] flex flex-col justify-center"
-          >
-            <div className="flex justify-center mb-2 sm:mb-3">
-              <div className="bg-blue-100 rounded-full p-1.5 sm:p-2 group-hover:bg-blue-200 transition-colors">
-                <ChevronDown
-                  className={`h-6 w-6 sm:h-10 sm:w-10 text-blue-600 transition-transform duration-200 ${showAllCategories ? "rotate-180" : ""}`}
-                />
+              <div
+                onClick={() => setShowAllCategories(!showAllCategories)}
+                className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-3 sm:p-4 text-center hover:shadow-lg transition-all duration-200 cursor-pointer border-2 border-dashed border-blue-300 hover:border-blue-400 group min-h-[120px] sm:min-h-[160px] flex flex-col justify-center"
+              >
+                <div className="flex justify-center mb-2 sm:mb-3">
+                  <div className="bg-blue-100 rounded-full p-1.5 sm:p-2 group-hover:bg-blue-200 transition-colors">
+                    <ChevronDown
+                      className={`h-6 w-6 sm:h-10 sm:w-10 text-blue-600 transition-transform duration-200 ${showAllCategories ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-xs sm:text-sm">
+                  {showAllCategories ? "접기" : "더 많은 분야"}
+                </h3>
+                <p className="text-xs text-gray-600">
+                  {isLoading ? "로딩 중..." : `총 ${categories.length}개의 상담 분야`}
+                </p>
               </div>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-xs sm:text-sm">
-              {showAllCategories ? "접기" : "더 많은 분야"}
-            </h3>
-            <p className="text-xs text-gray-600">
-              {isLoading ? "로딩 중..." : `총 ${categories.length}개의 상담 분야`}
-            </p>
-          </div>
+            </>
+          )}
         </div>
 
         {showAllCategories && !isLoading && (
           <div className="mt-6 sm:mt-8">
             <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              {categories.slice(5).map((category) => {
+              {categories.slice(11).map((category) => {
                 const IconComponent = getIconComponent(category.icon as string);
                 return (
                   <div

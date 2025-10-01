@@ -185,7 +185,7 @@ export default function ConsultationsPage() {
 
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
       {/* 헤더 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">상담 내역</h1>

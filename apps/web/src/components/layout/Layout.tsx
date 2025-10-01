@@ -48,7 +48,7 @@ export default function Layout({
         )}
 
         {/* 메인 콘텐츠 영역 */}
-        <div className={`flex-1 flex flex-col ${showSidebar ? 'lg:ml-64' : ''}`}>
+        <div className={`flex-1 flex flex-col ${showSidebar ? 'sidebar-responsive' : ''}`}>
           <main className={`flex-1 ${className}`}>
             {children}
           </main>

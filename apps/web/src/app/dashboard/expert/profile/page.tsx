@@ -4,8 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import ExpertProfile from "@/components/dashboard/ExpertProfile";
-import ExpertProfilePreview from "@/components/dashboard/ExpertProfilePreview";
+import ExpertProfileDetail from "@/components/experts/ExpertProfileDetail";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 interface User {
   id: string;
@@ -88,12 +90,22 @@ type ExpertProfileData = {
 export default function ExpertProfileEditPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+
+  // 디버깅용 로그
+  console.log('🔍 프로필 페이지 상태:', {
+    user,
+    isLoading,
+    userRoles: user?.roles,
+    isExpert: user?.roles?.includes('EXPERT'),
+    timestamp: new Date().toISOString()
+  });
   const queryClient = useQueryClient();
   const [initialData, setInitialData] = useState<
     Partial<ExpertProfileData> & { isProfileComplete?: boolean }
   >();
   const [isEditing, setIsEditing] = useState(false);
   const [currentExpertId, setCurrentExpertId] = useState<number | null>(null);
+  const [currentDisplayId, setCurrentDisplayId] = useState<string | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const expertProfileRef = useRef<any>(null);
 
@@ -114,73 +126,88 @@ export default function ExpertProfileEditPage() {
       try {
         setIsDataLoading(true);
 
-        // 로그인한 전문가의 ID 추출
-        const expertId = user.id && typeof user.id === 'string'
-          ? parseInt(user.id.replace('expert_', ''))
-          : 0;
-        if (expertId > 0) {
-          setCurrentExpertId(expertId);
-        }
+        let expertId = null;
+        let actualDisplayId = null;
 
         // 데이터베이스에서 실제 프로필 데이터 로드
         let expertProfile = null;
 
-        if (expertId) {
-          try {
-            // 실제 데이터베이스에서 먼저 조회 - 먼저 전문가 목록에서 실제 displayId 찾기
-            console.log(`🔄 전문가 프로필 데이터베이스 조회: ID=${expertId}`);
+        try {
+          // 1. 먼저 사용자 객체에 expert 정보가 있는지 확인
+          if (user?.expert?.displayId) {
+            actualDisplayId = user.expert.displayId;
+            expertId = user.expert.id;
+            setCurrentExpertId(expertId);
+            setCurrentDisplayId(actualDisplayId);
+            console.log(`✅ 사용자 객체에서 전문가 정보 발견: ID=${expertId}, displayId=${actualDisplayId}`);
+          } else {
+            // 2. 없으면 API로 전문가 목록 조회
+            console.log(`🔄 전문가 목록에서 검색: ${user?.name}`);
 
-            // 전문가 목록에서 해당 ID의 실제 displayId 찾기
-            const expertsListResponse = await fetch('http://localhost:4000/v1/experts?page=1&size=50');
-            let actualDisplayId = null;
+            const expertsListResponse = await api.get('/experts', {
+              params: { page: 1, size: 50 }
+            });
 
-            if (expertsListResponse.ok) {
-              const expertsListResult = await expertsListResponse.json();
-              if (expertsListResult.success) {
-                const expertInList = expertsListResult.data.items.find((expert: any) => expert.id === expertId);
-                if (expertInList && expertInList.displayId) {
-                  actualDisplayId = expertInList.displayId;
-                  console.log(`🔍 전문가 ID ${expertId}의 실제 displayId: ${actualDisplayId}`);
-                }
+            if (expertsListResponse.success && expertsListResponse.data) {
+              const expertInList = expertsListResponse.data.items.find((expert: any) =>
+                expert.name === user?.name
+              );
+
+              if (expertInList) {
+                expertId = expertInList.id;
+                actualDisplayId = expertInList.displayId;
+                setCurrentExpertId(expertId);
+                setCurrentDisplayId(actualDisplayId);
+                console.log(`🔍 전문가 프로필 발견: ID=${expertId}, displayId=${actualDisplayId}`);
+              } else {
+                console.warn(`⚠️ 전문가 프로필을 찾을 수 없습니다: ${user?.name}`);
+                // 전문가 프로필이 없는 경우 새로 생성할 수 있도록 더미 ID 할당
+                expertId = Date.now() % 10000; // 임시 고유 ID
+                setCurrentExpertId(expertId);
               }
             }
+          }
 
-            const displayId = actualDisplayId || `expert_${expertId}`; // fallback
-            const response = await fetch(`http://localhost:4000/v1/experts/${displayId}`);
+          console.log(`🔄 전문가 프로필 데이터베이스 조회: ID=${expertId}`);
 
-            if (response.ok) {
-              const apiResult = await response.json();
-              if (apiResult.success) {
-                console.log('✅ 데이터베이스에서 프로필 로드 성공:', apiResult.data);
-                expertProfile = apiResult.data;
-              } else {
-                console.warn('⚠️ 데이터베이스 응답 실패:', apiResult.error);
+          if (expertId && actualDisplayId) {
+            const response = await api.get(`/experts/${actualDisplayId}`);
+
+            if (response.success && response.data) {
+              console.log('✅ 데이터베이스에서 프로필 로드 성공:', response.data);
+              expertProfile = response.data;
+
+              // API 응답에서 displayId 추출 및 업데이트
+              if (response.data.displayId && !currentDisplayId) {
+                setCurrentDisplayId(response.data.displayId);
               }
             } else {
-              console.warn(`⚠️ 데이터베이스 호출 실패 (${response.status})`);
+              console.warn('⚠️ 데이터베이스 응답 실패:', response.error);
             }
+          }
 
-            // 데이터베이스 조회 실패시 localStorage에서 폴백
-            if (!expertProfile) {
-              const storedProfile = localStorage.getItem(`expertProfile_${expertId}`);
-              if (storedProfile) {
-                console.log('📁 localStorage에서 폴백 데이터 로드');
-                expertProfile = JSON.parse(storedProfile);
-              }
+          // 데이터베이스 조회 실패 또는 displayId가 없는 경우 localStorage에서 폴백
+          if (!expertProfile && expertId) {
+            const storedProfile = localStorage.getItem(`expertProfile_${expertId}`);
+            if (storedProfile) {
+              console.log('📁 localStorage에서 폴백 데이터 로드');
+              expertProfile = JSON.parse(storedProfile);
             }
-          } catch (error) {
-            console.error('❌ 데이터 로드 에러:', error);
+          }
+        } catch (error) {
+          console.error('❌ 데이터 로드 에러:', error);
 
-            // 에러 발생시 localStorage 폴백
-            try {
+          // 에러 발생시 localStorage 폴백
+          try {
+            if (expertId) {
               const storedProfile = localStorage.getItem(`expertProfile_${expertId}`);
               if (storedProfile) {
                 console.log('📁 에러 발생으로 localStorage 폴백');
                 expertProfile = JSON.parse(storedProfile);
               }
-            } catch (fallbackError) {
-              console.error('❌ localStorage 폴백도 실패:', fallbackError);
             }
+          } catch (fallbackError) {
+            console.error('❌ localStorage 폴백도 실패:', fallbackError);
           }
         }
 
@@ -336,86 +363,20 @@ export default function ExpertProfileEditPage() {
       const displayId = `expert_${currentExpertId}`;
 
       // 실제 데이터베이스 API 호출
-      const response = await fetch(`http://localhost:4000/v1/experts/${displayId}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // JWT 토큰 필요시
-        },
-        body: JSON.stringify({
-          ...updated,
-          id: currentExpertId,
-        }),
+      const response = await api.put(`/experts/${displayId}/profile`, {
+        ...updated,
+        id: currentExpertId,
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.success) {
+        console.log('✅ API 저장 성공:', response);
 
-        if (result.success) {
-          console.log('✅ API 저장 성공:', result);
+        // 로컬 상태 업데이트
+        setInitialData(updated);
 
-          // 로컬 상태 업데이트
-          setInitialData(updated);
-
-          // localStorage에도 저장 (캐시 용도)
-          const storageData = {
-            id: currentExpertId,
-            fullName: updated.name,
-            name: updated.name,
-            specialty: updated.specialty,
-            experienceYears: updated.experience,
-            experience: updated.experience,
-            bio: updated.description,
-            description: updated.description,
-            education: updated.education,
-            certifications: updated.certifications,
-            keywords: updated.specialties,
-            specialties: updated.specialties,
-            consultationTypes: updated.consultationTypes,
-            languages: updated.languages,
-            hourlyRate: updated.hourlyRate,
-            pricePerMinute: updated.pricePerMinute,
-            availability: updated.availability,
-            contactInfo: updated.contactInfo,
-            location: updated.contactInfo.location,
-            email: updated.contactInfo.email,
-            profileImage: updated.profileImage,
-            portfolioFiles: updated.portfolioFiles,
-            totalSessions: updated.totalSessions || 0,
-            rating: updated.avgRating || 0,
-            avgRating: updated.avgRating || 0,
-            reviewCount: updated.reviewCount || 0,
-            repeatClients: updated.repeatClients || 0,
-            responseTime: updated.responseTime || '2시간 내',
-            cancellationPolicy: updated.cancellationPolicy || '24시간 전 취소 가능',
-            holidayPolicy: updated.holidayPolicy || '',
-            isProfileComplete: updated.isProfileComplete,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-
-          localStorage.setItem(`expertProfile_${currentExpertId}`, JSON.stringify(storageData));
-          localStorage.setItem("approvedExpertProfile", JSON.stringify(updated));
-
-          // React Query 캐시 무효화 (미리보기 실시간 업데이트)
-          queryClient.invalidateQueries({ queryKey: ['expert-profile-live', currentExpertId] });
-          queryClient.invalidateQueries({ queryKey: ['expert-rankings', currentExpertId] });
-          queryClient.invalidateQueries({ queryKey: ['expert', displayId] });
-
-          // 저장 성공 후 편집 모드 종료
-          setIsEditing(false);
-
-          alert("프로필이 성공적으로 저장되었습니다.");
-        } else {
-          throw new Error(result.error?.message || 'API 응답 실패');
-        }
-      } else {
-        // API 실패시 localStorage에만 저장
-        console.warn(`⚠️ API 저장 실패 (${response.status}), localStorage에만 저장`);
-
+        // localStorage에도 저장 (캐시 용도)
         const storageData = {
           id: currentExpertId,
-          // ... 동일한 저장 로직
           fullName: updated.name,
           name: updated.name,
           specialty: updated.specialty,
@@ -453,10 +414,17 @@ export default function ExpertProfileEditPage() {
         localStorage.setItem(`expertProfile_${currentExpertId}`, JSON.stringify(storageData));
         localStorage.setItem("approvedExpertProfile", JSON.stringify(updated));
 
-        setInitialData(updated);
+        // React Query 캐시 무효화 (미리보기 실시간 업데이트)
+        queryClient.invalidateQueries({ queryKey: ['expert-profile-live', currentExpertId] });
+        queryClient.invalidateQueries({ queryKey: ['expert-rankings', currentExpertId] });
+        queryClient.invalidateQueries({ queryKey: ['expert', displayId] });
+
+        // 저장 성공 후 편집 모드 종료
         setIsEditing(false);
 
-        alert("프로필이 로컬에 저장되었습니다. (서버 연결 실패)");
+        alert("프로필이 성공적으로 저장되었습니다.");
+      } else {
+        throw new Error(response.error?.message || 'API 응답 실패');
       }
     } catch (error) {
       console.error('❌ 프로필 저장 중 에러:', error);
@@ -591,10 +559,24 @@ export default function ExpertProfileEditPage() {
   return (
     <>
       {isEditing ? (
-        <div className="max-w-7xl mx-auto">
+        <DashboardLayout variant="expert">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* 뒤로가기 버튼 */}
+          <div className="mb-4 pt-4">
+            <button
+              onClick={() => setIsEditing(false)}
+              className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              뒤로가기
+            </button>
+          </div>
+
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">전문가 프로필 편집</h1>
+              <h1 className="text-3xl font-bold text-gray-900">전문가 프로필 편집</h1>
               <p className="text-gray-600 mt-1">
                 클라이언트에게 보여질 프로필 정보를 편집하세요.
               </p>
@@ -630,32 +612,40 @@ export default function ExpertProfileEditPage() {
             onEditingChange={setIsEditing}
           />
         </div>
+        </DashboardLayout>
+      ) : currentDisplayId || currentExpertId ? (
+        <ExpertProfileDetail
+          displayId={currentDisplayId || `expert_${currentExpertId}`}
+          isOwner={true}
+          showEditMode={true}
+          hideBackButton={false}
+          hideSidebar={false}
+          className=""
+        />
       ) : (
-        <div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">프로필 미리보기</h1>
-                <p className="text-gray-600 mt-1">
-                  클라이언트에게 실제로 보여질 프로필입니다.
-                </p>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                <div className="flex items-start">
+                  <svg className="h-6 w-6 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">프로필 미리보기를 사용할 수 없습니다</h3>
+                    <p className="text-yellow-800 mb-4">
+                      전문가 프로필이 아직 시스템에 등록되지 않았습니다.
+                      프로필을 먼저 편집하여 저장해주세요.
+                    </p>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      프로필 편집하기
+                    </button>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                프로필 편집
-              </button>
             </div>
-          </div>
-          <ExpertProfilePreview expertData={initialData} />
-          {/* 디버깅용 */}
-          <div style={{display: 'none'}}>
-            <pre>{JSON.stringify(initialData, null, 2)}</pre>
-          </div>
         </div>
       )}
     </>

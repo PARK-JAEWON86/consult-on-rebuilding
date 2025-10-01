@@ -1,0 +1,286 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { PrismaService } from '../../prisma/prisma.service'
+import { MailService } from '../../mail/mail.service'
+
+export interface ApplicationListQuery {
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  page?: number
+  limit?: number
+  search?: string
+}
+
+export interface ReviewApplicationDto {
+  status: 'APPROVED' | 'REJECTED'
+  reviewNotes?: string
+  reviewedBy: number
+}
+
+@Injectable()
+export class ExpertApplicationsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService
+  ) {}
+
+  /**
+   * 전문가 지원 목록 조회
+   */
+  async getApplications(query: ApplicationListQuery) {
+    const { status, page = 1, limit = 20, search } = query
+
+    const where: any = {}
+
+    if (status) {
+      where.status = status
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { specialty: { contains: search } },
+      ]
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.expertApplication.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.expertApplication.count({ where }),
+    ])
+
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    }
+  }
+
+  /**
+   * 전문가 지원 상세 조회
+   */
+  async getApplicationDetail(id: number) {
+    const application = await this.prisma.expertApplication.findUnique({
+      where: { id },
+    })
+
+    if (!application) {
+      throw new NotFoundException({
+        success: false,
+        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+      })
+    }
+
+    // 신청자 정보
+    const user = await this.prisma.user.findUnique({
+      where: { id: application.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        avatarUrl: true,
+        phoneNumber: true,
+      }
+    })
+
+    // 이전 지원 이력
+    const previousApplications = await this.prisma.expertApplication.findMany({
+      where: {
+        userId: application.userId,
+        id: { not: id },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    return {
+      application,
+      user,
+      previousApplications,
+    }
+  }
+
+  /**
+   * 전문가 지원 승인
+   */
+  async approveApplication(id: number, dto: ReviewApplicationDto) {
+    const application = await this.prisma.expertApplication.findUnique({
+      where: { id },
+    })
+
+    if (!application) {
+      throw new NotFoundException({
+        success: false,
+        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+      })
+    }
+
+    if (application.status !== 'PENDING') {
+      throw new BadRequestException({
+        success: false,
+        error: { code: 'E_ALREADY_REVIEWED', message: 'Application already reviewed' }
+      })
+    }
+
+    // 트랜잭션으로 처리
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. ExpertApplication 상태 업데이트
+      const updatedApplication = await tx.expertApplication.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          reviewedAt: new Date(),
+          reviewedBy: dto.reviewedBy,
+          reviewNotes: dto.reviewNotes,
+        },
+      })
+
+      // 2. Expert 레코드 생성
+      const expert = await tx.expert.create({
+        data: {
+          displayId: `EXP${Date.now()}${application.userId}`,
+          userId: application.userId,
+          name: application.name,
+          title: application.jobTitle || null,
+          specialty: application.specialty,
+          bio: application.bio,
+          avatarUrl: application.profileImage,
+          experience: application.experienceYears,
+          categories: [], // JSON 배열
+          certifications: application.certifications as any,
+          consultationTypes: application.consultationTypes as any,
+          availability: application.availability as any,
+          contactInfo: {},
+          education: [],
+          languages: [],
+          portfolioFiles: [],
+          portfolioItems: [],
+          socialProof: {},
+          specialties: [],
+          isActive: true,
+          isProfileComplete: true,
+          isProfilePublic: true,
+        },
+      })
+
+      // 3. User roles에 EXPERT 추가
+      const user = await tx.user.findUnique({
+        where: { id: application.userId },
+      })
+
+      if (!user) {
+        throw new Error('User not found')
+      }
+
+      const roles = Array.isArray(user.roles)
+        ? user.roles
+        : typeof user.roles === 'string'
+        ? JSON.parse(user.roles)
+        : ['USER']
+
+      if (!roles.includes('EXPERT')) {
+        roles.push('EXPERT')
+      }
+
+      await tx.user.update({
+        where: { id: application.userId },
+        data: { roles: JSON.stringify(roles) },
+      })
+
+      return { updatedApplication, expert, user }
+    })
+
+    // 4. 승인 이메일 발송
+    try {
+      await this.mail.sendMail(
+        application.email,
+        '[Consult-On] 전문가 등록이 승인되었습니다',
+        `<p>안녕하세요 ${application.name}님,</p><p>전문가 등록 신청이 승인되었습니다.<br>지금 바로 전문가 대시보드에서 활동을 시작하실 수 있습니다.</p><p>감사합니다.</p>`,
+        `안녕하세요 ${application.name}님,\n\n전문가 등록 신청이 승인되었습니다.\n지금 바로 전문가 대시보드에서 활동을 시작하실 수 있습니다.\n\n감사합니다.`
+      )
+    } catch (error) {
+      console.error('Failed to send approval email:', error)
+    }
+
+    return {
+      success: true,
+      expert: result.expert,
+    }
+  }
+
+  /**
+   * 전문가 지원 거절
+   */
+  async rejectApplication(id: number, dto: ReviewApplicationDto) {
+    const application = await this.prisma.expertApplication.findUnique({
+      where: { id },
+    })
+
+    if (!application) {
+      throw new NotFoundException({
+        success: false,
+        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+      })
+    }
+
+    if (application.status !== 'PENDING') {
+      throw new BadRequestException({
+        success: false,
+        error: { code: 'E_ALREADY_REVIEWED', message: 'Application already reviewed' }
+      })
+    }
+
+    // ExpertApplication 상태 업데이트
+    const updatedApplication = await this.prisma.expertApplication.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        reviewedAt: new Date(),
+        reviewedBy: dto.reviewedBy,
+        reviewNotes: dto.reviewNotes,
+      },
+    })
+
+    // 거절 이메일 발송
+    try {
+      await this.mail.sendMail(
+        application.email,
+        '[Consult-On] 전문가 등록 검토 결과',
+        `<p>안녕하세요 ${application.name}님,</p><p>전문가 등록 신청을 검토한 결과, 현재로서는 승인이 어려울 것 같습니다.</p>${dto.reviewNotes ? `<p>${dto.reviewNotes}</p>` : ''}<p>향후 재지원도 가능하니, 궁금하신 사항이 있으시면 언제든지 문의해주세요.</p><p>감사합니다.</p>`,
+        `안녕하세요 ${application.name}님,\n\n전문가 등록 신청을 검토한 결과, 현재로서는 승인이 어려울 것 같습니다.\n\n${dto.reviewNotes || ''}\n\n향후 재지원도 가능하니, 궁금하신 사항이 있으시면 언제든지 문의해주세요.\n\n감사합니다.`
+      )
+    } catch (error) {
+      console.error('Failed to send rejection email:', error)
+    }
+
+    return {
+      success: true,
+      application: updatedApplication,
+    }
+  }
+
+  /**
+   * 통계 조회
+   */
+  async getStatistics() {
+    const [total, pending, approved, rejected] = await Promise.all([
+      this.prisma.expertApplication.count(),
+      this.prisma.expertApplication.count({ where: { status: 'PENDING' } }),
+      this.prisma.expertApplication.count({ where: { status: 'APPROVED' } }),
+      this.prisma.expertApplication.count({ where: { status: 'REJECTED' } }),
+    ])
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      conversionRate: total > 0 ? (approved / total) * 100 : 0,
+    }
+  }
+}

@@ -68,7 +68,7 @@ interface ExpertProfile {
 // import { dummyExperts, convertExpertItemToProfile } from "@/data/dummy/experts"; // 더미 데이터 제거
 
 import ExpertCard from "@/components/experts/ExpertCard";
-import Sidebar from "@/components/layout/Sidebar";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
 // 랭킹 점수 계산 함수
 const calculateRankingScore = (stats: {
@@ -520,11 +520,10 @@ const ExpertSearch = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 ml-64">
-        <main className="w-full px-6 py-8">
-          <div className="max-w-7xl mx-auto">
+    <DashboardLayout variant="user">
+      <div className="w-full">
+        <main className="w-full">
+          <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
             {/* 헤더 */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-4">전문가 찾기</h1>
@@ -913,7 +912,7 @@ const ExpertSearch = () => {
           </div>
         </main>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

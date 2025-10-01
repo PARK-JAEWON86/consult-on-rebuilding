@@ -4,7 +4,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import CreditsClient from './CreditsClient';
-import Sidebar from '@/components/layout/Sidebar';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function CreditsPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -34,11 +34,8 @@ export default function CreditsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 ml-64">
-        <CreditsClient user={user} />
-      </div>
-    </div>
+    <DashboardLayout variant="user">
+      <CreditsClient user={user} />
+    </DashboardLayout>
   );
 }

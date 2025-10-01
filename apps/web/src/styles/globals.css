@@ -44,9 +44,16 @@ html {
   scroll-behavior: smooth;
 }
 
+/* 사이드바 반응형 지원 */
+.sidebar-responsive {
+  margin-left: var(--sidebar-width, 256px);
+  transition: margin-left 0.3s ease;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --sidebar-width: 256px;
 }
 
 @media (prefers-color-scheme: dark) {

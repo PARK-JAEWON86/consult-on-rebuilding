@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAIUsage,
@@ -388,7 +389,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 pb-32">
+    <DashboardLayout variant="user">
+      <div className="flex flex-col h-full bg-gray-50 pb-32">
       {/* 페이지 헤더 - 토큰 잔량과 새 대화 버튼 */}
       <div className="bg-gray-50 border-b border-gray-200 p-2">
         <div className="flex items-center justify-between">
@@ -484,7 +486,7 @@ export default function ChatPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto p-6 space-y-6 bg-gray-50">
+          <div className="max-w-4xl mx-auto px-12 py-12 space-y-6 bg-gray-50">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -567,7 +569,7 @@ export default function ChatPage() {
 
       {/* 입력 영역 - 윈도우 하단 고정 (사이드바 영역 제외) */}
       <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-gray-50 border-t border-gray-200 p-6 z-40">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-12">
           {!canAffordChat && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div className="flex items-center gap-3 text-red-700">
@@ -625,6 +627,7 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

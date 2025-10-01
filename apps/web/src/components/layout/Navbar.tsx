@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useViewMode } from '@/contexts/ViewModeContext';
-import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3 } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3, Shield } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface NavItem {
@@ -157,8 +157,19 @@ export default function Navbar() {
                         <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                       
-                      {/* 대시보드 메뉴 - 현재 모드에 따라 표시 */}
-                      {viewMode === "expert" && user?.roles?.includes('EXPERT') ? (
+                      {/* 대시보드 메뉴 */}
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowUserMenu(false)}
+                        role="menuitem"
+                      >
+                        <Home className="w-4 h-4 mr-3" />
+                        클라이언트 대시보드
+                      </Link>
+
+                      {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
+                      {(user?.roles?.includes('EXPERT') || isAdmin) && (
                         <Link
                           href="/dashboard/expert"
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -168,15 +179,18 @@ export default function Navbar() {
                           <BarChart3 className="w-4 h-4 mr-3" />
                           전문가 대시보드
                         </Link>
-                      ) : (
+                      )}
+
+                      {/* 관리자 대시보드 메뉴 */}
+                      {isAdmin && (
                         <Link
-                          href="/dashboard"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          href="/admin"
+                          className="flex items-center px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 font-medium"
                           onClick={() => setShowUserMenu(false)}
                           role="menuitem"
                         >
-                          <Home className="w-4 h-4 mr-3" />
-                          클라이언트 대시보드
+                          <Shield className="w-4 h-4 mr-3" />
+                          관리자 대시보드
                         </Link>
                       )}
 
@@ -193,7 +207,7 @@ export default function Navbar() {
                             }
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="w-full flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-medium"
                           role="menuitem"
                         >
                           <ArrowLeftRight className="w-4 h-4 mr-3" />
@@ -204,14 +218,29 @@ export default function Navbar() {
                       ) : (
                         <button
                           onClick={() => {
-                            router.push("/experts/become");
+                            const status = (user as any)?.expertApplicationStatus;
+                            if (status === 'PENDING') {
+                              router.push("/experts/application-status");
+                            } else if (status === 'APPROVED') {
+                              router.push("/dashboard/expert");
+                            } else {
+                              router.push("/experts/become");
+                            }
                             setShowUserMenu(false);
                           }}
                           className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                           role="menuitem"
                         >
                           <ArrowLeftRight className="w-4 h-4 mr-3" />
-                          <span>전문가 지원하기</span>
+                          <span>
+                            {(() => {
+                              const status = (user as any)?.expertApplicationStatus;
+                              if (status === 'PENDING') return '지원 상태 확인';
+                              if (status === 'APPROVED') return '전문가 대시보드';
+                              if (status === 'REJECTED') return '전문가 재지원';
+                              return '전문가 지원하기';
+                            })()}
+                          </span>
                         </button>
                       )}
 
@@ -340,8 +369,18 @@ export default function Navbar() {
                   </div>
                   
                   <div className="mt-2 space-y-1">
-                    {/* 대시보드 메뉴 - 현재 모드에 따라 표시 */}
-                    {viewMode === "expert" && user?.roles?.includes('EXPERT') ? (
+                    {/* 대시보드 메뉴 */}
+                    <Link
+                      href="/dashboard"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Home className="w-4 h-4 inline mr-2" />
+                      클라이언트 대시보드
+                    </Link>
+
+                    {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
+                    {(user?.roles?.includes('EXPERT') || isAdmin) && (
                       <Link
                         href="/dashboard/expert"
                         className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
@@ -350,14 +389,17 @@ export default function Navbar() {
                         <BarChart3 className="w-4 h-4 inline mr-2" />
                         전문가 대시보드
                       </Link>
-                    ) : (
+                    )}
+
+                    {/* 관리자 대시보드 메뉴 */}
+                    {isAdmin && (
                       <Link
-                        href="/dashboard"
-                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        href="/admin"
+                        className="block px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-md font-medium"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <Home className="w-4 h-4 inline mr-2" />
-                        클라이언트 대시보드
+                        <Shield className="w-4 h-4 inline mr-2" />
+                        관리자 대시보드
                       </Link>
                     )}
 
@@ -374,7 +416,7 @@ export default function Navbar() {
                           }
                           setIsMobileMenuOpen(false);
                         }}
-                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        className="block w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-medium rounded-md"
                       >
                         <ArrowLeftRight className="w-4 h-4 inline mr-2" />
                         {viewMode === "expert" ? "클라이언트 모드로 전환" : "전문가 모드로 전환"}
@@ -382,13 +424,26 @@ export default function Navbar() {
                     ) : (
                       <button
                         onClick={() => {
-                          router.push("/experts/become");
+                          const status = (user as any)?.expertApplicationStatus;
+                          if (status === 'PENDING') {
+                            router.push("/experts/application-status");
+                          } else if (status === 'APPROVED') {
+                            router.push("/dashboard/expert");
+                          } else {
+                            router.push("/experts/become");
+                          }
                           setIsMobileMenuOpen(false);
                         }}
                         className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
                       >
                         <ArrowLeftRight className="w-4 h-4 inline mr-2" />
-                        전문가 지원하기
+                        {(() => {
+                          const status = (user as any)?.expertApplicationStatus;
+                          if (status === 'PENDING') return '지원 상태 확인';
+                          if (status === 'APPROVED') return '전문가 대시보드';
+                          if (status === 'REJECTED') return '전문가 재지원';
+                          return '전문가 지원하기';
+                        })()}
                       </button>
                     )}
 

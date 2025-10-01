@@ -27,7 +27,7 @@ export class ReservationsService {
     const expert = await this.prisma.expert.findUnique({
       where: { id: dto.expertId },
       select: {
-        ratePerMin: true,
+        hourlyRate: true,
         totalSessions: true,
         ratingAvg: true,
         experience: true,

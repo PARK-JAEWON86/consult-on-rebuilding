@@ -229,12 +229,11 @@ export default function ExpertPayoutsPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">정산/출금</h1>
+            <h1 className="text-3xl font-bold text-gray-900">정산/출금</h1>
             <p className="text-gray-600 mt-1">
               완료된 상담 기준 정산 내역과 출금 요청을 관리합니다.
             </p>
@@ -528,7 +527,6 @@ export default function ExpertPayoutsPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

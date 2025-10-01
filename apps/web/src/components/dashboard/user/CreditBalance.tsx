@@ -20,7 +20,7 @@ interface CreditBalanceProps {
   onViewHistory: () => void;
 }
 
-export const CreditBalance = ({ 
+const CreditBalance = ({ 
   balance, 
   recentTransactions,
   onPurchaseCredits,
@@ -87,7 +87,7 @@ export const CreditBalance = ({
         
         {balance.expiresAt && (
           <div className="mt-2">
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="gray" className="text-xs">
               만료: {new Date(balance.expiresAt).toLocaleDateString('ko-KR')}
             </Badge>
           </div>
@@ -147,7 +147,7 @@ export const CreditBalance = ({
         <Button 
           onClick={onPurchaseCredits} 
           className="w-full"
-          variant={isLowBalance ? "default" : "outline"}
+          variant={isLowBalance ? "primary" : "outline"}
         >
           <Plus className="h-4 w-4 mr-2" />
           크레딧 충전
@@ -163,3 +163,5 @@ export const CreditBalance = ({
     </Card>
   );
 };
+
+export { CreditBalance };

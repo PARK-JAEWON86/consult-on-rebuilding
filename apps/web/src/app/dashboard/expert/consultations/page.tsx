@@ -53,10 +53,13 @@ export default function ExpertConsultationsPage() {
   useEffect(() => {
     const loadConsultations = async () => {
       try {
+        console.log('상담내역 API 호출 시도...');
         const response = await fetch('/api/consultations');
         const result = await response.json();
+        console.log('API 응답:', result);
         if (result.success) {
           const consultationData = result.data.items || [];
+          console.log('실제 데이터베이스에서 가져온 상담 데이터:', consultationData);
           setConsultations(consultationData.map((it: any) => ({
             id: it.id,
             consultationNumber: it.consultationNumber,
@@ -67,6 +70,8 @@ export default function ExpertConsultationsPage() {
             status: it.status,
             specialty: it.specialty,
           })));
+        } else {
+          console.log('API 호출 실패, 더미 데이터 사용 예정');
         }
       } catch (error) {
         console.error('상담 기록 로드 실패:', error);
@@ -207,9 +212,9 @@ export default function ExpertConsultationsPage() {
   const paginated = filtered.slice(startIndex, endIndex);
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">상담내역</h1>
+        <h1 className="text-3xl font-bold text-gray-900">상담내역</h1>
         <p className="text-gray-600 mt-1">
           상담 날짜, 고객, 주제, 정산 크레딧을 한눈에 확인하세요.
         </p>

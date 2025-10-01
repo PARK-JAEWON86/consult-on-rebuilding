@@ -12,11 +12,16 @@ export function useSessionNote(displayId: string, userId: number) {
 
   // 초기 로드: 서버 → 로컬 병합 (서버 우선)
   useEffect(() => {
+    // displayId가 유효하지 않으면 API 호출하지 않음
+    if (!displayId || displayId.trim() === '') {
+      return;
+    }
+
     const loadNote = async () => {
       try {
         const serverNote = await getMySessionNote(displayId, userId);
         const localNote = localStorage.getItem(localKey) || '';
-        
+
         // 서버 내용이 있으면 서버 우선, 없으면 로컬
         const finalContent = serverNote.content || localNote;
         setContent(finalContent);
@@ -34,12 +39,14 @@ export function useSessionNote(displayId: string, userId: number) {
   const save = useCallback(async (newContent: string) => {
     setSaving(true);
     try {
-      // 서버 저장
-      await saveMySessionNote(displayId, userId, newContent);
-      
+      // displayId가 유효할 때만 서버 저장
+      if (displayId && displayId.trim() !== '') {
+        await saveMySessionNote(displayId, userId, newContent);
+      }
+
       // 로컬 자동 저장
       localStorage.setItem(localKey, newContent);
-      
+
       setContent(newContent);
     } catch (error) {
       // 서버 저장 실패해도 로컬은 저장

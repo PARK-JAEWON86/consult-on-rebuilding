@@ -1,15 +1,33 @@
 import { api } from '@/lib/api';
 
+export interface Expert {
+  id: number;
+  displayId: string;
+  hourlyRate: number;
+  name: string;
+  title?: string;
+  specialty?: string;
+  bio?: string;
+  avatarUrl?: string;
+  ratingAvg: number;
+  reviewCount: number;
+  isActive: boolean;
+  level: string;
+  responseTime: string;
+}
+
 export interface User {
   id: string;
   email: string;
   name?: string;
   roles: ('USER' | 'EXPERT' | 'ADMIN')[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   credits?: number;
   avatarUrl?: string;
   isEmailVerified?: boolean;
+  emailVerifiedAt?: string;
+  expert?: Expert;
 }
 
 export interface AuthState {
