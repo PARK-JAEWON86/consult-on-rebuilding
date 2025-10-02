@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { CheckCircle2, Clock, Mail, Home, FileText } from 'lucide-react'
+import { CheckCircle2, Clock, Mail, Home, FileText, Bell } from 'lucide-react'
+import ApplicationTimeline from '@/components/experts/ApplicationTimeline'
+import ApplicationSummaryCard from '@/components/experts/ApplicationSummaryCard'
 
 export default function ApplicationStatusPage() {
   const router = useRouter()
   const { user, isLoading } = useAuth()
   const [applicationData, setApplicationData] = useState<any>(null)
+  const [emailNotification, setEmailNotification] = useState(true)
+  const [smsNotification, setSmsNotification] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -43,23 +47,82 @@ export default function ApplicationStatusPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 헤더 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4 animate-pulse">
             <Clock className="w-8 h-8 text-yellow-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            전문가 지원 검수 중
+            전문가 등록 신청이 접수되었습니다
           </h1>
           <p className="text-gray-600">
             제출하신 전문가 등록 신청을 검토하고 있습니다
           </p>
         </div>
 
-        {/* 상태 카드 */}
+        {/* 진행 상황 타임라인 */}
+        <div className="mb-6">
+          <ApplicationTimeline
+            currentStage={(user as any)?.expertApplicationData?.currentStage || 'SUBMITTED'}
+            submittedAt={new Date((user as any)?.expertApplicationData?.submittedAt || Date.now())}
+          />
+        </div>
+
+        {/* 신청 정보 및 알림 설정 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* 신청 정보 요약 (좌측, 2/3 너비) */}
+          <div className="lg:col-span-2">
+            <ApplicationSummaryCard
+              applicationData={{
+                id: (user as any)?.expertApplicationData?.id || 0,
+                categoryName: (user as any)?.expertApplicationData?.category || '전문 분야',
+                specialty: (user as any)?.expertApplicationData?.specialty || '세부 전문',
+                submittedAt: new Date((user as any)?.expertApplicationData?.submittedAt || Date.now()),
+                bio: (user as any)?.expertApplicationData?.bio,
+                keywords: (user as any)?.expertApplicationData?.keywords,
+                consultationTypes: (user as any)?.expertApplicationData?.consultationTypes,
+              }}
+            />
+          </div>
+
+          {/* 알림 설정 카드 (우측, 1/3 너비) */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <Bell className="w-5 h-5 text-gray-700" />
+                <h3 className="font-semibold text-gray-900">알림 설정</h3>
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-gray-700">이메일 알림</span>
+                  <input
+                    type="checkbox"
+                    checked={emailNotification}
+                    onChange={(e) => setEmailNotification(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-gray-700">SMS 알림</span>
+                  <input
+                    type="checkbox"
+                    checked={smsNotification}
+                    onChange={(e) => setSmsNotification(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                검수 상태가 변경되면 선택하신 방법으로 알려드립니다
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 상태 정보 카드 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* 검수 기간 */}
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
@@ -68,7 +131,7 @@ export default function ApplicationStatusPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">예상 검수 기간</h3>
                 <p className="text-gray-600 text-sm">
-                  평균 1~3 영업일이 소요됩니다
+                  평균 1~3 영업일 소요
                 </p>
               </div>
             </div>
@@ -81,7 +144,7 @@ export default function ApplicationStatusPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">결과 안내</h3>
                 <p className="text-gray-600 text-sm">
-                  검수 완료 후 등록하신 이메일(<span className="font-medium">{user.email}</span>)로 결과를 안내드립니다
+                  이메일로 결과 전송
                 </p>
               </div>
             </div>
@@ -94,7 +157,7 @@ export default function ApplicationStatusPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">추가 서류 요청</h3>
                 <p className="text-gray-600 text-sm">
-                  필요 시 자격증 또는 경력 증빙 서류를 요청드릴 수 있습니다
+                  필요 시 요청 가능
                 </p>
               </div>
             </div>

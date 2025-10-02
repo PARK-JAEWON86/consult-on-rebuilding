@@ -6,14 +6,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();
-    
+
     // 이미 응답이 전송되었는지 확인
     if (response.headersSent) {
       return;
     }
-    
+
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    
+
+    // 500 에러인 경우 상세 로깅
+    if (status === 500) {
+      console.error('=== 500 Internal Server Error ===');
+      console.error('Request URL:', request.url);
+      console.error('Request Method:', request.method);
+      console.error('Exception:', exception);
+      console.error('Stack:', exception.stack);
+      console.error('================================');
+    }
+
     // BadRequestException의 경우 상세 정보 추출
     let errorResponse;
     if (exception instanceof HttpException) {

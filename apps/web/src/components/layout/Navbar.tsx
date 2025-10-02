@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useViewMode } from '@/contexts/ViewModeContext';
-import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3, Shield } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3, Shield, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface NavItem {
@@ -157,16 +157,18 @@ export default function Navbar() {
                         <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                       
-                      {/* 대시보드 메뉴 */}
-                      <Link
-                        href="/dashboard"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setShowUserMenu(false)}
-                        role="menuitem"
-                      >
-                        <Home className="w-4 h-4 mr-3" />
-                        클라이언트 대시보드
-                      </Link>
+                      {/* 클라이언트 대시보드 - 클라이언트 또는 관리자만 표시 */}
+                      {(!user?.roles?.includes('EXPERT') || isAdmin) && (
+                        <Link
+                          href="/dashboard"
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
+                          role="menuitem"
+                        >
+                          <Home className="w-4 h-4 mr-3" />
+                          클라이언트 대시보드
+                        </Link>
+                      )}
 
                       {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
                       {(user?.roles?.includes('EXPERT') || isAdmin) && (
@@ -223,24 +225,57 @@ export default function Navbar() {
                               router.push("/experts/application-status");
                             } else if (status === 'APPROVED') {
                               router.push("/dashboard/expert");
+                            } else if (status === 'REJECTED') {
+                              router.push("/experts/become?reapply=true");
                             } else {
                               router.push("/experts/become");
                             }
                             setShowUserMenu(false);
                           }}
-                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
+                            (user as any)?.expertApplicationStatus === 'PENDING'
+                              ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100 font-medium'
+                              : (user as any)?.expertApplicationStatus === 'APPROVED'
+                              ? 'text-green-700 font-medium'
+                              : (user as any)?.expertApplicationStatus === 'REJECTED'
+                              ? 'text-orange-700'
+                              : 'text-gray-700'
+                          }`}
                           role="menuitem"
                         >
-                          <ArrowLeftRight className="w-4 h-4 mr-3" />
-                          <span>
+                          {/* 아이콘 */}
+                          <span className="mr-3">
                             {(() => {
                               const status = (user as any)?.expertApplicationStatus;
-                              if (status === 'PENDING') return '지원 상태 확인';
+                              if (status === 'PENDING') {
+                                return <Clock className="w-4 h-4 text-yellow-600 animate-pulse" />;
+                              } else if (status === 'APPROVED') {
+                                return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+                              } else if (status === 'REJECTED') {
+                                return <ArrowLeftRight className="w-4 h-4 text-orange-600" />;
+                              } else {
+                                return <ArrowLeftRight className="w-4 h-4" />;
+                              }
+                            })()}
+                          </span>
+
+                          {/* 라벨 */}
+                          <span className="flex-1 text-left">
+                            {(() => {
+                              const status = (user as any)?.expertApplicationStatus;
+                              if (status === 'PENDING') return '검수 진행중';
                               if (status === 'APPROVED') return '전문가 대시보드';
                               if (status === 'REJECTED') return '전문가 재지원';
                               return '전문가 지원하기';
                             })()}
                           </span>
+
+                          {/* 상태 뱃지 (PENDING일 때만) */}
+                          {(user as any)?.expertApplicationStatus === 'PENDING' && (
+                            <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                              진행중
+                            </span>
+                          )}
                         </button>
                       )}
 
@@ -369,15 +404,17 @@ export default function Navbar() {
                   </div>
                   
                   <div className="mt-2 space-y-1">
-                    {/* 대시보드 메뉴 */}
-                    <Link
-                      href="/dashboard"
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <Home className="w-4 h-4 inline mr-2" />
-                      클라이언트 대시보드
-                    </Link>
+                    {/* 클라이언트 대시보드 - 클라이언트 또는 관리자만 표시 */}
+                    {(!user?.roles?.includes('EXPERT') || isAdmin) && (
+                      <Link
+                        href="/dashboard"
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Home className="w-4 h-4 inline mr-2" />
+                        클라이언트 대시보드
+                      </Link>
+                    )}
 
                     {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
                     {(user?.roles?.includes('EXPERT') || isAdmin) && (
@@ -429,21 +466,47 @@ export default function Navbar() {
                             router.push("/experts/application-status");
                           } else if (status === 'APPROVED') {
                             router.push("/dashboard/expert");
+                          } else if (status === 'REJECTED') {
+                            router.push("/experts/become?reapply=true");
                           } else {
                             router.push("/experts/become");
                           }
                           setIsMobileMenuOpen(false);
                         }}
-                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                        className={`block w-full text-left px-3 py-2 text-sm rounded-md ${
+                          (user as any)?.expertApplicationStatus === 'PENDING'
+                            ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100 font-medium'
+                            : (user as any)?.expertApplicationStatus === 'APPROVED'
+                            ? 'text-green-700 font-medium hover:bg-gray-50'
+                            : (user as any)?.expertApplicationStatus === 'REJECTED'
+                            ? 'text-orange-700 hover:bg-gray-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
                       >
-                        <ArrowLeftRight className="w-4 h-4 inline mr-2" />
                         {(() => {
                           const status = (user as any)?.expertApplicationStatus;
-                          if (status === 'PENDING') return '지원 상태 확인';
+                          if (status === 'PENDING') {
+                            return <Clock className="w-4 h-4 inline mr-2 text-yellow-600 animate-pulse" />;
+                          } else if (status === 'APPROVED') {
+                            return <CheckCircle2 className="w-4 h-4 inline mr-2 text-green-600" />;
+                          } else if (status === 'REJECTED') {
+                            return <ArrowLeftRight className="w-4 h-4 inline mr-2 text-orange-600" />;
+                          } else {
+                            return <ArrowLeftRight className="w-4 h-4 inline mr-2" />;
+                          }
+                        })()}
+                        {(() => {
+                          const status = (user as any)?.expertApplicationStatus;
+                          if (status === 'PENDING') return '검수 진행중';
                           if (status === 'APPROVED') return '전문가 대시보드';
                           if (status === 'REJECTED') return '전문가 재지원';
                           return '전문가 지원하기';
                         })()}
+                        {(user as any)?.expertApplicationStatus === 'PENDING' && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                            진행중
+                          </span>
+                        )}
                       </button>
                     )}
 

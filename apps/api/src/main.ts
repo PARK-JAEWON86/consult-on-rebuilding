@@ -27,9 +27,16 @@ async function bootstrap() {
   // Cookie parser
   app.use(cookieParser())
 
-  // Raw body for webhooks
+  // Raw body for webhooks with increased size limit for file uploads
   app.use(require('express').json({
+    limit: '10mb', // 이미지 업로드를 위한 크기 제한 증가
     verify: (req: any, _res: any, buf: Buffer) => { req.rawBody = buf.toString('utf8'); },
+  }))
+
+  // URL-encoded body parser with size limit
+  app.use(require('express').urlencoded({
+    limit: '10mb',
+    extended: true,
   }))
 
   // Global validation pipe

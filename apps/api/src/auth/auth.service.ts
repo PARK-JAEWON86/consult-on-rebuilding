@@ -267,6 +267,34 @@ export class AuthService {
       result.expert = user.expert
     }
 
+    // ExpertApplication 상세 정보 추가 (PENDING 상태인 경우)
+    if (expertApplication && expertApplication.status === 'PENDING') {
+      // JSON 필드 파싱 헬퍼
+      const parseJsonField = (field: any): any => {
+        if (!field) return [];
+        if (typeof field === 'string') {
+          try {
+            return JSON.parse(field);
+          } catch (e) {
+            console.warn('Failed to parse JSON field:', field);
+            return [];
+          }
+        }
+        return Array.isArray(field) ? field : [];
+      };
+
+      result.expertApplicationData = {
+        id: expertApplication.id,
+        category: expertApplication.specialty.split(' - ')[0] || expertApplication.specialty,
+        specialty: expertApplication.specialty,
+        submittedAt: expertApplication.createdAt,
+        currentStage: expertApplication.currentStage || 'SUBMITTED',
+        bio: expertApplication.bio,
+        keywords: parseJsonField(expertApplication.keywords),
+        consultationTypes: parseJsonField(expertApplication.consultationTypes)
+      }
+    }
+
     return result
   }
 

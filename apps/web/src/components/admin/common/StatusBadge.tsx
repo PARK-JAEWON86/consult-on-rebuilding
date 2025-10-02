@@ -1,4 +1,4 @@
-type Status = 'PENDING' | 'APPROVED' | 'REJECTED'
+type Status = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
 
 interface StatusBadgeProps {
   status: Status
@@ -9,6 +9,10 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     PENDING: {
       label: '검토 중',
       className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    },
+    ADDITIONAL_INFO_REQUESTED: {
+      label: '정보 요청됨',
+      className: 'bg-orange-100 text-orange-800 border-orange-200'
     },
     APPROVED: {
       label: '승인됨',

@@ -11,6 +11,8 @@ import { UsersController } from './users/users.controller'
 import { UsersService } from './users/users.service'
 import { ContentController } from './content/content.controller'
 import { ContentService } from './content/content.service'
+import { SettingsController } from './settings/settings.controller'
+import { SettingsService } from './settings/settings.service'
 import { AdminGuard } from './guards/admin.guard'
 import { AdminRoleGuard } from './guards/admin-role.guard'
 
@@ -26,12 +28,14 @@ import { AdminRoleGuard } from './guards/admin-role.guard'
     AnalyticsController,
     UsersController,
     ContentController,
+    SettingsController,
   ],
   providers: [
     ExpertApplicationsService,
     AnalyticsService,
     UsersService,
     ContentService,
+    SettingsService,
     AdminGuard,
     AdminRoleGuard,
   ],
@@ -40,6 +44,7 @@ import { AdminRoleGuard } from './guards/admin-role.guard'
     AnalyticsService,
     UsersService,
     ContentService,
+    SettingsService,
   ],
 })
 export class AdminModule {}

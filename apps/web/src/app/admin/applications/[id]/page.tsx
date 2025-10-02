@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import axios from 'axios'
 import {
   ArrowLeft,
   CheckCircle,
@@ -11,9 +10,11 @@ import {
   Briefcase,
   Calendar,
   FileText,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react'
 import StatusBadge from '@/components/admin/common/StatusBadge'
+import { api } from '@/lib/api'
 
 interface ApplicationDetail {
   application: {
@@ -30,7 +31,7 @@ interface ApplicationDetail {
     availability: any
     certifications: any[]
     profileImage: string | null
-    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
     reviewedAt: string | null
     reviewNotes: string | null
     createdAt: string
@@ -55,7 +56,7 @@ export default function ApplicationDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [reviewNotes, setReviewNotes] = useState('')
   const [showReviewDialog, setShowReviewDialog] = useState(false)
-  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | 'request-info'>('approve')
 
   useEffect(() => {
     loadApplicationDetail()
@@ -64,15 +65,10 @@ export default function ApplicationDetailPage() {
   async function loadApplicationDetail() {
     try {
       setIsLoading(true)
-      const response = await axios.get<ApplicationDetail>(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/applications/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          },
-        }
+      const response = await api.get<ApplicationDetail>(
+        `/admin/applications/${id}`
       )
-      setData(response.data)
+      setData(response.data as ApplicationDetail)
     } catch (error) {
       console.error('Failed to load application detail:', error)
     } finally {
@@ -80,32 +76,32 @@ export default function ApplicationDetailPage() {
     }
   }
 
-  async function handleReview(action: 'approve' | 'reject') {
+  async function handleReview(action: 'approve' | 'reject' | 'request-info') {
     if (isSubmitting) return
 
-    if (action === 'reject' && !reviewNotes.trim()) {
-      alert('거절 사유를 입력해주세요.')
+    if ((action === 'reject' || action === 'request-info') && !reviewNotes.trim()) {
+      alert(action === 'reject' ? '거절 사유를 입력해주세요.' : '요청 사항을 입력해주세요.')
       return
     }
 
     try {
       setIsSubmitting(true)
 
-      await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/applications/${id}/${action}`,
-        { reviewNotes: reviewNotes.trim() || undefined },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          },
-        }
+      await api.put(
+        `/admin/applications/${id}/${action}`,
+        { reviewNotes: reviewNotes.trim() || undefined }
       )
 
-      alert(action === 'approve' ? '승인되었습니다.' : '거절되었습니다.')
+      const messages = {
+        approve: '승인되었습니다.',
+        reject: '거절되었습니다.',
+        'request-info': '추가 정보 요청이 전송되었습니다.'
+      }
+      alert(messages[action])
       router.push('/admin/applications')
     } catch (error: any) {
       console.error('Failed to review application:', error)
-      alert(error.response?.data?.error?.message || '처리 중 오류가 발생했습니다.')
+      alert(error.message || '처리 중 오류가 발생했습니다.')
     } finally {
       setIsSubmitting(false)
       setShowReviewDialog(false)
@@ -137,7 +133,7 @@ export default function ApplicationDetailPage() {
   const { application, user } = data
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 헤더 */}
       <div className="mb-8">
         <button
@@ -164,7 +160,6 @@ export default function ApplicationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h2>
             <div className="space-y-3">
               <InfoRow icon={<Mail className="w-5 h-5" />} label="이메일" value={application.email} />
-              <InfoRow icon={<Briefcase className="w-5 h-5" />} label="직함" value={application.jobTitle || '-'} />
               <InfoRow icon={<FileText className="w-5 h-5" />} label="전문분야" value={application.specialty} />
               <InfoRow icon={<Clock className="w-5 h-5" />} label="경력" value={`${application.experienceYears}년`} />
               <InfoRow icon={<Calendar className="w-5 h-5" />} label="신청일" value={new Date(application.createdAt).toLocaleDateString('ko-KR')} />
@@ -178,34 +173,38 @@ export default function ApplicationDetailPage() {
           </div>
 
           {/* 키워드 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">키워드</h2>
-            <div className="flex flex-wrap gap-2">
-              {application.keywords.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                >
-                  {keyword}
-                </span>
-              ))}
+          {application.keywords && Array.isArray(application.keywords) && application.keywords.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">키워드</h2>
+              <div className="flex flex-wrap gap-2">
+                {application.keywords.map((keyword, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 상담 유형 */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">상담 유형</h2>
-            <div className="flex flex-wrap gap-2">
-              {application.consultationTypes.map((type, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-                >
-                  {type}
-                </span>
-              ))}
+          {application.consultationTypes && Array.isArray(application.consultationTypes) && application.consultationTypes.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">상담 유형</h2>
+              <div className="flex flex-wrap gap-2">
+                {application.consultationTypes.map((type, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+                  >
+                    {type}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 프로필 이미지 */}
           {application.profileImage && (
@@ -236,6 +235,16 @@ export default function ApplicationDetailPage() {
                 >
                   <CheckCircle className="w-5 h-5" />
                   승인
+                </button>
+                <button
+                  onClick={() => {
+                    setReviewAction('request-info')
+                    setShowReviewDialog(true)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  추가 정보 요청
                 </button>
                 <button
                   onClick={() => {
@@ -302,17 +311,19 @@ export default function ApplicationDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {reviewAction === 'approve' ? '지원 승인' : '지원 거절'}
+              {reviewAction === 'approve' ? '지원 승인' : reviewAction === 'request-info' ? '추가 정보 요청' : '지원 거절'}
             </h3>
             <p className="text-gray-600 mb-4">
               {reviewAction === 'approve'
                 ? '이 지원을 승인하시겠습니까?'
+                : reviewAction === 'request-info'
+                ? '필요한 추가 정보를 입력해주세요.'
                 : '거절 사유를 입력해주세요.'}
             </p>
             <textarea
               value={reviewNotes}
               onChange={(e) => setReviewNotes(e.target.value)}
-              placeholder={reviewAction === 'approve' ? '메모 (선택사항)' : '거절 사유 (필수)'}
+              placeholder={reviewAction === 'approve' ? '메모 (선택사항)' : reviewAction === 'request-info' ? '요청 사항 (필수)' : '거절 사유 (필수)'}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
               rows={4}
             />
@@ -329,11 +340,13 @@ export default function ApplicationDetailPage() {
                 className={`flex-1 px-4 py-2 rounded-lg text-white font-medium ${
                   reviewAction === 'approve'
                     ? 'bg-green-600 hover:bg-green-700'
+                    : reviewAction === 'request-info'
+                    ? 'bg-yellow-600 hover:bg-yellow-700'
                     : 'bg-red-600 hover:bg-red-700'
                 }`}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? '처리 중...' : reviewAction === 'approve' ? '승인' : '거절'}
+                {isSubmitting ? '처리 중...' : reviewAction === 'approve' ? '승인' : reviewAction === 'request-info' ? '요청 전송' : '거절'}
               </button>
             </div>
           </div>

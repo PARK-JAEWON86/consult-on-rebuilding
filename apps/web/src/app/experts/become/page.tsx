@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import React from 'react'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { api } from '@/lib/api'
 import {
   ShieldCheck,
   Award,
@@ -416,11 +417,65 @@ export default function BecomeExpertPage() {
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) return
+
+    // 파일 타입 검증
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    // 파일 크기 검증 (5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      alert('이미지 크기는 5MB 이하로 제한됩니다.')
+      return
+    }
+
+    // 이미지 압축 및 리사이징
     const reader = new FileReader()
     reader.onload = (ev) => {
-      const result = ev.target?.result
-      setProfileImage(typeof result === 'string' ? result : null)
+      const img = new Image()
+      img.onload = () => {
+        // 캔버스를 사용하여 이미지 리사이징
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+
+        // 최대 너비/높이 설정
+        const maxWidth = 800
+        const maxHeight = 800
+        let width = img.width
+        let height = img.height
+
+        // 비율 유지하며 리사이징
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width
+            width = maxWidth
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height
+            height = maxHeight
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        // JPEG로 압축 (품질 0.8)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8)
+
+        // 압축된 이미지 크기 확인 (base64는 약 1.33배 크기)
+        const compressedSize = (compressedDataUrl.length * 3) / 4
+        if (compressedSize > maxSize) {
+          alert('압축 후에도 이미지가 너무 큽니다. 더 작은 이미지를 선택해주세요.')
+          return
+        }
+
+        setProfileImage(compressedDataUrl)
+      }
+      img.src = ev.target?.result as string
     }
     reader.readAsDataURL(file)
   }
@@ -600,7 +655,7 @@ export default function BecomeExpertPage() {
     sunday: '일요일',
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!agree) {
       alert('약관 동의가 필요합니다.')
       return
@@ -615,55 +670,58 @@ export default function BecomeExpertPage() {
       ? `${categoryName} - ${detailedSpecialty}`
       : categoryName || specialty
 
-    const expertProfileData = {
+    // availability 데이터 변환 (startTime, endTime → hours)
+    const transformedAvailability = Object.entries(availability).reduce((acc, [day, data]) => {
+      acc[day] = {
+        available: data.available,
+        hours: data.available ? `${data.startTime}-${data.endTime}` : ''
+      }
+      return acc
+    }, {} as Record<string, { available: boolean; hours: string }>)
+
+    // API로 전송할 데이터 구성
+    const applicationData = {
       name: fullName,
+      email: email,
+      jobTitle: '', // 필요시 추가
       specialty: fullSpecialty,
-      experience: experienceYears,
-      description: bio,
-      education: [] as string[],
+      experienceYears: experienceYears,
+      bio: bio,
+      keywords: keywords.filter((k) => k.trim()),
+      consultationTypes: consultationTypes,
+      availability: transformedAvailability,
       certifications: certifications
         .filter((c) => c.name.trim())
-        .map((c) => (c.issuer.trim() ? `${c.name} (${c.issuer})` : c.name)),
-      specialties: keywords.filter((k) => k.trim()),
-      consultationTypes: consultationTypes,
-      languages: ['한국어'],
-      hourlyRate: '',
-      totalSessions: 0,
-      avgRating: 0,
-      availability,
-      contactInfo: {
-        phone: '',
-        email,
-        location: '',
-        website: '',
-      },
-      profileImage,
-      portfolioFiles: [] as Array<{
-        id: number
-        name: string
-        type: string
-        size: number
-        data: string
-      }>,
-      isProfileComplete: false,
+        .map((c) => ({
+          name: c.name,
+          issuer: c.issuer || ''
+        })),
+      profileImage: profileImage,
     }
 
-    // 서버 연동 전까지는 로컬 스토리지에 저장
     try {
-      localStorage.setItem(
-        'pendingExpertApplication',
-        JSON.stringify(expertProfileData)
-      )
-      localStorage.setItem(
-        'approvedExpertProfile',
-        JSON.stringify(expertProfileData)
-      )
-    } catch (e) {
-      // noop
-    }
+      const result = await api.post('/experts/apply', applicationData)
 
-    // 6단계(완료 페이지)로 이동
-    setStep(6)
+      if (result.success) {
+        // 성공 시 로컬스토리지 정리 (선택사항)
+        localStorage.removeItem('pendingExpertApplication')
+
+        alert('전문가 신청이 성공적으로 접수되었습니다!')
+
+        // 사용자 정보 새로고침 후 진행현황 페이지로 이동
+        window.location.href = '/experts/application-status'
+      } else {
+        throw new Error(result.error?.message || '신청 제출 실패')
+      }
+    } catch (error: any) {
+      console.error('Application submission error:', error)
+
+      // API 클라이언트가 이미 Toast와 리다이렉션을 처리하지만
+      // 추가적인 사용자 피드백이 필요한 경우에만 alert 표시
+      if (error.status !== 401) {
+        alert(error.message || '신청 제출 중 오류가 발생했습니다. 다시 시도해주세요.')
+      }
+    }
   }
 
   // 인증 상태 확인 중이거나 인증되지 않은 사용자는 로딩 화면 표시

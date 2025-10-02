@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
 import { Eye, Search, Shield, CheckCircle, XCircle } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface User {
   id: number
@@ -44,8 +44,8 @@ export default function AdminUsersPage() {
   async function loadUsers() {
     try {
       setIsLoading(true)
-      const response = await axios.get<UsersResponse>(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/users`,
+      const response = await api.get<UsersResponse>(
+        '/admin/users',
         {
           params: {
             page,
@@ -53,14 +53,11 @@ export default function AdminUsersPage() {
             search: searchQuery || undefined,
             role: roleFilter || undefined,
           },
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          },
         }
       )
 
-      setUsers(response.data.data)
-      setTotalPages(response.data.totalPages)
+      setUsers(response.data?.data || [])
+      setTotalPages(response.data?.totalPages || 1)
     } catch (error) {
       console.error('Failed to load users:', error)
     } finally {

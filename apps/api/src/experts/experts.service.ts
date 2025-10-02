@@ -351,26 +351,69 @@ export class ExpertsService {
   }
 
   async createApplication(userId: number, dto: CreateExpertApplicationDto) {
-    const displayId = ulid();
+    try {
+      const displayId = ulid();
 
-    return this.prisma.expertApplication.create({
-      data: {
+      console.log('Creating expert application for userId:', userId);
+      console.log('Application data:', {
         displayId,
-        userId,
         name: dto.name,
         email: dto.email,
-        jobTitle: dto.jobTitle,
         specialty: dto.specialty,
         experienceYears: dto.experienceYears,
-        bio: dto.bio,
-        keywords: dto.keywords,
-        consultationTypes: dto.consultationTypes,
-        availability: dto.availability,
-        certifications: dto.certifications,
-        profileImage: dto.profileImage,
-        status: 'PENDING',
-      },
-    });
+        keywordsCount: dto.keywords?.length,
+        consultationTypesCount: dto.consultationTypes?.length,
+        certificationsCount: dto.certifications?.length,
+        hasProfileImage: !!dto.profileImage,
+        availabilityKeys: Object.keys(dto.availability || {}),
+      });
+
+      // ExpertApplication 생성 및 User의 roles 업데이트를 트랜잭션으로 처리
+      const [application] = await this.prisma.$transaction([
+        // ExpertApplication 생성
+        this.prisma.expertApplication.create({
+          data: {
+            displayId,
+            userId,
+            name: dto.name,
+            email: dto.email,
+            jobTitle: dto.jobTitle || '',
+            specialty: dto.specialty,
+            experienceYears: dto.experienceYears,
+            bio: dto.bio,
+            keywords: JSON.stringify(dto.keywords),
+            consultationTypes: JSON.stringify(dto.consultationTypes),
+            availability: JSON.stringify(dto.availability),
+            certifications: JSON.stringify(dto.certifications),
+            profileImage: dto.profileImage || null,
+            status: 'PENDING',
+            currentStage: 'SUBMITTED',
+          },
+        }),
+        // User의 roles에 expertApplicationStatus 추가 (JSON 필드 업데이트)
+        this.prisma.$executeRaw`
+          UPDATE User
+          SET roles = JSON_SET(
+            roles,
+            '$.expertApplicationStatus',
+            'PENDING'
+          )
+          WHERE id = ${userId}
+        `,
+      ]);
+
+      console.log('Application created successfully:', application.id);
+      return application;
+    } catch (error: any) {
+      console.error('Error creating expert application:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        meta: error?.meta,
+        stack: error?.stack,
+      });
+      throw error;
+    }
   }
 
   async getExpertStats(userId: number) {

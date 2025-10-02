@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import '../styles/globals.css'
 import Providers from './providers'
 import Navbar from '@/components/layout/Navbar'
-import { ToastProvider } from '@/components/ui/Toast'
 import { getCurrentUser } from '@/lib/auth-server'
 import ConditionalFooter from '@/components/layout/ConditionalFooter'
 
@@ -21,17 +20,15 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen bg-gray-50 font-sans antialiased">
-        <ToastProvider>
-          <Providers initialUser={initialUser}>
-            <div className="flex flex-col min-h-screen">
-              <Navbar />
-              <main className="flex-1">
-                {children}
-              </main>
-              <ConditionalFooter />
-            </div>
-          </Providers>
-        </ToastProvider>
+        <Providers initialUser={initialUser}>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">
+              {children}
+            </main>
+            <ConditionalFooter />
+          </div>
+        </Providers>
       </body>
     </html>
   )

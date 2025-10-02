@@ -64,4 +64,18 @@ export class ExpertApplicationsController {
     }
     return this.service.rejectApplication(parseInt(id), dto)
   }
+
+  @Put(':id/request-info')
+  @UseGuards(AdminRoleGuard)
+  @RequirePermission(AdminPermission.MANAGE_APPLICATIONS)
+  async requestAdditionalInfo(
+    @Param('id') id: string,
+    @Body() body: { reviewNotes: string },
+    @Req() req: any
+  ) {
+    return this.service.requestAdditionalInfo(parseInt(id), {
+      reviewNotes: body.reviewNotes,
+      reviewedBy: req.user.id,
+    })
+  }
 }

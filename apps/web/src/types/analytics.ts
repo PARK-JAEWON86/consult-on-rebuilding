@@ -123,7 +123,7 @@ export interface QualityAnalytics {
     pending: number
     resolved: number
     avg_resolution_time: number // hours
-  }>
+  }
   low_rating_consultations: Array<{
     consultation_id: number
     expert_name: string

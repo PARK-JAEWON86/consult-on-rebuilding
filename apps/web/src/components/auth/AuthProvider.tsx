@@ -44,33 +44,23 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   // 사용자 정보 새로고침
   const refreshUser = async () => {
-    console.log('🔄 AuthProvider: Starting refreshUser')
     setIsLoading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
-      console.log('🌐 AuthProvider: API URL:', apiUrl)
-      console.log('🌐 AuthProvider: Making API call to /auth/me')
       const response = await api.get('/auth/me')
-      console.log('📥 Auth API response:', response)
 
       if (response.success && response.data && response.data.user) {
-        console.log('✅ User data found:', response.data.user)
         setUser(response.data.user)
       } else {
-        console.log('❌ No user data in response, setting user to null')
         setUser(null)
       }
     } catch (error) {
-      console.error('🚨 Failed to refresh user:', error)
-      console.error('Error details:', {
-        message: error.message,
-        status: (error as any).status,
-        stack: error.stack
-      })
+      // 401은 정상적인 미인증 상태이므로 에러 로그 출력하지 않음
+      if ((error as any)?.status !== 401) {
+        console.error('Failed to refresh user:', error)
+      }
       setUser(null)
     } finally {
       setIsLoading(false)
-      console.log('🏁 AuthProvider: refreshUser completed')
     }
   }
 

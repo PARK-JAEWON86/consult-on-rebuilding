@@ -36,8 +36,20 @@ class APIClient {
       (error) => {
         // Handle network errors and other axios errors with Toast messages
         let message = 'API Error';
-        
+        let shouldShowToast = true;
+
         if (error.response?.status === 401) {
+          // /auth/me 엔드포인트의 401은 정상적인 미인증 상태
+          const isAuthCheck = error.config?.url?.includes('/auth/me');
+
+          if (isAuthCheck) {
+            // 조용히 에러 전달 (Toast 없음, 리다이렉트 없음)
+            const customError = new Error('Unauthorized');
+            (customError as any).status = 401;
+            throw customError;
+          }
+
+          // 다른 엔드포인트의 401은 기존대로 처리
           message = '로그인이 필요합니다.';
           // Redirect to login page on 401 errors
           if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
@@ -59,7 +71,7 @@ class APIClient {
         }
 
         // Show toast notification if available
-        if (typeof window !== 'undefined') {
+        if (shouldShowToast && typeof window !== 'undefined') {
           // Dispatch a custom event that can be caught by the Toast provider
           const toastEvent = new CustomEvent('api-error', {
             detail: { message, status: error.response?.status }

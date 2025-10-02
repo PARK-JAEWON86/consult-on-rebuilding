@@ -17,7 +17,10 @@ export class UsersService {
    * 사용자 목록 조회
    */
   async getUsers(query: UserListQuery) {
-    const { page = 1, limit = 20, search, role, status } = query
+    const { search, role, status } = query
+    // 쿼리 파라미터는 문자열로 전달되므로 숫자로 변환
+    const page = Number(query.page) || 1
+    const limit = Number(query.limit) || 20
 
     const where: any = {}
 
@@ -29,9 +32,11 @@ export class UsersService {
       ]
     }
 
-    // 역할 필터
+    // 역할 필터 (roles는 JSON 배열이므로 array_contains 사용)
     if (role) {
-      where.roles = { contains: role }
+      where.roles = {
+        array_contains: role
+      }
     }
 
     // 상태 필터 (간단하게 처리 - 실제로는 suspended 필드가 필요)

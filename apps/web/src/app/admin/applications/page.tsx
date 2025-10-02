@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
 import { Eye, Search } from 'lucide-react'
 import StatusBadge from '@/components/admin/common/StatusBadge'
+import { api } from '@/lib/api'
 
 interface ExpertApplication {
   id: number
@@ -13,7 +13,7 @@ interface ExpertApplication {
   email: string
   specialty: string
   experienceYears: number
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
   createdAt: string
 }
 
@@ -40,8 +40,15 @@ export default function AdminApplicationsPage() {
   async function loadApplications() {
     try {
       setIsLoading(true)
-      const response = await axios.get<ApplicationsResponse>(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/applications`,
+      console.log('🔍 Loading applications with params:', {
+        status: statusFilter || undefined,
+        page,
+        limit: 20,
+        search: searchQuery || undefined,
+      })
+
+      const response = await api.get<ApplicationsResponse>(
+        '/admin/applications',
         {
           params: {
             status: statusFilter || undefined,
@@ -49,16 +56,17 @@ export default function AdminApplicationsPage() {
             limit: 20,
             search: searchQuery || undefined,
           },
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-          },
         }
       )
 
-      setApplications(response.data.data)
-      setTotalPages(response.data.totalPages)
+      console.log('📦 API Response:', response)
+      console.log('📊 Applications data:', response.data)
+      console.log('📈 Total:', response.data?.total)
+
+      setApplications(response.data?.data || [])
+      setTotalPages(response.data?.totalPages || 1)
     } catch (error) {
-      console.error('Failed to load applications:', error)
+      console.error('❌ Failed to load applications:', error)
     } finally {
       setIsLoading(false)
     }
@@ -78,8 +86,8 @@ export default function AdminApplicationsPage() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* 상태 필터 */}
-          <div className="flex gap-2">
-            {['PENDING', 'APPROVED', 'REJECTED', ''].map((status) => (
+          <div className="flex gap-2 flex-wrap">
+            {['PENDING', 'ADDITIONAL_INFO_REQUESTED', 'APPROVED', 'REJECTED', ''].map((status) => (
               <button
                 key={status}
                 onClick={() => {
@@ -94,6 +102,7 @@ export default function AdminApplicationsPage() {
               >
                 {status === '' ? '전체' :
                  status === 'PENDING' ? '대기중' :
+                 status === 'ADDITIONAL_INFO_REQUESTED' ? '정보 요청됨' :
                  status === 'APPROVED' ? '승인됨' : '거절됨'}
               </button>
             ))}

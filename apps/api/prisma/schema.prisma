@@ -8,102 +8,102 @@ datasource db {
 }
 
 model User {
-  id                 Int                 @id @default(autoincrement())
-  email              String              @unique
-  name               String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  passwordHash       String?
-  avatarUrl          String?
-  provider           String              @default("local")
-  providerId         String?
-  emailVerifiedAt    DateTime?
-  roles              Json
-  phoneNumber        String?
-  phoneVerified      Boolean             @default(false)
-  phoneVerifiedAt    DateTime?
-  emailVerifications EmailVerification[]
-  phoneVerifications PhoneVerification[]
-  reviews            Review[]
-  notifications      Notification[]
-  paymentMethods     PaymentMethod[]
+  id                    Int                   @id @default(autoincrement())
+  email                 String                @unique
+  name                  String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  passwordHash          String?
+  avatarUrl             String?
+  provider              String                @default("local")
+  providerId            String?
+  emailVerifiedAt       DateTime?
+  roles                 Json
+  phoneNumber           String?
+  phoneVerified         Boolean               @default(false)
+  phoneVerifiedAt       DateTime?
+  emailVerifications    EmailVerification[]
+  phoneVerifications    PhoneVerification[]
+  reviews               Review[]
+  notifications         Notification[]
+  paymentMethods        PaymentMethod[]
   consultationSummaries ConsultationSummary[]
-  communityPosts     CommunityPost[]
-  communityComments  CommunityComment[]
-  communityLikes     CommunityLike[]
-  expert             Expert?
-  reservations       Reservation[]
-  adminUser          AdminUser?
+  communityPosts        CommunityPost[]
+  communityComments     CommunityComment[]
+  communityLikes        CommunityLike[]
+  expert                Expert?
+  reservations          Reservation[]
+  adminUser             AdminUser?
 
   @@unique([provider, providerId])
 }
 
 model Expert {
-  id                 Int              @id @default(autoincrement())
-  displayId          String           @unique
-  userId             Int?             @unique
+  id                 Int                  @id @default(autoincrement())
+  displayId          String               @unique
+  userId             Int?                 @unique
   name               String
   title              String?
   categories         Json
-  bio                String?
-  avatarUrl          String?
-  ratingAvg          Float            @default(0)
-  reviewCount        Int              @default(0)
-  isActive           Boolean          @default(true)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  bio                String?              @db.Text
+  avatarUrl          String?              @db.Text
+  ratingAvg          Float                @default(0)
+  reviewCount        Int                  @default(0)
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   availability       Json
-  avgSessionDuration Int              @default(60)
+  avgSessionDuration Int                  @default(60)
   cancellationPolicy String?
   certifications     Json
-  completionRate     Int              @default(95)
+  completionRate     Int                  @default(95)
   consultationTypes  Json
   contactInfo        Json
   description        String?
   education          Json
-  experience         Int              @default(0)
+  experience         Int                  @default(0)
   holidayPolicy      String?
-  hourlyRate         Int              @default(60000)
-  isProfileComplete  Boolean          @default(false)
-  isProfilePublic    Boolean          @default(true)
-  joinedAt           DateTime         @default(now())
+  hourlyRate         Int                  @default(60000)
+  isProfileComplete  Boolean              @default(false)
+  isProfilePublic    Boolean              @default(true)
+  joinedAt           DateTime             @default(now())
   languages          Json
   lastActiveAt       DateTime?
-  level              String           @default("Iron (아이언)") // 티어 표시용
-  calculatedLevel    Int              @default(1)                   // 실제 계산된 레벨 (1-999)
-  rankingScore       Float            @default(0.0)                 // 랭킹 점수 캐시
-  levelUpdatedAt     DateTime         @default(now())               // 레벨 마지막 업데이트 시간
+  level              String               @default("Iron (아이언)") // 티어 표시용
+  calculatedLevel    Int                  @default(1) // 실제 계산된 레벨 (1-999)
+  rankingScore       Float                @default(0.0) // 랭킹 점수 캐시
+  levelUpdatedAt     DateTime             @default(now()) // 레벨 마지막 업데이트 시간
   mbti               String?
   portfolioFiles     Json
   portfolioItems     Json
-  profileViews       Int              @default(0)
-  repeatClients      Int              @default(0)
+  profileViews       Int                  @default(0)
+  repeatClients      Int                  @default(0)
   reschedulePolicy   String?
-  responseTime       String           @default("2시간 내")
+  responseTime       String               @default("2시간 내")
   socialProof        Json
-  socialLinks        Json             @default("{}")    // 소셜 미디어 링크 (linkedin, github, twitter, etc.)
+  socialLinks        Json                 @default("{}") // 소셜 미디어 링크 (linkedin, github, twitter, etc.)
   specialties        Json
   specialty          String?
-  totalSessions      Int              @default(0)
+  totalSessions      Int                  @default(0)
   categoryLinks      ExpertCategory[]
   reviews            Review[]
   availabilitySlots  ExpertAvailability[]
   reservations       Reservation[]
-  user               User?            @relation(fields: [userId], references: [id])
+  user               User?                @relation(fields: [userId], references: [id])
 }
 
 model Category {
-  id          Int              @id @default(autoincrement())
-  description String?
-  icon        String?
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  nameEn      String?
-  nameKo      String
-  order       Int              @default(0)
-  slug        String           @unique
-  expertLinks ExpertCategory[]
+  id             Int              @id @default(autoincrement())
+  description    String?
+  icon           String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  nameEn         String?
+  nameKo         String
+  order          Int              @default(0)
+  slug           String           @unique
+  expertLinks    ExpertCategory[]
   communityPosts CommunityPost[]
 }
 
@@ -224,8 +224,9 @@ model ExpertApplication {
   consultationTypes Json
   availability      Json
   certifications    Json
-  profileImage      String?
+  profileImage      String?                 @db.Text
   status            ExpertApplicationStatus @default(PENDING)
+  currentStage      String?                 @default("SUBMITTED") // SUBMITTED, DOCUMENT_REVIEW, UNDER_REVIEW, APPROVAL_PENDING
   reviewedAt        DateTime?
   reviewedBy        Int?
   reviewNotes       String?
@@ -252,15 +253,15 @@ model EmailVerification {
 }
 
 model PhoneVerification {
-  id           Int       @id @default(autoincrement())
-  userId       Int?
-  phoneNumber  String
-  code         String
-  expiresAt    DateTime
-  verifiedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  attempts     Int       @default(0)
-  user         User?     @relation(fields: [userId], references: [id])
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  attempts    Int       @default(0)
+  user        User?     @relation(fields: [userId], references: [id])
 
   @@index([phoneNumber])
   @@index([expiresAt])
@@ -309,20 +310,20 @@ model ChatMessage {
 }
 
 model Notification {
-  id        Int                   @id @default(autoincrement())
-  displayId String                @unique
+  id        Int                  @id @default(autoincrement())
+  displayId String               @unique
   userId    Int
   type      NotificationType
   title     String
   message   String
   data      Json?
-  isRead    Boolean               @default(false)
-  priority  NotificationPriority  @default(MEDIUM)
+  isRead    Boolean              @default(false)
+  priority  NotificationPriority @default(MEDIUM)
   expiresAt DateTime?
   readAt    DateTime?
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
-  user      User                  @relation(fields: [userId], references: [id])
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  user      User                 @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -351,6 +352,7 @@ enum SessionStatus {
 
 enum ExpertApplicationStatus {
   PENDING
+  ADDITIONAL_INFO_REQUESTED
   APPROVED
   REJECTED
 }
@@ -416,27 +418,27 @@ model ConsultationSummary {
 }
 
 model CommunityPost {
-  id             Int               @id @default(autoincrement())
-  userId         Int
-  categoryId     Int
-  title          String
-  content        String            @db.Text
-  postType       CommunityPostType @default(general)
-  status         PostStatus        @default(published)
-  isPinned       Boolean           @default(false)
-  isAnonymous    Boolean           @default(false)
-  views          Int               @default(0)
-  likes          Int               @default(0)
-  comments       Int               @default(0)
-  tags           Json?
-  attachments    Json?
-  consultationId Int?
-  expertId       Int?
-  publishedAt    DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  user           User              @relation(fields: [userId], references: [id])
-  category       Category          @relation(fields: [categoryId], references: [id])
+  id                Int                @id @default(autoincrement())
+  userId            Int
+  categoryId        Int
+  title             String
+  content           String             @db.Text
+  postType          CommunityPostType  @default(general)
+  status            PostStatus         @default(published)
+  isPinned          Boolean            @default(false)
+  isAnonymous       Boolean            @default(false)
+  views             Int                @default(0)
+  likes             Int                @default(0)
+  comments          Int                @default(0)
+  tags              Json?
+  attachments       Json?
+  consultationId    Int?
+  expertId          Int?
+  publishedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id])
+  category          Category           @relation(fields: [categoryId], references: [id])
   communityComments CommunityComment[]
 
   @@index([userId])
@@ -448,24 +450,24 @@ model CommunityPost {
 }
 
 model CommunityComment {
-  id               Int               @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
   postId           Int
   userId           Int
   parentId         Int?
-  content          String            @db.Text
-  status           CommentStatus     @default(active)
-  isAnonymous      Boolean           @default(false)
-  likes            Int               @default(0)
-  depth            Int               @default(0)
-  order            Int               @default(1)
+  content          String             @db.Text
+  status           CommentStatus      @default(active)
+  isAnonymous      Boolean            @default(false)
+  likes            Int                @default(0)
+  depth            Int                @default(0)
+  order            Int                @default(1)
   expertSpecialty  String?
   expertLevel      String?
   expertExperience Int?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  post             CommunityPost     @relation(fields: [postId], references: [id])
-  user             User              @relation(fields: [userId], references: [id])
-  parent           CommunityComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  post             CommunityPost      @relation(fields: [postId], references: [id])
+  user             User               @relation(fields: [userId], references: [id])
+  parent           CommunityComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies          CommunityComment[] @relation("CommentReplies")
 
   @@index([postId])
@@ -475,13 +477,13 @@ model CommunityComment {
 }
 
 model CommunityLike {
-  id         Int           @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
   userId     Int
   targetType LikeTargetType
   targetId   Int
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  user       User          @relation(fields: [userId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id])
 
   @@unique([userId, targetType, targetId])
   @@index([targetType, targetId])
@@ -513,16 +515,16 @@ enum LikeTargetType {
 }
 
 model ExpertAvailability {
-  id          Int               @id @default(autoincrement())
-  expertId    Int
-  dayOfWeek   ExpertDayOfWeek   // 요일 (월, 화, 수, 목, 금, 토, 일)
-  startTime   String            // "09:00" 형식
-  endTime     String            // "18:00" 형식
-  isActive    Boolean           @default(true)
-  timeZone    String            @default("Asia/Seoul")
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  expert      Expert            @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  id        Int             @id @default(autoincrement())
+  expertId  Int
+  dayOfWeek ExpertDayOfWeek // 요일 (월, 화, 수, 목, 금, 토, 일)
+  startTime String // "09:00" 형식
+  endTime   String // "18:00" 형식
+  isActive  Boolean         @default(true)
+  timeZone  String          @default("Asia/Seoul")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  expert    Expert          @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@unique([expertId, dayOfWeek, startTime, endTime])
   @@index([expertId])
@@ -592,5 +594,35 @@ model AuditLog {
 
   @@index([adminUserId, createdAt])
   @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model PlatformSettings {
+  id        Int      @id @default(autoincrement())
+  category  String
+  key       String
+  value     Json
+  dataType  String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([category, key])
+  @@index([category])
+}
+
+model SettingChangeLog {
+  id          Int      @id @default(autoincrement())
+  adminUserId Int
+  category    String
+  settingKey  String
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([category, settingKey])
   @@index([createdAt])
 }
