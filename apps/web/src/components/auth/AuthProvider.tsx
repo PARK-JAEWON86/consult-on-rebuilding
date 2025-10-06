@@ -11,14 +11,15 @@ interface AuthContextType extends AuthState {
   refreshUser: () => Promise<void>
   logout: () => Promise<void>
   login: (credentials: { email: string; password: string }) => Promise<void>
-  register: (credentials: { 
-    email: string; 
-    password: string; 
-    name: string; 
-    verificationCode: string 
+  register: (credentials: {
+    email: string;
+    password: string;
+    name: string;
+    verificationCode: string
   }) => Promise<void>
   sendVerificationEmail: (email: string) => Promise<void>
   googleLogin: () => void
+  kakaoLogin: () => void
   isLoginLoading: boolean
   isRegisterLoading: boolean
   isLogoutLoading: boolean
@@ -156,6 +157,12 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     window.location.href = `${apiUrl}/auth/google`
   }
 
+  // Kakao 로그인
+  const kakaoLogin = () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
+    window.location.href = `${apiUrl}/auth/kakao`
+  }
+
   // 로그아웃
   const logout = async () => {
     setIsLogoutLoading(true)
@@ -202,6 +209,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     register,
     sendVerificationEmail,
     googleLogin,
+    kakaoLogin,
     isLoginLoading,
     isRegisterLoading,
     isLogoutLoading,

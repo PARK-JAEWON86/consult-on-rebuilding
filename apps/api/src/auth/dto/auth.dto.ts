@@ -14,7 +14,7 @@ export const loginDto = z.object({
 export type LoginDto = z.infer<typeof loginDto>;
 
 export const verifyEmailDto = z.object({
-  token: z.string().min(10).max(255),
+  token: z.string().min(6).max(255),
 });
 export type VerifyEmailDto = z.infer<typeof verifyEmailDto>;
 

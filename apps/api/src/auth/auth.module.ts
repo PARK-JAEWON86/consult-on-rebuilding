@@ -7,16 +7,17 @@ import { MailModule } from '../mail/mail.module'
 import { AuthService } from './auth.service'
 import { AuthController } from './auth.controller'
 import { GoogleStrategy } from './google.strategy'
+import { KakaoStrategy } from './kakao.strategy'
 
 @Module({
   imports: [
-    PrismaModule, 
-    RedisModule, 
+    PrismaModule,
+    RedisModule,
     MailModule,
     JwtModule.register({}),
     PassportModule.register({ defaultStrategy: 'jwt' })
   ],
-  providers: [AuthService, GoogleStrategy],
+  providers: [AuthService, GoogleStrategy, KakaoStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })

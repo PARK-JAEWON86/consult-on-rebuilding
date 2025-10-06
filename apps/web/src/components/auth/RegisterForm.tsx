@@ -60,8 +60,12 @@ const RegisterForm = () => {
     hasSpecialChar: false,
     hasMinLength: false,
   });
+  const [step, setStep] = useState<'info' | 'verification'>('info');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
 
-  const { register, isRegisterLoading } = useAuth();
+  const { isRegisterLoading } = useAuth();
 
   // 비밀번호 강도 체크 함수
   const checkPasswordStrength = (password: string) => {
@@ -123,25 +127,90 @@ const RegisterForm = () => {
     setErrors({});
 
     try {
-      await register({
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        verificationCode: "", // AuthProvider에서 처리
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+        }),
       });
 
-      // 성공 시 이메일 인증 안내 페이지로 이동
-      router.push('/auth/verify-email?email=' + encodeURIComponent(formData.email));
-    } catch (err: any) {
-      if (err.response?.data?.error?.code === 'CONFLICT') {
-        setErrors({
-          email: '이미 사용 중인 이메일입니다.'
-        });
+      const data = await response.json();
+
+      if (data.success) {
+        // 회원가입 성공 - 인증 코드 입력 단계로 전환
+        setStep('verification');
       } else {
-        setErrors({
-          general: err.message || "회원가입에 실패했습니다."
-        });
+        if (data.error?.code === 'CONFLICT') {
+          setErrors({
+            email: '이미 사용 중인 이메일입니다.'
+          });
+        } else {
+          setErrors({
+            general: data.error?.message || "회원가입에 실패했습니다."
+          });
+        }
       }
+    } catch (err: any) {
+      setErrors({
+        general: err.message || "회원가입에 실패했습니다."
+      });
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      setVerificationError('6자리 인증 코드를 입력해주세요.');
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationError('');
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${verificationCode}`, {
+        method: 'GET',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // 인증 성공 - 회원가입 완료! 로그인 페이지로 이동
+        alert('이메일 인증이 완료되었습니다! 로그인해주세요.');
+        router.push('/auth/login');
+      } else {
+        setVerificationError(data.error?.message || '유효하지 않은 인증 코드입니다.');
+      }
+    } catch (error) {
+      setVerificationError('인증 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      if (response.ok) {
+        setVerificationError('');
+        alert('인증 코드를 다시 발송했습니다.');
+      } else {
+        alert('재전송에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('재전송 중 오류가 발생했습니다.');
     }
   };
 
@@ -155,6 +224,104 @@ const RegisterForm = () => {
       });
     }
   };
+
+  const handleKakaoRegister = async () => {
+    try {
+      // Kakao OAuth는 회원가입과 로그인이 동일
+      window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/kakao`;
+    } catch (err: any) {
+      setErrors({
+        general: err.message || "Kakao 회원가입에 실패했습니다."
+      });
+    }
+  };
+
+  // 인증 코드 입력 UI
+  if (step === 'verification') {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
+            <Mail className="h-8 w-8 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            이메일 인증
+          </h2>
+          <p className="text-sm text-gray-600">
+            <span className="font-medium text-gray-900">{formData.email}</span>로
+            <br />
+            6자리 인증 코드를 발송했습니다.
+          </p>
+        </div>
+
+        <form onSubmit={handleVerifyCode} className="space-y-6">
+          {verificationError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="text-sm text-red-600">
+                {verificationError}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+              인증 코드
+            </label>
+            <input
+              id="code"
+              name="code"
+              type="text"
+              maxLength={6}
+              required
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+              className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center tracking-widest font-mono text-2xl"
+              placeholder="000000"
+              disabled={isVerifying}
+              autoComplete="off"
+            />
+            <p className="mt-2 text-sm text-gray-500 text-center">
+              이메일에서 받은 6자리 숫자를 입력하세요
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isVerifying || verificationCode.length !== 6}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {isVerifying ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                인증 중...
+              </div>
+            ) : (
+              '인증하기'
+            )}
+          </button>
+
+          <div className="text-center space-y-3">
+            <button
+              type="button"
+              onClick={handleResendCode}
+              className="text-sm text-blue-600 hover:text-blue-500"
+            >
+              인증 코드를 받지 못하셨나요? 다시 보내기
+            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => setStep('info')}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                ← 이전으로 돌아가기
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -459,7 +626,7 @@ const RegisterForm = () => {
           {/* 카카오 회원가입 버튼 */}
           <button
             type="button"
-            onClick={() => console.log('Kakao signup')}
+            onClick={handleKakaoRegister}
             disabled={isRegisterLoading}
             className="w-full flex justify-center items-center px-4 py-2 border border-yellow-400 rounded-md shadow-sm bg-yellow-400 text-sm font-medium text-gray-900 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

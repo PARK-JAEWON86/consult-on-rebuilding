@@ -186,6 +186,7 @@ export class ExpertApplicationsService {
           portfolioFiles: [],
           portfolioItems: [],
           socialProof: {},
+          socialLinks: {},
           specialties: [],
           isActive: true,
           isProfileComplete: true,

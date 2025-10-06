@@ -29,7 +29,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { login, googleLogin, isLoginLoading, loginError } = useAuth();
+  const { login, googleLogin, kakaoLogin, isLoginLoading, loginError } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -95,8 +95,18 @@ const LoginForm = () => {
     try {
       await googleLogin();
     } catch (err: any) {
-      setErrors({ 
-        general: err.message || "Google 로그인에 실패했습니다." 
+      setErrors({
+        general: err.message || "Google 로그인에 실패했습니다."
+      });
+    }
+  };
+
+  const handleKakaoLogin = async () => {
+    try {
+      await kakaoLogin();
+    } catch (err: any) {
+      setErrors({
+        general: err.message || "Kakao 로그인에 실패했습니다."
       });
     }
   };
@@ -298,7 +308,7 @@ const LoginForm = () => {
           {/* 카카오 로그인 버튼 */}
           <button
             type="button"
-            onClick={() => console.log('Kakao login')}
+            onClick={handleKakaoLogin}
             disabled={isLoginLoading}
             className="w-full flex justify-center items-center px-4 py-2 border border-yellow-400 rounded-md shadow-sm bg-yellow-400 text-sm font-medium text-gray-900 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

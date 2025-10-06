@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { PrismaService } from '../prisma/prisma.service'
 import { RedisService } from '../redis/redis.service'
 import { MailService } from '../mail/mail.service'
 import * as argon2 from 'argon2'
 import { signAccess, signRefresh } from './jwt.util'
-import { randomUrlToken, sha256Hex } from '../common/crypto.util'
+import { randomUrlToken, sha256Hex, randomVerificationCode } from '../common/crypto.util'
 
 @Injectable()
 export class AuthService {
@@ -43,10 +43,19 @@ export class AuthService {
   }
 
   async issueAndSendEmailVerification(userId: number, email: string) {
-    // 기존 미소모 레코드 무효화까지는 하지 않고 새 토큰 발급 (최신 것만 유효로 볼지 정책 선택)
-    const token = randomUrlToken(24);
+    // 6자리 숫자 인증 코드 생성
+    const token = randomVerificationCode(6);
     const codeHash = sha256Hex(token);
     const expiresAt = new Date(Date.now() + this.expireMinutes() * 60 * 1000);
+
+    // 디버깅: 인증 코드 로그 출력
+    console.log('='.repeat(50));
+    console.log(`📧 이메일 인증 코드 발급`);
+    console.log(`   이메일: ${email}`);
+    console.log(`   인증 코드: ${token}`);
+    console.log(`   코드 해시: ${codeHash}`);
+    console.log(`   만료 시간: ${expiresAt.toISOString()}`);
+    console.log('='.repeat(50));
 
     const ev = await this.prisma.emailVerification.create({
       data: { userId, codeHash, expiresAt },
@@ -58,7 +67,7 @@ export class AuthService {
       select: { name: true }
     });
 
-    // 새로운 이메일 인증 메서드 사용
+    // 이메일 인증 코드 발송
     await this.mail.sendVerificationEmail(email, token, user?.name || undefined);
 
     return { id: ev.id };
@@ -68,10 +77,25 @@ export class AuthService {
     const codeHash = sha256Hex(token);
     const now = new Date();
 
+    // 디버깅: 검증 시도 로그
+    console.log('='.repeat(50));
+    console.log(`🔍 이메일 인증 코드 검증 시도`);
+    console.log(`   입력된 코드: ${token}`);
+    console.log(`   계산된 해시: ${codeHash}`);
+    console.log(`   현재 시간: ${now.toISOString()}`);
+
     const ev = await this.prisma.emailVerification.findFirst({
       where: { codeHash, consumedAt: null, expiresAt: { gt: now } },
       include: { user: true },
     });
+
+    console.log(`   검증 결과: ${ev ? '✅ 성공' : '❌ 실패'}`);
+    if (ev) {
+      console.log(`   사용자: ${ev.user.email} (ID: ${ev.user.id})`);
+      console.log(`   만료 시간: ${ev.expiresAt.toISOString()}`);
+    }
+    console.log('='.repeat(50));
+
     if (!ev) return { ok: false, code: 'INVALID_OR_EXPIRED', message: '유효하지 않거나 만료된 링크입니다.' };
 
     // 소비 처리 + 사용자 검증 완료
@@ -324,7 +348,13 @@ export class AuthService {
           avatarUrl: profile.avatarUrl,
         },
       })
-      return { id: user.id, email: user.email, name: user.name }
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isNewUser: false,
+        onboardingCompleted: !!user.onboardingCompletedAt
+      }
     }
 
     // 이메일로 기존 계정 확인 (로컬 계정이 있는 경우)
@@ -333,16 +363,25 @@ export class AuthService {
     })
 
     if (existingUser && existingUser.provider === 'local') {
-      throw new ConflictException({
-        success: false,
-        error: { 
-          code: 'E_AUTH_EMAIL_EXISTS', 
-          message: 'Email already registered with local account. Please login with email/password.' 
-        }
+      // 로컬 계정에 OAuth 정보 연동
+      user = await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          provider: profile.provider,
+          providerId: profile.providerId,
+          avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
+        },
       })
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isNewUser: false,
+        onboardingCompleted: !!user.onboardingCompletedAt
+      }
     }
 
-    // 새 OAuth 사용자 생성
+    // 새 OAuth 사용자 생성 (onboardingCompletedAt은 null로 시작)
     user = await this.prisma.user.create({
       data: {
         email: profile.email,
@@ -351,10 +390,18 @@ export class AuthService {
         providerId: profile.providerId,
         avatarUrl: profile.avatarUrl,
         passwordHash: null, // OAuth 사용자는 비밀번호 없음
+        roles: JSON.stringify(['USER']), // 기본 USER 역할 부여
+        onboardingCompletedAt: null, // 온보딩 미완료 상태로 시작
       } as any,
     })
 
-    return { id: user.id, email: user.email, name: user.name }
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isNewUser: true,
+      onboardingCompleted: false
+    }
   }
 
   signAccess(user: { id: number; email: string }, secret: string, ttlSec: number) {
@@ -367,6 +414,111 @@ export class AuthService {
 
   async storeRefreshToken(jti: string, userId: number, ttlSec: number) {
     await this.redis.setRefreshToken(jti, userId, ttlSec)
+  }
+
+  // OAuth 온보딩용 임시 토큰 생성
+  async generateOAuthTempToken(user: {
+    id: number
+    email: string
+    name: string
+    provider: string
+    isNewUser: boolean
+  }) {
+    const jti = randomUrlToken(32)
+    const tempToken = this.jwt.sign(
+      {
+        type: 'oauth_pending',
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        provider: user.provider,
+        isNewUser: user.isNewUser,
+        jti,
+      },
+      {
+        secret: process.env.JWT_ACCESS_SECRET!,
+        expiresIn: '5m', // 5분 TTL
+      }
+    )
+
+    // Redis에 임시 토큰 정보 저장
+    await this.redis.setex(
+      `oauth_pending:${jti}`,
+      300, // 5분
+      JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        provider: user.provider,
+        isNewUser: user.isNewUser,
+      })
+    )
+
+    return tempToken
+  }
+
+  // OAuth 임시 토큰 검증
+  async verifyOAuthTempToken(token: string) {
+    try {
+      const payload = this.jwt.verify(token, { secret: process.env.JWT_ACCESS_SECRET! }) as any
+
+      if (payload.type !== 'oauth_pending') {
+        return { valid: false, error: 'Invalid token type' }
+      }
+
+      // Redis에서 토큰 정보 확인
+      const data = await this.redis.get(`oauth_pending:${payload.jti}`)
+      if (!data) {
+        return { valid: false, error: 'Token expired or already used' }
+      }
+
+      return {
+        valid: true,
+        user: JSON.parse(data),
+        jti: payload.jti,
+      }
+    } catch (error) {
+      return { valid: false, error: 'Invalid or expired token' }
+    }
+  }
+
+  // OAuth 온보딩 완료 처리
+  async completeOAuthOnboarding(tempToken: string, agreedToTerms: boolean) {
+    const verification = await this.verifyOAuthTempToken(tempToken)
+
+    if (!verification.valid) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'E_INVALID_TEMP_TOKEN', message: verification.error }
+      })
+    }
+
+    if (!agreedToTerms) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'E_TERMS_NOT_AGREED', message: 'Terms must be agreed to complete onboarding' }
+      })
+    }
+
+    const { user, jti } = verification
+
+    // 온보딩 완료 처리
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.userId },
+      data: {
+        onboardingCompletedAt: new Date(),
+        emailVerifiedAt: new Date(), // OAuth 사용자는 이메일 자동 인증
+      },
+    })
+
+    // Redis에서 임시 토큰 삭제 (1회용)
+    await this.redis.del(`oauth_pending:${jti}`)
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+    }
   }
 
   // ==================== Phone Verification ====================

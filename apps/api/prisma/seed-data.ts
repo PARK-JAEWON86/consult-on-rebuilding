@@ -81,6 +81,9 @@ async function main() {
       ratingAvg: 4.8,
       reviewCount: 127,
       hourlyRate: 120000,
+      isActive: true,
+      isProfileComplete: true,
+      isProfilePublic: true,
       availability: {
         timezone: 'Asia/Seoul',
         schedule: {
@@ -100,6 +103,7 @@ async function main() {
       portfolioFiles: [],
       portfolioItems: ['계약서 검토', '법인 설립', '노동법 상담'],
       socialProof: { testimonials: [], achievements: [] },
+      socialLinks: {},
       specialties: ['계약법', '노동법', '기업법무']
     },
   });
@@ -117,6 +121,9 @@ async function main() {
       ratingAvg: 4.6,
       reviewCount: 89,
       hourlyRate: 90000,
+      isActive: true,
+      isProfileComplete: true,
+      isProfilePublic: true,
       availability: {
         timezone: 'Asia/Seoul',
         schedule: {
@@ -136,6 +143,7 @@ async function main() {
       portfolioFiles: [],
       portfolioItems: ['세무신고', '회계감사', '절세방안'],
       socialProof: { testimonials: [], achievements: [] },
+      socialLinks: {},
       specialties: ['법인세', '소득세', '부가가치세']
     },
   });
@@ -153,6 +161,9 @@ async function main() {
       ratingAvg: 4.9,
       reviewCount: 203,
       hourlyRate: 180000,
+      isActive: true,
+      isProfileComplete: true,
+      isProfilePublic: true,
       availability: {
         timezone: 'Asia/Seoul',
         schedule: {
@@ -173,6 +184,7 @@ async function main() {
       portfolioFiles: [],
       portfolioItems: ['사업계획서 작성', '투자유치', '조직개편'],
       socialProof: { testimonials: [], achievements: [] },
+      socialLinks: {},
       specialties: ['스타트업 경영', '투자유치', '사업전략']
     },
   });

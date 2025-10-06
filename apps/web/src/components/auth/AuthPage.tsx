@@ -65,7 +65,12 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { login, register, googleLogin, isLoginLoading, isRegisterLoading } = useAuth();
+  // 회원가입 인증 단계 관련 state
+  const [registerStep, setRegisterStep] = useState<'info' | 'verification'>('info');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const { login, googleLogin, isLoginLoading, isRegisterLoading } = useAuth();
 
   // 비밀번호 강도 계산 (간소화)
   const getPasswordStrength = (password: string) => {
@@ -149,14 +154,33 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
         const redirectUrl = searchParams.get('redirect') || "/";
         router.push(redirectUrl);
       } else {
-        await register({
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-          verificationCode: "",
+        // 회원가입 API 직접 호출
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            name: formData.name,
+          }),
         });
 
-        router.push('/auth/verify-email?email=' + encodeURIComponent(formData.email));
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (data.error?.code === 'CONFLICT') {
+            setErrors({ email: '이미 사용 중인 이메일입니다.' });
+          } else {
+            setErrors({ general: data.error?.message || '회원가입에 실패했습니다.' });
+          }
+          return;
+        }
+
+        if (data.success) {
+          // 회원가입 성공 - 인증 코드 입력 단계로 전환
+          setRegisterStep('verification');
+        }
       }
     } catch (err: unknown) {
       const error = err as any;
@@ -169,6 +193,65 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
           general: error.message || `${activeTab === 'login' ? '로그인' : '회원가입'}에 실패했습니다.`
         });
       }
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      setErrors({ general: '6자리 인증 코드를 입력해주세요.' });
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrors({});
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${verificationCode}`, {
+        method: 'GET',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // 인증 성공 - 로그인 탭으로 전환
+        alert('이메일 인증이 완료되었습니다! 로그인해주세요.');
+        setActiveTab('login');
+        setRegisterStep('info');
+        setVerificationCode('');
+        setFormData({
+          email: formData.email,
+          password: '',
+          confirmPassword: '',
+          name: '',
+          rememberMe: false,
+        });
+      } else {
+        setErrors({ general: data.error?.message || '유효하지 않은 인증 코드입니다.' });
+      }
+    } catch (error) {
+      setErrors({ general: '인증 중 오류가 발생했습니다. 다시 시도해주세요.' });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      if (response.ok) {
+        setErrors({});
+        alert('인증 코드를 다시 발송했습니다.');
+      } else {
+        alert('재전송에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('재전송 중 오류가 발생했습니다.');
     }
   };
 
@@ -223,19 +306,102 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 에러 메시지 표시 */}
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="text-sm text-red-600">
-                  {errors.general}
+          {/* 회원가입 - 인증 단계 */}
+          {activeTab === 'register' && registerStep === 'verification' ? (
+            <form onSubmit={handleVerifyCode} className="space-y-6">
+              <div className="text-center">
+                <Mail className="mx-auto h-12 w-12 text-blue-600 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  이메일 인증
+                </h3>
+                <p className="text-sm text-gray-600 mb-1">
+                  {formData.email}로
+                </p>
+                <p className="text-sm text-gray-600">
+                  인증 코드를 전송했습니다.
+                </p>
+              </div>
+
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-sm text-red-600">
+                    {errors.general}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700 mb-2">
+                  인증 코드 (6자리)
+                </label>
+                <input
+                  id="verificationCode"
+                  type="text"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-center tracking-widest font-mono text-2xl"
+                  placeholder="000000"
+                  disabled={isVerifying}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isVerifying || verificationCode.length !== 6}
+                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-all duration-200 ${
+                  isVerifying || verificationCode.length !== 6
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform hover:scale-[1.02]"
+                }`}
+              >
+                {isVerifying ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    인증 중...
+                  </div>
+                ) : (
+                  '인증 완료'
+                )}
+              </button>
+
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
+                  인증 코드 재전송
+                </button>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisterStep('info');
+                      setVerificationCode('');
+                      setErrors({});
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    ← 이전으로
+                  </button>
                 </div>
               </div>
-            )}
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 에러 메시지 표시 */}
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-sm text-red-600">
+                    {errors.general}
+                  </div>
+                </div>
+              )}
 
-            {/* 회원가입 시에만 이름 필드 */}
-            {activeTab === 'register' && (
-              <div>
+              {/* 회원가입 시에만 이름 필드 */}
+              {activeTab === 'register' && (
+                <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                   이름
                 </label>
@@ -529,6 +695,7 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
               에 동의하는 것으로 간주됩니다.
             </div>
           </form>
+          )}
         </Card>
 
         {/* 홈으로 돌아가기 */}
