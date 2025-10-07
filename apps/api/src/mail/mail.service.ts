@@ -180,93 +180,54 @@ export class MailService {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>이메일 인증</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 2px solid #3b82f6;
-            margin-bottom: 30px;
-          }
-          .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3b82f6;
-          }
-          .content {
-            padding: 20px 0;
-          }
-          .verification-code {
-            background-color: #f3f4f6;
-            border: 2px dashed #3b82f6;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin: 20px 0;
-          }
-          .code {
-            font-size: 32px;
-            font-weight: bold;
-            color: #3b82f6;
-            letter-spacing: 4px;
-            font-family: monospace;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            font-size: 14px;
-            color: #6b7280;
-          }
-          .warning {
-            background-color: #fef3cd;
-            border: 1px solid #fbbf24;
-            border-radius: 4px;
-            padding: 12px;
-            margin: 20px 0;
-            color: #92400e;
-          }
-        </style>
       </head>
-      <body>
-        <div class="header">
-          <div class="logo">Consult-On</div>
-        </div>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
 
-        <div class="content">
-          <h2>안녕하세요${userName ? `, ${userName}님` : ''}!</h2>
-
-          <p>Consult-On 서비스에 회원가입해 주셔서 감사합니다.</p>
-          <p>아래 인증 코드를 입력하여 이메일 인증을 완료해주세요.</p>
-
-          <div class="verification-code">
-            <p style="margin: 0 0 10px 0; font-weight: bold;">인증 코드</p>
-            <div class="code">${verificationCode}</div>
+          <!-- Section 1: Header -->
+          <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); text-align: center; padding: 40px 20px;">
+            <h1 style="font-size: 24px; font-weight: bold; color: #ffffff; margin: 0; letter-spacing: -0.5px;">Consult-On</h1>
           </div>
 
-          <div class="warning">
-            <strong>주의사항:</strong>
-            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
-              <li>이 인증 코드는 60분간 유효합니다.</li>
-              <li>보안을 위해 다른 사람과 공유하지 마세요.</li>
-              <li>본인이 요청하지 않은 경우, 이 이메일을 무시해주세요.</li>
-            </ul>
+          <!-- Section 2: Welcome -->
+          <div style="background-color: #ffffff; padding: 40px 30px; text-align: center;">
+            <h2 style="font-size: 20px; font-weight: 700; color: #1e40af; margin: 0 0 16px 0;">안녕하세요${userName ? `, ${userName}님` : ''}!</h2>
+            <p style="color: #4b5563; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">Consult-On 서비스에 회원가입해 주셔서 감사합니다.</p>
+            <p style="color: #4b5563; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">아래 인증 코드를 입력하여 이메일 인증을 완료해주세요.</p>
           </div>
 
-          <p>인증이 완료되면 Consult-On의 모든 서비스를 이용하실 수 있습니다.</p>
-          <p>궁금한 점이 있으시면 언제든지 고객센터로 문의해주세요.</p>
-        </div>
+          <!-- Section 3: Verification Code (HERO) -->
+          <div style="background: linear-gradient(to bottom, #f0f9ff, #e0f2fe); padding: 40px 30px; text-align: center;">
+            <div style="background: #ffffff; border: 3px solid #3b82f6; border-radius: 12px; padding: 30px; margin: 0 auto; max-width: 380px; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2), 0 4px 6px -2px rgba(59, 130, 246, 0.1);">
+              <p style="font-size: 12px; font-weight: 700; color: #3b82f6; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 1.5px;">인증 코드</p>
+              <div style="font-size: 42px; font-weight: 900; color: #2563eb; letter-spacing: 10px; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 16px 0;">${verificationCode}</div>
+            </div>
+          </div>
 
-        <div class="footer">
-          <p>본 메일은 발신 전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
-          <p>&copy; 2024 Consult-On. All rights reserved.</p>
+          <!-- Section 4: Security Info -->
+          <div style="background-color: #ffffff; padding: 40px 30px; text-align: center;">
+            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 10px; padding: 24px; margin: 0 auto; max-width: 420px;">
+              <span style="color: #1e40af; font-size: 15px; font-weight: 700; margin: 0 0 16px 0; display: block;">🔒 보안 안내</span>
+              <div style="margin: 0; padding: 0; text-align: center;">
+                <p style="color: #374151; margin: 0 0 10px 0; font-size: 13px;">✓ 이 인증 코드는 <strong>60분간 유효</strong>합니다</p>
+                <p style="color: #374151; margin: 0 0 10px 0; font-size: 13px;">✓ 보안을 위해 다른 사람과 공유하지 마세요</p>
+                <p style="color: #374151; margin: 0; font-size: 13px;">✓ 본인이 요청하지 않은 경우 이 이메일을 무시해주세요</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Additional Info -->
+          <div style="background-color: #f9fafb; padding: 30px; text-align: center;">
+            <p style="color: #4b5563; margin: 0 0 12px 0; font-size: 13px; line-height: 1.6;">인증이 완료되면 Consult-On의 모든 서비스를 이용하실 수 있습니다.</p>
+            <p style="color: #4b5563; margin: 0; font-size: 13px; line-height: 1.6;">궁금한 점이 있으시면 언제든지 고객센터로 문의해주세요.</p>
+          </div>
+
+          <!-- Section 6: Footer -->
+          <div style="background-color: #e5e7eb; padding: 30px; text-align: center;">
+            <p style="margin: 6px 0; font-size: 12px; color: #6b7280;">본 메일은 발신 전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
+            <p style="margin: 6px 0; font-size: 12px; color: #6b7280;">&copy; 2024 Consult-On. All rights reserved.</p>
+          </div>
+
         </div>
       </body>
       </html>

@@ -3,7 +3,7 @@ import { Request, Response } from 'express'
 import { AuthService } from './auth.service'
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe'
 import { registerDto, loginDto, verifyEmailDto, resendDto } from './dto/auth.dto'
-import type { RegisterDto, LoginDto } from './dto/auth.dto'
+import type { LoginDto } from './dto/auth.dto'
 import { sendPhoneVerificationDto, verifyPhoneCodeDto } from './dto/phone-verification.dto'
 import type { SendPhoneVerificationDto, VerifyPhoneCodeDto } from './dto/phone-verification.dto'
 import { JwtGuard } from './jwt.guard'
@@ -235,10 +235,10 @@ export class AuthController {
     res.redirect(`${frontendUrl}?auth=success`)
   }
 
-  @Get('verify-email')
+  @Post('verify-email')
   @UsePipes(new ZodValidationPipe(verifyEmailDto))
-  async verifyEmail(@Query() q: any) {
-    const { token } = q;
+  async verifyEmail(@Body() body: any) {
+    const { token } = body;
     const r = await this.auth.verifyEmailByToken(token);
     if (!r.ok) return fail(r.code!, r.message!);
     return ok({ verified: true });

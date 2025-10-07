@@ -110,12 +110,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   // 알림 개수 로드
   const loadNotificationCount = async () => {
     try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
       // 임시 전문가 ID (실제로는 인증 시스템에서 가져와야 함)
       const expertId = 'expert_1';
-      
-      const response = await fetch(`/api/notifications?userId=${expertId}&isRead=false`);
+
+      const response = await fetch(`${apiBaseUrl}/notifications?userId=${expertId}&isRead=false`);
+      if (!response.ok) {
+        console.warn('알림 조회 실패:', response.status);
+        return;
+      }
+
       const result = await response.json();
-      
+
       if (result.success) {
         setNotificationCount(result.data.unreadCount);
       }

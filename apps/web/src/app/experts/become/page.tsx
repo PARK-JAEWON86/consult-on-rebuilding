@@ -125,9 +125,15 @@ export default function BecomeExpertPage() {
   // 휴대폰 인증
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneVerified, setPhoneVerified] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verifiedPhone, setVerifiedPhone] = useState('')
 
   // 간편인증 모달
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [isSending, setIsSending] = useState(false)
 
   // 2단계: 전문 정보 + 일정/자격증 (통합)
   const [specialty, setSpecialty] = useState('')

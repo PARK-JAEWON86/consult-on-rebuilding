@@ -18,11 +18,11 @@ model User {
   provider              String                @default("local")
   providerId            String?
   emailVerifiedAt       DateTime?
+  roles                 Json
   phoneNumber           String?
   phoneVerified         Boolean               @default(false)
   phoneVerifiedAt       DateTime?
   onboardingCompletedAt DateTime?
-  roles                 Json
   adminUser             AdminUser?
   communityComments     CommunityComment[]
   communityLikes        CommunityLike[]
@@ -86,11 +86,18 @@ model Expert {
   specialty          String?
   totalSessions      Int                  @default(0)
   userId             Int?                 @unique
+  experienceYears    Int                  @default(0)
   user               User?                @relation(fields: [userId], references: [id])
   availabilitySlots  ExpertAvailability[]
   categoryLinks      ExpertCategory[]
   reservations       Reservation[]
   reviews            Review[]
+
+  @@index([ratingAvg], map: "idx_expert_ratingAvg")
+  @@index([reviewCount], map: "idx_expert_reviewCount")
+  @@index([experienceYears], map: "idx_expert_experienceYears")
+  @@index([rankingScore], map: "idx_expert_rankingScore")
+  @@index([totalSessions], map: "idx_expert_totalSessions")
 }
 
 model Category {

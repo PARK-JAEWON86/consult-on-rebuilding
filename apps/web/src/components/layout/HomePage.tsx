@@ -17,6 +17,7 @@ import SearchFields from './SearchFields';
 import PopularCategoriesSection from './PopularCategoriesSection';
 import StatsSection from './StatsSection';
 import AIChatPromoSection from './AIChatPromoSection';
+import ExpertCard from '@/components/experts/ExpertCard';
 
 // 카테고리 옵션 타입 정의 (기존 호환성을 위해 유지)
 export interface CategoryOption {
@@ -399,53 +400,38 @@ export default function HomePage() {
             </div>
           ) : topExperts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-              {topExperts.map((expert: Expert) => (
-                <Card key={expert.id} hover className="text-center p-8 border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                  <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full mx-auto mb-6 flex items-center justify-center overflow-hidden">
-                    {expert.avatarUrl ? (
-                      <img 
-                        src={expert.avatarUrl} 
-                        alt={expert.name}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-3xl text-gray-500 font-bold">
-                        {expert.name.charAt(0)}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{expert.name}</h3>
-                  {expert.title && (
-                    <p className="text-gray-600 text-lg mb-4">{expert.title}</p>
-                  )}
-                  <div className="flex flex-wrap gap-2 justify-center mb-4">
-                    {Array.isArray(expert.categories) ? expert.categories.map((category) => (
-                      <Badge key={category} variant="primary">
-                        {mapCategoryToKorean(category)}
-                      </Badge>
-                    )) : (
-                      <Badge variant="primary">
-                        일반 상담
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <RatingStars 
-                      rating={expert.ratingAvg} 
-                      count={expert.reviewCount}
-                      size="sm"
-                    />
-                  </div>
-                  {expert.bio && (
-                    <p className="text-gray-600 text-base mt-4 line-clamp-2 leading-relaxed">{expert.bio}</p>
-                  )}
-                  <Link href={`/experts/${expert.displayId}`} className="block mt-6">
-                    <Button variant="ghost" size="sm" className="w-full py-3 text-lg border-2 hover:bg-blue-50">
-                      상세보기
-                    </Button>
-                  </Link>
-                </Card>
-              ))}
+              {topExperts.map((expert: Expert) => {
+                // Expert 타입을 ExpertCard가 기대하는 형식으로 변환
+                const expertCardData = {
+                  id: expert.id,
+                  displayId: expert.displayId,
+                  name: expert.name,
+                  specialty: expert.title || '전문가',
+                  rating: expert.ratingAvg,
+                  reviewCount: expert.reviewCount,
+                  experience: expert.experienceYears || 0,
+                  description: expert.bio || '',
+                  specialties: expert.categories || [],
+                  consultationTypes: expert.consultationTypes || ['video', 'chat'],
+                  languages: expert.languages || ['한국어'],
+                  profileImage: expert.avatarUrl,
+                  responseTime: expert.responseTime || '1시간 이내',
+                  level: expert.level || 1,
+                  consultationCount: expert.totalSessions || 0,
+                  totalSessions: expert.totalSessions || 0,
+                  avgRating: expert.ratingAvg
+                };
+
+                return (
+                  <ExpertCard
+                    key={expert.id}
+                    expert={expertCardData}
+                    mode="default"
+                    showFavoriteButton={false}
+                    showProfileButton={true}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">

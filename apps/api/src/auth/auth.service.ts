@@ -136,14 +136,25 @@ export class AuthService {
     secrets: { access: string; refresh: string },
     ttls: { access: number; refresh: number }
   ) {
-    const user = await this.prisma.user.findUnique({ 
-      where: { email: dto.email } 
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email }
     })
-    
+
     if (!user || !(await argon2.verify((user as any).passwordHash, dto.password))) {
       throw new UnauthorizedException({
         success: false,
         error: { code: 'E_AUTH_INVALID', message: 'Invalid credentials' }
+      })
+    }
+
+    // 이메일 인증 확인 (로컬 회원가입 사용자만)
+    if (user.provider === 'local' && !user.emailVerifiedAt) {
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          code: 'E_EMAIL_NOT_VERIFIED',
+          message: 'Email not verified. Please check your email for verification code.'
+        }
       })
     }
 
@@ -154,10 +165,10 @@ export class AuthService {
     const refreshPayload = this.jwt.decode(refresh) as any
     await this.redis.setRefreshToken(refreshPayload.jti, user.id, ttls.refresh)
 
-    return { 
-      user: { id: user.id, email: user.email, name: user.name }, 
-      access, 
-      refresh 
+    return {
+      user: { id: user.id, email: user.email, name: user.name },
+      access,
+      refresh
     }
   }
 

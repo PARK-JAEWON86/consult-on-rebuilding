@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Users, Star, Award, Clock, MessageCircle, Video, Heart, Calendar, MapPin } from "lucide-react";
+import { Users, Star, Award, Clock, MessageCircle, Video, Heart, Calendar } from "lucide-react";
 // ExpertProfile 타입 정의
 interface ExpertProfile {
   id: number;
@@ -28,10 +28,28 @@ import ExpertLevelBadge from "./ExpertLevelBadge";
 // API를 통해 전문가 레벨과 요금 정보를 가져오는 함수
 const getExpertLevelPricing = async (expertId: number, totalSessions: number = 0, avgRating: number = 0) => {
   try {
-    // 전문가 레벨 정보를 가져옴
-    const response = await fetch(`/api/expert-levels?action=getExpertLevel&expertId=${expertId}&totalSessions=${totalSessions}&avgRating=${avgRating}`);
-    const data = await response.json();
-    
+    // 유효성 검증
+    if (!expertId || expertId <= 0) {
+      console.warn('유효하지 않은 전문가 ID:', expertId);
+      throw new Error('Invalid expert ID');
+    }
+
+    // 전문가 레벨 정보를 가져옴 (NestJS 백엔드 API 호출)
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+    const response = await fetch(`${apiBaseUrl}/expert-levels?action=getExpertLevel&expertId=${expertId}&totalSessions=${totalSessions}&avgRating=${avgRating}`);
+
+    // HTTP 오류 체크
+    if (!response.ok) {
+      console.warn(`API 응답 오류 (${response.status}):`, response.statusText);
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // API 응답은 {success: true, data: {...}} 형태
+    const data = result.success && result.data ? result.data : result;
+
+    // 응답 데이터 검증
     if (data.currentLevel && data.pricing) {
       return {
         level: data.currentLevel,
@@ -40,7 +58,8 @@ const getExpertLevelPricing = async (expertId: number, totalSessions: number = 0
         tierInfo: data.tierInfo
       };
     }
-    
+
+    console.warn('불완전한 API 응답 데이터:', { result, data });
     // API에서 데이터를 가져올 수 없는 경우 기본값 반환
     return {
       level: 1,
@@ -49,7 +68,12 @@ const getExpertLevelPricing = async (expertId: number, totalSessions: number = 0
       tierInfo: null
     };
   } catch (error) {
-    console.error('전문가 레벨 요금 정보 가져오기 실패:', error);
+    console.error('전문가 레벨 요금 정보 가져오기 실패:', {
+      expertId,
+      totalSessions,
+      avgRating,
+      error: error instanceof Error ? error.message : error
+    });
     return {
       level: 1,
       creditsPerMinute: 100,
@@ -165,7 +189,6 @@ export default function ExpertCard({
     tierInfo: any;
   } | null>(null);
   const [isLoadingPricing, setIsLoadingPricing] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
 
   // 전문가 데이터 정규화
   const expert = normalizeExpert(rawExpert);
@@ -175,19 +198,48 @@ export default function ExpertCard({
     const loadPricingInfo = async () => {
       try {
         setIsLoadingPricing(true);
-        const pricing = await getExpertLevelPricing(
-          expert.id,
-          expert.totalSessions || 0,
-          expert.avgRating || 0
-        );
-        setPricingInfo(pricing);
+
+        // 먼저 로컬에서 계산 (API 호출 없이도 즉시 표시)
+        const localCredits = calculateCreditsByLevel(expert.level || 1);
+
+        // 임시로 로컬 계산 값 설정
+        setPricingInfo({
+          level: expert.level || 1,
+          creditsPerMinute: localCredits,
+          tierName: `Level ${expert.level || 1}`,
+          tierInfo: null
+        });
+
+        // 백그라운드에서 API 호출 시도
+        try {
+          const pricing = await getExpertLevelPricing(
+            expert.id,
+            expert.totalSessions || 0,
+            expert.avgRating || 0
+          );
+
+          // API 호출 성공 시 업데이트
+          if (pricing && pricing.creditsPerMinute) {
+            setPricingInfo(pricing);
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`✅ Expert ${expert.name} (ID: ${expert.id}) - API Level: ${pricing.level}, Credits: ${pricing.creditsPerMinute}/분`);
+            }
+          }
+        } catch (apiError) {
+          // API 호출 실패해도 로컬 계산 값 유지
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`⚠️ Expert ${expert.name} (ID: ${expert.id}) - API 실패, 로컬 계산 사용 (Level: ${expert.level}, Credits: ${localCredits}/분)`);
+          }
+        }
       } catch (error) {
         console.error('요금 정보 로드 실패:', error);
-        // 에러 시 기본값 설정
+        // 최종 폴백
+        const fallbackCredits = calculateCreditsByLevel(expert.level || 1);
         setPricingInfo({
-          level: 1,
-          creditsPerMinute: 100,
-          tierName: "Tier 1 (Lv.1-99)",
+          level: expert.level || 1,
+          creditsPerMinute: fallbackCredits,
+          tierName: `Level ${expert.level || 1}`,
           tierInfo: null
         });
       } finally {
@@ -196,10 +248,10 @@ export default function ExpertCard({
     };
 
     loadPricingInfo();
-  }, [expert.id, expert.totalSessions, expert.avgRating]);
+  }, [expert.id, expert.totalSessions, expert.avgRating, expert.level]);
 
-  // 요금 정보가 로딩 중이거나 없을 때 기본값 사용 (레벨은 실시간 계산됨)
-  const creditsPerMinute = pricingInfo?.creditsPerMinute || calculateCreditsByLevel(1); // 기본값 사용
+  // 요금 정보가 로딩 중이거나 없을 때 전문가 레벨 기반으로 계산
+  const creditsPerMinute = pricingInfo?.creditsPerMinute || calculateCreditsByLevel(expert.level || 1);
 
   const handleProfileView = () => {
     // 프로필 보기는 로그인 없이도 가능하도록 수정
@@ -230,8 +282,6 @@ export default function ExpertCard({
         className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 ${
           mode === "grid" ? "hover:shadow-lg hover:scale-105" : ""
         }`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {/* 전문가 이미지 */}
         <div className="relative h-48 bg-gradient-to-br from-blue-100 to-indigo-100">
@@ -256,16 +306,28 @@ export default function ExpertCard({
 
             {/* 평점 */}
             <div className="flex items-center space-x-1 mb-2">
-              <Star className="h-4 w-4 text-yellow-500 fill-current" />
-              <span className="text-sm font-semibold text-gray-900">
-                {(() => {
-                  const displayRating = expert.avgRating || expert.rating || 4.5;
-                  return Number(displayRating).toFixed(1);
-                })()}
-              </span>
-              <span className="text-sm text-gray-500">
-                ({expert.reviewCount || 12})
-              </span>
+              {(() => {
+                const rating = expert.avgRating ?? expert.rating ?? 0;
+                if (rating === 0) {
+                  return (
+                    <>
+                      <Star className="h-4 w-4 text-gray-300" />
+                      <span className="text-sm text-gray-400">평점 없음</span>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                    <span className="text-sm font-semibold text-gray-900">
+                      {Number(rating).toFixed(1)}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      ({expert.reviewCount || 0})
+                    </span>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -383,13 +445,28 @@ export default function ExpertCard({
         {/* 평점 및 정보 */}
         <div className="flex items-center space-x-4 mb-3">
           <div className="flex items-center">
-            <Star className="h-4 w-4 text-yellow-500 fill-current" />
-            <span className="text-sm font-semibold text-gray-900 ml-1">
-              {Number(expert.avgRating || expert.rating || 4.5).toFixed(1)}
-            </span>
-            <span className="text-sm text-gray-500 ml-1">
-              ({expert.reviewCount})
-            </span>
+            {(() => {
+              const rating = expert.avgRating ?? expert.rating ?? 0;
+              if (rating === 0) {
+                return (
+                  <>
+                    <Star className="h-4 w-4 text-gray-300" />
+                    <span className="text-sm text-gray-400 ml-1">평점 없음</span>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                  <span className="text-sm font-semibold text-gray-900 ml-1">
+                    {Number(rating).toFixed(1)}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-1">
+                    ({expert.reviewCount || 0})
+                  </span>
+                </>
+              );
+            })()}
           </div>
           <div className="flex items-center text-sm text-gray-500">
             <Award className="h-4 w-4 mr-1" />

@@ -2,8 +2,16 @@ import { z } from 'zod';
 
 export const registerDto = z.object({
   email: z.string().email(),
-  password: z.string().min(8).max(100),
-  name: z.string().min(1).max(50),
+  password: z.string()
+    .min(8, '비밀번호는 최소 8자 이상이어야 합니다')
+    .max(100, '비밀번호는 100자 이하여야 합니다')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      '비밀번호는 대문자, 소문자, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다'
+    ),
+  name: z.string()
+    .min(1, '이름을 입력해주세요')
+    .max(50, '이름은 50자 이하여야 합니다'),
 });
 export type RegisterDto = z.infer<typeof registerDto>;
 

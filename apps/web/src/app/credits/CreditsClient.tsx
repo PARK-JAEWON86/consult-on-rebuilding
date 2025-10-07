@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { createPaymentIntent } from '@/lib/payments';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import PackCard from '@/components/dashboard/PackCard';
@@ -33,7 +33,7 @@ export default function CreditsClient({ user }: CreditsClientProps) {
   const router = useRouter();
   const [amount, setAmount] = useState<number>(0);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
-  const { showToast } = useToast();
+  const { error, warning } = useToast();
 
   // 평균 요금 (분당 크레딧 - 실제 전문가 데이터 기반 평균값)
   const averageRate = 150; // 분당 평균 150크레딧 (1,500원)
@@ -44,17 +44,17 @@ export default function CreditsClient({ user }: CreditsClientProps) {
       router.push(`/credits/checkout?orderId=${data.displayId}&amount=${data.amount}`);
     },
     onError: () => {
-      showToast('error', '결제 요청 생성에 실패했습니다. 다시 시도해주세요.');
+      error('결제 요청 생성에 실패했습니다. 다시 시도해주세요.');
     },
   });
 
   const handlePayment = () => {
     if (amount < 1000) {
-      showToast('warn', '최소 충전 금액은 1,000원입니다.');
+      warning('최소 충전 금액은 1,000원입니다.');
       return;
     }
     if (amount > 1000000) {
-      showToast('warn', '최대 충전 금액은 1,000,000원입니다.');
+      warning('최대 충전 금액은 1,000,000원입니다.');
       return;
     }
     createPaymentMutation.mutate(amount as any);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { ComponentType } from "react";
 import {
@@ -70,6 +70,7 @@ interface ExpertProfile {
 import ExpertCard from "@/components/experts/ExpertCard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
+import { calculateCreditsByLevel } from "@/utils/expertLevels";
 // 랭킹 점수 계산 함수
 const calculateRankingScore = (stats: {
   totalSessions: number;
@@ -95,7 +96,7 @@ const calculateRankingScore = (stats: {
 // ExpertProfile 타입 사용
 type ExpertItem = ExpertProfile;
 
-type SortBy = "rating" | "experience" | "reviews" | "level" | "ranking";
+type SortBy = "rating" | "experience" | "reviews" | "level" | "ranking" | "credits-low" | "credits-high";
 
 
 
@@ -119,25 +120,50 @@ const ExpertSearch = () => {
 
   // 로컬 스토리지에서 좋아요 상태 로드
   const loadFavoritesFromStorage = () => {
+    if (typeof window === 'undefined') return [];
+
     try {
       const stored = localStorage.getItem('likedExperts');
       const favorites = stored ? JSON.parse(stored) : [];
+
+      // 데이터 검증: 배열이 아닌 경우 초기화
+      if (!Array.isArray(favorites)) {
+        console.warn('잘못된 좋아요 데이터 형식, 초기화합니다.');
+        localStorage.setItem('likedExperts', JSON.stringify([]));
+        setFavorites([]);
+        return [];
+      }
+
       setFavorites(favorites);
       console.log('로컬 스토리지에서 좋아요 상태 로드:', favorites);
       return favorites;
     } catch (error) {
       console.error('좋아요 상태 로드 실패:', error);
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('localStorage 용량 초과');
+      }
       return [];
     }
   };
 
   // 로컬 스토리지에 좋아요 상태 저장
   const saveFavoritesToStorage = (favorites: number[]) => {
+    if (typeof window === 'undefined') return;
+
     try {
       localStorage.setItem('likedExperts', JSON.stringify(favorites));
       console.log('로컬 스토리지에 좋아요 상태 저장:', favorites);
     } catch (error) {
       console.error('좋아요 상태 저장 실패:', error);
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        console.warn('localStorage 용량 초과. 오래된 데이터를 정리해주세요.');
+        // 사용자에게 알림
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('api-error', {
+            detail: { message: '저장 공간이 부족합니다. 브라우저 데이터를 정리해주세요.' }
+          }));
+        }
+      }
     }
   };
 
@@ -153,20 +179,19 @@ const ExpertSearch = () => {
       loadFavoritesFromStorage();
     };
 
-    // 커스텀 이벤트 리스너 등록
-    window.addEventListener('favoritesUpdated', handleFavoritesUpdate);
-    
-    // 페이지 포커스 시 좋아요 상태 새로고침
     const handleFocus = () => {
       console.log('페이지 포커스, 좋아요 상태 새로고침');
       loadFavoritesFromStorage();
     };
-    
-    window.addEventListener('focus', handleFocus);
+
+    // AbortController를 사용하여 이벤트 리스너 중복 방지 및 정리 최적화
+    const controller = new AbortController();
+
+    window.addEventListener('favoritesUpdated', handleFavoritesUpdate, { signal: controller.signal });
+    window.addEventListener('focus', handleFocus, { signal: controller.signal });
 
     return () => {
-      window.removeEventListener('favoritesUpdated', handleFavoritesUpdate);
-      window.removeEventListener('focus', handleFocus);
+      controller.abort(); // 모든 리스너 한번에 정리
     };
   }, []);
 
@@ -184,6 +209,12 @@ const ExpertSearch = () => {
         }
       } catch (error) {
         console.error('카테고리 로드 실패:', error);
+        // 사용자에게 토스트 알림
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('api-error', {
+            detail: { message: '카테고리를 불러오는데 실패했습니다. 기본 카테고리를 사용합니다.' }
+          }));
+        }
       } finally {
         setIsLoadingCategories(false);
       }
@@ -197,26 +228,57 @@ const ExpertSearch = () => {
   useEffect(() => {
     const loadExpertProfiles = async () => {
       try {
-        console.log('전문가 프로필 로드 시작...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('전문가 프로필 로드 시작...');
+        }
         setIsLoadingExperts(true);
 
-        // API 호출을 통한 전문가 프로필 조회
-        console.log('전문가 프로필 조회 중...');
-        const response = await api.get('/experts?size=50');
-        console.log('전문가 프로필 조회 결과:', response);
+        // sortBy를 백엔드 호환 포맷으로 변환
+        const sortParamMap: Record<SortBy, string> = {
+          'rating': 'rating',
+          'experience': 'experience',
+          'reviews': 'reviews',
+          'level': 'level',
+          'ranking': 'ranking',
+          'credits-low': 'credits-low',
+          'credits-high': 'credits-high',
+        };
+
+        const sortParam = sortParamMap[sortBy] || 'recent';
+
+        // API 호출을 통한 전문가 프로필 조회 (sort 파라미터 추가)
+        const response = await api.get(`/experts?size=50&sort=${sortParam}`);
 
         if (response.success && response.data) {
-          console.log('전문가 데이터 설정:', response.data.items?.length || 0, '명');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('전문가 데이터 로드:', response.data.items?.length || 0, '명');
+          }
+
+          // 데이터 검증 함수
+          const validateExpertData = (expert: any): boolean => {
+            const required = ['id', 'name'];
+            const missing = required.filter(field => !expert[field]);
+
+            if (missing.length > 0) {
+              console.warn('필수 필드 누락:', missing, expert);
+              return false;
+            }
+
+            return true;
+          };
 
           // API 응답을 ExpertProfile 타입으로 변환
-          const convertedExperts = response.data.items.map((apiExpert: any) => {
+          const convertedExperts = response.data.items
+            .filter(validateExpertData)
+            .map((apiExpert: any) => {
             // JSON 필드 파싱 유틸리티 함수
-            const parseJsonField = (field: any, fallback: any = null) => {
+            const parseJsonField = (field: any, fallback: any = null, fieldName: string = 'unknown') => {
               if (Array.isArray(field)) return field;
               if (typeof field === 'string') {
                 try {
                   return JSON.parse(field);
                 } catch (e) {
+                  console.warn(`JSON 파싱 실패 [${fieldName}]:`, field, e);
                   return fallback;
                 }
               }
@@ -224,25 +286,30 @@ const ExpertSearch = () => {
             };
 
             return {
-              id: parseInt(apiExpert.id),
+              id: typeof apiExpert.id === 'number' ? apiExpert.id : parseInt(apiExpert.id, 10) || 0,
               displayId: apiExpert.displayId,
               name: apiExpert.name,
               specialty: apiExpert.title || apiExpert.specialty || '전문가',
-              experience: apiExpert.experience || 0,
+              experience: apiExpert.experienceYears || apiExpert.experience || 0,
               description: apiExpert.bio || apiExpert.description || '',
-              specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, []),
-              consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat']),
-              languages: parseJsonField(apiExpert.languages, ['한국어']),
+              specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'specialties'),
+              consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat'], 'consultationTypes'),
+              languages: parseJsonField(apiExpert.languages, ['한국어'], 'languages'),
               hourlyRate: apiExpert.hourlyRate || 50000,
               ratePerMin: apiExpert.ratePerMin || Math.ceil((apiExpert.hourlyRate || 50000) / 60),
-              totalSessions: apiExpert.totalSessions || 0,
-              avgRating: apiExpert.ratingAvg || 4.5,
-              rating: apiExpert.ratingAvg || 4.5,
-              reviewCount: apiExpert.reviewCount || 0,
+              totalSessions: apiExpert.totalSessions ?? 0,
+              avgRating: apiExpert.ratingAvg ?? 0,  // null/undefined만 0으로, 평점 없으면 0 표시
+              rating: apiExpert.ratingAvg ?? 0,     // null/undefined만 0으로
+              reviewCount: apiExpert.reviewCount ?? 0,
               repeatClients: apiExpert.repeatClients || 0,
               responseTime: apiExpert.responseTime || '1시간 이내',
               profileImage: apiExpert.avatarUrl || null,
-              level: parseInt(apiExpert.level?.match(/\d+/)?.[0] || '1'),
+              level: (() => {
+                const levelStr = apiExpert.level?.toString() || '1';
+                const match = levelStr.match(/\d+/);
+                const parsed = match ? parseInt(match[0], 10) : 1;
+                return isNaN(parsed) ? 1 : parsed;
+              })(),
               rankingScore: apiExpert.rankingScore || 0,
               recentReviews: apiExpert.recentReviews || [],
               categorySlugs: apiExpert.categorySlugs || [],
@@ -255,12 +322,14 @@ const ExpertSearch = () => {
               isProfileComplete: apiExpert.isProfileComplete !== false,
               isOnline: true,
               // ExpertCard에서 기대하는 추가 필드들
-              tags: apiExpert.categories || parseJsonField(apiExpert.specialties, []),
+              tags: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'tags'),
               consultationCount: apiExpert.totalSessions || 0,
             };
           });
 
-          console.log('변환된 전문가 데이터:', convertedExperts.length, '명');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('변환된 전문가 데이터:', convertedExperts.length, '명');
+          }
           setAllExperts(convertedExperts);
         } else {
           console.error('API 응답 실패:', response.error);
@@ -269,19 +338,27 @@ const ExpertSearch = () => {
       } catch (error) {
         console.error('전문가 프로필 로드 실패:', error);
         setAllExperts([]);
+        // 사용자에게 토스트 알림
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('api-error', {
+            detail: { message: '전문가 데이터를 불러오는데 실패했습니다. 페이지를 새로고침해주세요.' }
+          }));
+        }
       } finally {
         setIsLoadingExperts(false);
       }
     };
 
     loadExpertProfiles();
-  }, []);
+  }, [sortBy]); // sortBy 변경 시마다 재조회
 
   // 전문가 데이터가 로드되면 추가 처리 (필요시)
   useEffect(() => {
     if (allExperts.length === 0) return;
 
-    console.log('전문가 데이터 로드 완료:', allExperts.length, '명');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('전문가 데이터 로드 완료:', allExperts.length, '명');
+    }
 
     // 랭킹 점수가 없는 전문가들은 계산해서 설정
     setAllExperts(prevExperts =>
@@ -305,32 +382,30 @@ const ExpertSearch = () => {
       refreshExpertData();
     };
 
-    // 커스텀 이벤트 리스너 등록
-    window.addEventListener('expertDataUpdated', handleExpertDataUpdate);
-    
-    // 페이지 포커스 시 데이터 새로고침
     const handleFocus = () => {
       console.log('페이지 포커스, 데이터 새로고침');
       refreshExpertData();
     };
-    
-    window.addEventListener('focus', handleFocus);
+
+    // AbortController를 사용하여 이벤트 리스너 중복 방지 및 정리 최적화
+    const controller = new AbortController();
+
+    window.addEventListener('expertDataUpdated', handleExpertDataUpdate, { signal: controller.signal });
+    window.addEventListener('focus', handleFocus, { signal: controller.signal });
 
     return () => {
-      window.removeEventListener('expertDataUpdated', handleExpertDataUpdate);
-      window.removeEventListener('focus', handleFocus);
+      controller.abort(); // 모든 리스너 한번에 정리
     };
   }, []);
 
 
-  // 필터링 및 정렬 로직
-  useEffect(() => {
+  // 필터링 및 정렬 로직 (useMemo로 최적화)
+  const filteredAndSortedExperts = useMemo(() => {
     let filtered: ExpertItem[] = allExperts;
 
     // 카테고리 필터
     if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter((expert: ExpertItem) => {
-        // 카테고리 이름으로 필터링
         const categoryNames = expert.specialties || [];
         return categoryNames.some(category =>
           category && typeof category === 'string' &&
@@ -352,53 +427,85 @@ const ExpertSearch = () => {
       );
     }
 
-    // 정렬
+    // 정렬: 클라이언트 사이드에서도 정렬 적용 (백엔드 정렬과 동일하게 유지)
     switch (sortBy) {
-      case "rating":
-        filtered.sort((a: ExpertItem, b: ExpertItem) => b.rating - a.rating);
-        break;
-      case "experience":
-        filtered.sort(
-          (a: ExpertItem, b: ExpertItem) => b.experience - a.experience
-        );
-        break;
-      case "reviews":
-        filtered.sort(
-          (a: ExpertItem, b: ExpertItem) => b.reviewCount - a.reviewCount
-        );
-        break;
-      case "level":
-        filtered.sort(
-          (a: ExpertItem, b: ExpertItem) => (b.level || 0) - (a.level || 0)
-        );
-        break;
-      case "ranking":
-        // 서비스 공식 랭킹 계산 로직 사용 (공통 유틸리티)
-        filtered.sort((a: ExpertItem, b: ExpertItem) => {
-          const scoreA = a.rankingScore || calculateRankingScore({
-            totalSessions: a.totalSessions || 0,
-            avgRating: a.rating || 0,
-            reviewCount: a.reviewCount || 0,
-            repeatClients: a.repeatClients || 0,
-            likeCount: (a as any).likeCount || 0
+        case "rating":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const ratingA = a.rating ?? a.avgRating ?? 0;
+            const ratingB = b.rating ?? b.avgRating ?? 0;
+            return ratingB - ratingA;
           });
-          const scoreB = b.rankingScore || calculateRankingScore({
-            totalSessions: b.totalSessions || 0,
-            avgRating: b.rating || 0,
-            reviewCount: b.reviewCount || 0,
-            repeatClients: b.repeatClients || 0,
-            likeCount: (b as any).likeCount || 0
+          break;
+        case "experience":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const expA = a.experience ?? 0;
+            const expB = b.experience ?? 0;
+            return expB - expA;
           });
-          return scoreB - scoreA; // 높은 점수가 먼저
-        });
-        break;
-      default:
-        break;
-    }
+          break;
+        case "reviews":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const reviewA = a.reviewCount ?? 0;
+            const reviewB = b.reviewCount ?? 0;
+            return reviewB - reviewA;
+          });
+          break;
+        case "level":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const levelA = a.level ?? 1;
+            const levelB = b.level ?? 1;
+            return levelB - levelA;
+          });
+          break;
+        case "ranking":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const scoreA = a.rankingScore ?? calculateRankingScore({
+              totalSessions: a.totalSessions ?? 0,
+              avgRating: a.avgRating ?? a.rating ?? 0,
+              reviewCount: a.reviewCount ?? 0,
+              repeatClients: a.repeatClients ?? 0,
+              likeCount: (a as any).likeCount ?? 0
+            });
+            const scoreB = b.rankingScore ?? calculateRankingScore({
+              totalSessions: b.totalSessions ?? 0,
+              avgRating: b.avgRating ?? b.rating ?? 0,
+              reviewCount: b.reviewCount ?? 0,
+              repeatClients: b.repeatClients ?? 0,
+              likeCount: (b as any).likeCount ?? 0
+            });
+            return scoreB - scoreA;
+          });
+          break;
+        case "credits-low":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const levelA = a.level ?? 1;
+            const levelB = b.level ?? 1;
+            const creditsA = calculateCreditsByLevel(levelA);
+            const creditsB = calculateCreditsByLevel(levelB);
+            return creditsA - creditsB;
+          });
+          break;
+        case "credits-high":
+          filtered.sort((a: ExpertItem, b: ExpertItem) => {
+            const levelA = a.level ?? 1;
+            const levelB = b.level ?? 1;
+            const creditsA = calculateCreditsByLevel(levelA);
+            const creditsB = calculateCreditsByLevel(levelB);
+            return creditsB - creditsA;
+          });
+          break;
+        default:
+          break;
+      }
 
-    setFilteredExperts(filtered);
-    setCurrentPage(1);
+    return filtered;
   }, [searchQuery, sortBy, selectedCategory, allExperts]);
+
+  // filteredExperts 업데이트 및 페이지 리셋
+  useEffect(() => {
+    setFilteredExperts(filteredAndSortedExperts);
+    setCurrentPage(1);
+  }, [filteredAndSortedExperts]);
 
 
   const toggleFavorite = (expertId: number) => {
@@ -418,20 +525,38 @@ const ExpertSearch = () => {
   // 전문가 데이터 새로고침
   const refreshExpertData = async () => {
     try {
-      console.log('전문가 데이터 새로고침 시작...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('전문가 데이터 새로고침 시작...');
+      }
 
       // 전문가 프로필 다시 로드
       const response = await api.get('/experts?size=50');
 
       if (response.success && response.data) {
-        const convertedExperts = response.data.items.map((apiExpert: any) => {
+        // 데이터 검증 함수
+        const validateExpertData = (expert: any): boolean => {
+          const required = ['id', 'name'];
+          const missing = required.filter(field => !expert[field]);
+
+          if (missing.length > 0) {
+            console.warn('필수 필드 누락:', missing, expert);
+            return false;
+          }
+
+          return true;
+        };
+
+        const convertedExperts = response.data.items
+          .filter(validateExpertData)
+          .map((apiExpert: any) => {
           // JSON 필드 파싱 유틸리티 함수
-          const parseJsonField = (field: any, fallback: any = null) => {
+          const parseJsonField = (field: any, fallback: any = null, fieldName: string = 'unknown') => {
             if (Array.isArray(field)) return field;
             if (typeof field === 'string') {
               try {
                 return JSON.parse(field);
               } catch (e) {
+                console.warn(`JSON 파싱 실패 [${fieldName}]:`, field, e);
                 return fallback;
               }
             }
@@ -439,28 +564,33 @@ const ExpertSearch = () => {
           };
 
           return {
-            id: parseInt(apiExpert.id),
+            id: typeof apiExpert.id === 'number' ? apiExpert.id : parseInt(apiExpert.id, 10) || 0,
             displayId: apiExpert.displayId,
             name: apiExpert.name,
             specialty: apiExpert.title || apiExpert.specialty || '전문가',
             experience: apiExpert.experience || 0,
             description: apiExpert.bio || apiExpert.description || '',
-            specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, []),
-            consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat']),
-            languages: parseJsonField(apiExpert.languages, ['한국어']),
+            specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'specialties'),
+            consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat'], 'consultationTypes'),
+            languages: parseJsonField(apiExpert.languages, ['한국어'], 'languages'),
             hourlyRate: apiExpert.hourlyRate || 50000,
             ratePerMin: apiExpert.ratePerMin || Math.ceil((apiExpert.hourlyRate || 50000) / 60),
             totalSessions: apiExpert.totalSessions || 0,
-            avgRating: apiExpert.ratingAvg || 4.5,
-            rating: apiExpert.ratingAvg || 4.5,
+            avgRating: apiExpert.ratingAvg ?? 0,
+            rating: apiExpert.ratingAvg ?? 0,
             reviewCount: apiExpert.reviewCount || 0,
             repeatClients: apiExpert.repeatClients || 0,
             responseTime: apiExpert.responseTime || '1시간 이내',
             profileImage: apiExpert.avatarUrl || null,
-            level: parseInt(apiExpert.level?.match(/\d+/)?.[0] || '1'),
+            level: (() => {
+              const levelStr = apiExpert.level?.toString() || '1';
+              const match = levelStr.match(/\d+/);
+              const parsed = match ? parseInt(match[0], 10) : 1;
+              return isNaN(parsed) ? 1 : parsed;
+            })(),
             rankingScore: apiExpert.rankingScore || calculateRankingScore({
               totalSessions: apiExpert.totalSessions || 0,
-              avgRating: apiExpert.ratingAvg || 4.5,
+              avgRating: apiExpert.ratingAvg ?? 0,
               reviewCount: apiExpert.reviewCount || 0,
               repeatClients: apiExpert.repeatClients || 0,
               likeCount: 0
@@ -476,13 +606,15 @@ const ExpertSearch = () => {
             isProfileComplete: apiExpert.isProfileComplete !== false,
             isOnline: true,
             // ExpertCard에서 기대하는 추가 필드들
-            tags: apiExpert.categories || parseJsonField(apiExpert.specialties, []),
+            tags: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'tags'),
             consultationCount: apiExpert.totalSessions || 0,
           };
         });
 
         setAllExperts(convertedExperts);
-        console.log('전문가 데이터 새로고침 완료:', convertedExperts.length, '명');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('전문가 데이터 새로고침 완료:', convertedExperts.length, '명');
+        }
       }
     } catch (error) {
       console.error('전문가 데이터 새로고침 실패:', error);
@@ -569,6 +701,8 @@ const ExpertSearch = () => {
               <option value="ranking">랭킹 순</option>
               <option value="experience">경력 많은 순</option>
               <option value="reviews">리뷰 많은 순</option>
+              <option value="credits-low">크레딧 낮은 순</option>
+              <option value="credits-high">크레딧 높은 순</option>
             </select>
             
             {/* 랭킹 페이지 버튼 */}
@@ -791,7 +925,6 @@ const ExpertSearch = () => {
             </div>
           ) : currentExperts.length > 0 ? (
             currentExperts.map((expert: ExpertItem) => {
-              console.log('Rendering expert:', expert); // 디버깅용 로그
               return (
                 <ExpertCard
                   key={expert.id}
@@ -815,7 +948,7 @@ const ExpertSearch = () => {
         {/* 하단 페이징 */}
         {filteredExperts.length > 0 && totalPages > 1 && (
           <div className="mt-6">
-            <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center justify-center space-x-2">
               <button
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
@@ -828,6 +961,45 @@ const ExpertSearch = () => {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 이전
               </button>
+
+              {/* 페이지 번호 */}
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  // 현재 페이지 주변만 표시 (처음, 끝, 현재 페이지 주변 2개씩)
+                  const showPage =
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 2 && page <= currentPage + 2);
+
+                  const showEllipsis =
+                    (page === currentPage - 3 && currentPage > 4) ||
+                    (page === currentPage + 3 && currentPage < totalPages - 3);
+
+                  if (!showPage && !showEllipsis) return null;
+
+                  if (showEllipsis) {
+                    return (
+                      <span key={page} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`min-w-[40px] px-3 py-2 rounded-lg border transition-colors ${
+                        currentPage === page
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
 
               <button
                 onClick={handleNextPage}

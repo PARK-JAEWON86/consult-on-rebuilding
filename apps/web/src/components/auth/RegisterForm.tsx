@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { z } from "zod";
 
 // 비밀번호 강도 검사 함수
@@ -64,8 +63,19 @@ const RegisterForm = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [lastResendTime, setLastResendTime] = useState<number | null>(null);
 
-  const { isRegisterLoading } = useAuth();
+  // 재전송 쿨다운 타이머
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   // 비밀번호 강도 체크 함수
   const checkPasswordStrength = (password: string) => {
@@ -125,8 +135,12 @@ const RegisterForm = () => {
     }
 
     setErrors({});
+    setIsSubmitting(true);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: 'POST',
         headers: {
@@ -137,28 +151,63 @@ const RegisterForm = () => {
           password: formData.password,
           name: formData.name,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      // 응답 타입 검증
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('서버 응답 형식이 올바르지 않습니다.');
+      }
 
       const data = await response.json();
 
-      if (data.success) {
+      // 응답 구조 검증
+      if (typeof data !== 'object' || data === null) {
+        throw new Error('서버 응답이 올바르지 않습니다.');
+      }
+
+      if (data.success === true) {
         // 회원가입 성공 - 인증 코드 입력 단계로 전환
         setStep('verification');
-      } else {
-        if (data.error?.code === 'CONFLICT') {
+      } else if (data.error) {
+        // 구조화된 에러 응답 처리
+        if (data.error.code === 'CONFLICT') {
           setErrors({
             email: '이미 사용 중인 이메일입니다.'
           });
         } else {
           setErrors({
-            general: data.error?.message || "회원가입에 실패했습니다."
+            general: data.error.message || "회원가입에 실패했습니다."
           });
         }
+      } else {
+        // 예상치 못한 응답 구조
+        setErrors({
+          general: "회원가입에 실패했습니다."
+        });
       }
     } catch (err: any) {
-      setErrors({
-        general: err.message || "회원가입에 실패했습니다."
-      });
+      console.error('Registration error:', err);
+
+      // 에러 타입별 처리
+      if (err.name === 'AbortError') {
+        setErrors({
+          general: "요청 시간이 초과되었습니다. 다시 시도해주세요."
+        });
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        setErrors({
+          general: "네트워크 연결을 확인해주세요."
+        });
+      } else {
+        setErrors({
+          general: err.message || "회원가입에 실패했습니다."
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -173,44 +222,112 @@ const RegisterForm = () => {
     setVerificationError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${verificationCode}`, {
-        method: 'GET',
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: verificationCode,
+        }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      // 응답 타입 검증
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('서버 응답 형식이 올바르지 않습니다.');
+      }
 
       const data = await response.json();
 
-      if (data.success) {
+      // 응답 구조 검증
+      if (typeof data !== 'object' || data === null) {
+        throw new Error('서버 응답이 올바르지 않습니다.');
+      }
+
+      if (data.success === true) {
         // 인증 성공 - 회원가입 완료! 로그인 페이지로 이동
         alert('이메일 인증이 완료되었습니다! 로그인해주세요.');
         router.push('/auth/login');
+      } else if (data.error) {
+        setVerificationError(data.error.message || '유효하지 않은 인증 코드입니다.');
       } else {
-        setVerificationError(data.error?.message || '유효하지 않은 인증 코드입니다.');
+        setVerificationError('인증에 실패했습니다.');
       }
-    } catch (error) {
-      setVerificationError('인증 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } catch (err: any) {
+      // 에러 타입별 처리
+      if (err.name === 'AbortError') {
+        setVerificationError('요청 시간이 초과되었습니다. 다시 시도해주세요.');
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        setVerificationError('네트워크 연결을 확인해주세요.');
+      } else {
+        setVerificationError(err.message || '인증 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
     } finally {
       setIsVerifying(false);
     }
   };
 
   const handleResendCode = async () => {
+    // 쿨다운 체크
+    if (resendCooldown > 0) {
+      alert(`${resendCooldown}초 후에 다시 시도해주세요.`);
+      return;
+    }
+
+    // 속도 제한 체크 (1분에 최대 3회)
+    const now = Date.now();
+    if (lastResendTime && now - lastResendTime < 20000) { // 20초 간격
+      const remainingSeconds = Math.ceil((20000 - (now - lastResendTime)) / 1000);
+      setResendCooldown(remainingSeconds);
+      alert(`${remainingSeconds}초 후에 다시 시도해주세요.`);
+      return;
+    }
+
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email: formData.email }),
+        signal: controller.signal,
       });
 
-      if (response.ok) {
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('서버 응답 형식이 올바르지 않습니다.');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
         setVerificationError('');
+        setLastResendTime(now);
+        setResendCooldown(20); // 20초 쿨다운 설정
         alert('인증 코드를 다시 발송했습니다.');
       } else {
-        alert('재전송에 실패했습니다.');
+        alert(data.error?.message || '재전송에 실패했습니다.');
       }
-    } catch (error) {
-      alert('재전송 중 오류가 발생했습니다.');
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        alert('요청 시간이 초과되었습니다. 다시 시도해주세요.');
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        alert('네트워크 연결을 확인해주세요.');
+      } else {
+        alert(err.message || '재전송 중 오류가 발생했습니다.');
+      }
     }
   };
 
@@ -304,9 +421,16 @@ const RegisterForm = () => {
             <button
               type="button"
               onClick={handleResendCode}
-              className="text-sm text-blue-600 hover:text-blue-500"
+              disabled={resendCooldown > 0}
+              className={`text-sm ${
+                resendCooldown > 0
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-blue-600 hover:text-blue-500'
+              }`}
             >
-              인증 코드를 받지 못하셨나요? 다시 보내기
+              {resendCooldown > 0
+                ? `${resendCooldown}초 후 재전송 가능`
+                : '인증 코드를 받지 못하셨나요? 다시 보내기'}
             </button>
             <div>
               <button
@@ -357,7 +481,7 @@ const RegisterForm = () => {
                 errors.name ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="이름을 입력하세요"
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             />
           </div>
           {errors.name && (
@@ -388,7 +512,7 @@ const RegisterForm = () => {
                 errors.email ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="your@email.com"
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             />
           </div>
           {errors.email && (
@@ -419,13 +543,13 @@ const RegisterForm = () => {
                 errors.password ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="비밀번호를 입력하세요 (최소 8자)"
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             />
             <button
               type="button"
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
               onClick={() => setShowPassword(!showPassword)}
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -502,13 +626,13 @@ const RegisterForm = () => {
                 errors.confirmPassword ? "border-red-300" : "border-gray-300"
               }`}
               placeholder="비밀번호를 다시 입력하세요"
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             />
             <button
               type="button"
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              disabled={isRegisterLoading}
+              disabled={isSubmitting}
             >
               {showConfirmPassword ? (
                 <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -545,14 +669,14 @@ const RegisterForm = () => {
         <div>
           <button
             type="submit"
-            disabled={isRegisterLoading}
+            disabled={isSubmitting}
             className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
-              isRegisterLoading
+              isSubmitting
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             }`}
           >
-            {isRegisterLoading ? (
+            {isSubmitting ? (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 회원가입 중...
@@ -590,10 +714,10 @@ const RegisterForm = () => {
           <button
             type="button"
             onClick={handleGoogleRegister}
-            disabled={isRegisterLoading}
+            disabled={isSubmitting}
             className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
           >
-            {isRegisterLoading ? (
+            {isSubmitting ? (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
                 Google 회원가입 중...
@@ -627,7 +751,7 @@ const RegisterForm = () => {
           <button
             type="button"
             onClick={handleKakaoRegister}
-            disabled={isRegisterLoading}
+            disabled={isSubmitting}
             className="w-full flex justify-center items-center px-4 py-2 border border-yellow-400 rounded-md shadow-sm bg-yellow-400 text-sm font-medium text-gray-900 hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
@@ -640,7 +764,7 @@ const RegisterForm = () => {
           <button
             type="button"
             onClick={() => console.log('Naver signup')}
-            disabled={isRegisterLoading}
+            disabled={isSubmitting}
             className="w-full flex justify-center items-center px-4 py-2 border border-green-500 rounded-md shadow-sm bg-green-500 text-sm font-medium text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">

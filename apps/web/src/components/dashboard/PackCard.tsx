@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { createPaymentIntent } from '@/lib/payments';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 import { Check, Star, Crown, Zap, Clock, RefreshCw, Gift } from "lucide-react";
 
 interface Pack {
@@ -32,7 +32,7 @@ interface PackCardProps {
 
 export default function PackCard({ pack }: PackCardProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const { error } = useToast();
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setPurchaseLoading] = useState(false);
   const [subscriptionMode, setSubscriptionMode] = useState(
@@ -45,7 +45,7 @@ export default function PackCard({ pack }: PackCardProps) {
       router.push(`/credits/checkout?orderId=${data.displayId}&amount=${data.amount}`);
     },
     onError: () => {
-      showToast('error', '결제 요청 생성에 실패했습니다. 다시 시도해주세요.');
+      error('결제 요청 생성에 실패했습니다. 다시 시도해주세요.');
     },
   });
 
@@ -66,9 +66,9 @@ export default function PackCard({ pack }: PackCardProps) {
       } else if (pack.type === "free") {
         console.log("무료 크레딧 받기:", pack.credits, "크레딧");
       }
-    } catch (error) {
-      console.error("Purchase failed:", error);
-      showToast('error', "구매에 실패했습니다. 다시 시도해주세요.");
+    } catch (err) {
+      console.error("Purchase failed:", err);
+      error("구매에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setPurchaseLoading(false);
     }

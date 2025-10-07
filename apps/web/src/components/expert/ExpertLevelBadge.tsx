@@ -25,12 +25,24 @@ export default function ExpertLevelBadge({ expertId, size = 'md' }: ExpertLevelB
   useEffect(() => {
     const loadLevelInfo = async () => {
       try {
-        const response = await fetch(`/api/expert-levels?action=getExpertLevel&expertId=${expertId}`);
-        const data = await response.json();
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+        const response = await fetch(`${apiBaseUrl}/expert-levels?action=getExpertLevel&expertId=${expertId}`);
 
-        if (data.success) {
-          setLevelInfo(data.levelInfo);
-          setKoreanName(data.koreanName || data.levelInfo.name);
+        if (!response.ok) {
+          console.warn('레벨 정보 API 응답 오류:', response.status);
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // API 응답은 {success: true, data: {...}} 형태
+        const data = result.success && result.data ? result.data : result;
+
+        if (data.tierInfo) {
+          setLevelInfo(data.tierInfo);
+          setKoreanName(data.levelTitle || data.tierInfo.name);
+        } else {
+          console.warn('레벨 정보 없음:', { result, data });
         }
       } catch (error) {
         console.error('레벨 정보 로드 실패:', error);

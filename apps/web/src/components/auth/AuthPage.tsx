@@ -8,10 +8,14 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import Card from "@/components/ui/Card";
 import { z } from "zod";
 
-// 비밀번호 강도 검사 (간소화)
+// 비밀번호 강도 검사 (백엔드와 동일)
 const passwordSchema = z.string()
   .min(8, '비밀번호는 최소 8자 이상이어야 합니다')
-  .regex(/^(?=.*[a-z])(?=.*\d)/, '영문 소문자와 숫자를 포함해야 합니다');
+  .max(100, '비밀번호는 100자 이하여야 합니다')
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+    '비밀번호는 대문자, 소문자, 숫자, 특수문자(@$!%*?&)를 각각 1개 이상 포함해야 합니다'
+  );
 
 const loginSchema = z.object({
   email: z.string().email('올바른 이메일을 입력해주세요'),
@@ -207,8 +211,10 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
     setErrors({});
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email?token=${verificationCode}`, {
-        method: 'GET',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: verificationCode }),
       });
 
       const data = await response.json();
@@ -509,7 +515,7 @@ const AuthPage = ({ defaultTab = 'login' }: AuthPageProps) => {
                     ></div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    영문 소문자, 숫자 포함 8자 이상
+                    대문자, 소문자, 숫자, 특수문자(@$!%*?&) 각 1개 이상 포함
                   </p>
                 </div>
               )}

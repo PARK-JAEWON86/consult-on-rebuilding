@@ -50,24 +50,42 @@ export default function ExpertReviewsPage() {
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['expertReviews', user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/reviews/expert-reviews?expertId=${user?.id}`);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews?expertId=${user?.id}`);
+      if (!response.ok) {
+        console.warn('전문가 리뷰 목록 조회 실패:', response.status);
+        return [];
+      }
       const result = await response.json();
       return result.success ? result.data : [];
     },
     enabled: !!user?.id && isAuthenticated && user?.roles?.includes('EXPERT'),
   });
 
-  // 리뷰 통계
+  // 리뷰 통계 (클라이언트에서 계산)
   const { data: statsData } = useQuery({
     queryKey: ['expertReviewStats', user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/reviews/expert-stats?expertId=${user?.id}`);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews?expertId=${user?.id}`);
+      if (!response.ok) {
+        console.warn('전문가 리뷰 통계 조회 실패:', response.status);
+        return { totalReviews: 0, averageRating: 0, ratingDistribution: {} };
+      }
       const result = await response.json();
-      return result.success ? result.data : {
-        totalReviews: 0,
-        averageRating: 0,
-        ratingDistribution: {}
-      };
+      const reviews = result.success ? result.data : [];
+
+      // 통계 계산
+      const totalReviews = reviews.length;
+      const averageRating = totalReviews > 0
+        ? reviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0) / totalReviews
+        : 0;
+      const ratingDistribution = reviews.reduce((dist: any, r: any) => {
+        dist[r.rating] = (dist[r.rating] || 0) + 1;
+        return dist;
+      }, {});
+
+      return { totalReviews, averageRating, ratingDistribution };
     },
     enabled: !!user?.id && isAuthenticated && user?.roles?.includes('EXPERT'),
   });

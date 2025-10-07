@@ -8,14 +8,55 @@ import { Expert } from "@/lib/experts";
 /**
  * 전문가 데이터 유효성 검사 함수
  */
-const validateExpert = (expert: Expert) => {
-  return (
-    expert &&
-    typeof expert.id !== "undefined" &&
-    typeof expert.displayId === "string" &&
-    typeof expert.name === "string" &&
-    typeof expert.ratingAvg === "number"
-  );
+const validateExpert = (expert: Expert): boolean => {
+  try {
+    // 기본 구조 검증
+    if (!expert || typeof expert !== 'object') {
+      console.warn('유효하지 않은 전문가 데이터 구조:', expert);
+      return false;
+    }
+
+    // 필수 필드 검증
+    const requiredFields = {
+      id: expert.id,
+      displayId: expert.displayId,
+      name: expert.name,
+      ratingAvg: expert.ratingAvg,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([key, value]) => value === undefined || value === null)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      console.warn('전문가 데이터 필수 필드 누락:', {
+        expertId: expert.id,
+        missingFields,
+      });
+      return false;
+    }
+
+    // 타입 검증
+    if (typeof expert.displayId !== "string") {
+      console.warn('displayId 타입 오류:', typeof expert.displayId);
+      return false;
+    }
+
+    if (typeof expert.name !== "string") {
+      console.warn('name 타입 오류:', typeof expert.name);
+      return false;
+    }
+
+    if (typeof expert.ratingAvg !== "number" || isNaN(expert.ratingAvg)) {
+      console.warn('ratingAvg 타입 또는 값 오류:', expert.ratingAvg);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('전문가 데이터 검증 중 오류:', error, expert);
+    return false;
+  }
 };
 
 interface ExpertListProps {
@@ -61,25 +102,49 @@ const ExpertList = ({
 
   // 정렬된 전문가 목록
   const sortedExperts = useMemo(() => {
-    const sorted = [...validExperts].sort((a, b) => {
-      switch (sortBy) {
-        case "rating":
-          return (b.ratingAvg || 0) - (a.ratingAvg || 0);
-        case "latest":
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case "popular":
-          return (b.reviewCount || 0) - (a.reviewCount || 0);
-        default:
-          return 0;
-      }
-    });
-    return sorted;
+    try {
+      const sorted = [...validExperts].sort((a, b) => {
+        switch (sortBy) {
+          case "rating": {
+            const ratingA = typeof a.ratingAvg === 'number' ? a.ratingAvg : 0;
+            const ratingB = typeof b.ratingAvg === 'number' ? b.ratingAvg : 0;
+            return ratingB - ratingA;
+          }
+          case "latest": {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+            // NaN 체크
+            if (isNaN(dateA) || isNaN(dateB)) {
+              console.warn('날짜 파싱 오류:', {
+                aCreatedAt: a.createdAt,
+                bCreatedAt: b.createdAt
+              });
+              return 0;
+            }
+
+            return dateB - dateA;
+          }
+          case "popular": {
+            const countA = typeof a.reviewCount === 'number' ? a.reviewCount : 0;
+            const countB = typeof b.reviewCount === 'number' ? b.reviewCount : 0;
+            return countB - countA;
+          }
+          default:
+            return 0;
+        }
+      });
+      return sorted;
+    } catch (error) {
+      console.error('전문가 목록 정렬 중 오류:', error);
+      return validExperts; // 정렬 실패 시 원본 반환
+    }
   }, [validExperts, sortBy]);
 
   // 페이지네이션
-  const totalPages = Math.ceil(sortedExperts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const totalPages = Math.max(1, Math.ceil(sortedExperts.length / itemsPerPage));
+  const startIndex = Math.max(0, (currentPage - 1) * itemsPerPage);
+  const endIndex = Math.min(sortedExperts.length, startIndex + itemsPerPage);
   const currentExperts = sortedExperts.slice(startIndex, endIndex);
 
   // 뷰 모드 변경 핸들러

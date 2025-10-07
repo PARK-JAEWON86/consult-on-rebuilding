@@ -50,48 +50,132 @@ export class ExpertsService {
       };
     }
 
-    // Sorting
-    let orderBy: any = { createdAt: 'desc' };
-    if (sort === 'rating') orderBy = { ratingAvg: 'desc' };
-    if (sort === '-rating') orderBy = { ratingAvg: 'asc' };
-    if (sort === 'recent') orderBy = { createdAt: 'desc' };
-    if (sort === 'experience') orderBy = { experience: 'desc' };
-    if (sort === 'reviews') orderBy = { reviewCount: 'desc' };
-    if (sort === 'sessions') orderBy = { totalSessions: 'desc' };
+    // Sorting - sortMap으로 정리하고 experienceYears 사용
+    const sortMap: Record<string, any> = {
+      'rating': { ratingAvg: 'desc' },
+      '-rating': { ratingAvg: 'asc' },
+      'experience': { experienceYears: 'desc' },  // experience → experienceYears로 변경
+      'reviews': { reviewCount: 'desc' },
+      'sessions': { totalSessions: 'desc' },
+      'recent': { createdAt: 'desc' },
+      // ranking, level, credits 정렬은 실시간 계산 필요 (메모리 정렬)
+    };
 
-    const [total, items] = await this.prisma.$transaction([
-      this.prisma.expert.count({ where }),
-      this.prisma.expert.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * size,
-        take: size,
-        include: {
-          categoryLinks: {
-            include: {
-              category: {
-                select: {
-                  nameKo: true,
-                  nameEn: true,
-                  slug: true,
+    // ranking, level, credits 정렬은 실시간 rankingScore 계산이 필요하므로 특별 처리
+    const needsRuntimeSort = sort && ['ranking', 'level', 'credits-low', 'credits-high'].includes(sort);
+
+    let total: number;
+    let items: any[];
+
+    if (needsRuntimeSort) {
+      // 전체 데이터를 가져와서 메모리에서 정렬
+      const [countResult, allItems] = await this.prisma.$transaction([
+        this.prisma.expert.count({ where }),
+        this.prisma.expert.findMany({
+          where,
+          // 정렬 없이 전체 가져오기
+          include: {
+            categoryLinks: {
+              include: {
+                category: {
+                  select: {
+                    nameKo: true,
+                    nameEn: true,
+                    slug: true,
+                  }
                 }
               }
-            }
-          },
-          reviews: {
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              user: {
-                select: {
-                  name: true,
+            },
+            reviews: {
+              take: 5,
+              orderBy: { createdAt: 'desc' },
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                  }
                 }
               }
             }
           }
-        }
-      }),
-    ]);
+        }),
+      ]);
+
+      total = countResult;
+
+      // 각 전문가의 실시간 rankingScore 계산 (ExpertLevelsService 사용)
+      const itemsWithScore = allItems.map(expert => {
+        const score = this.expertLevelsService.calculateRankingScore({
+          totalSessions: expert.totalSessions,
+          avgRating: expert.ratingAvg,
+          reviewCount: expert.reviewCount,
+          repeatClients: expert.repeatClients,
+          likeCount: 0,
+        });
+        return {
+          ...expert,
+          calculatedRankingScore: score,
+        };
+      });
+
+      console.log(`[DEBUG] Runtime sort - First 3 experts before sort:`, itemsWithScore.slice(0, 3).map(e => ({ name: e.name, score: e.calculatedRankingScore })));
+
+      // 메모리에서 정렬
+      if (sort === 'ranking') {
+        itemsWithScore.sort((a, b) => b.calculatedRankingScore - a.calculatedRankingScore);
+      } else if (sort === 'level') {
+        itemsWithScore.sort((a, b) => b.calculatedRankingScore - a.calculatedRankingScore);
+      } else if (sort === 'credits-low') {
+        itemsWithScore.sort((a, b) => a.calculatedRankingScore - b.calculatedRankingScore);
+      } else if (sort === 'credits-high') {
+        itemsWithScore.sort((a, b) => b.calculatedRankingScore - a.calculatedRankingScore);
+      }
+
+      console.log(`[DEBUG] Runtime sort - First 3 experts after sort:`, itemsWithScore.slice(0, 3).map(e => ({ name: e.name, score: e.calculatedRankingScore })));
+
+      // 페이지네이션 적용
+      items = itemsWithScore.slice((page - 1) * size, page * size);
+    } else {
+      // 기존 DB 정렬 방식
+      const orderBy = sortMap[sort || 'recent'] || { createdAt: 'desc' };
+
+      const [countResult, dbItems] = await this.prisma.$transaction([
+        this.prisma.expert.count({ where }),
+        this.prisma.expert.findMany({
+          where,
+          orderBy,
+          skip: (page - 1) * size,
+          take: size,
+          include: {
+            categoryLinks: {
+              include: {
+                category: {
+                  select: {
+                    nameKo: true,
+                    nameEn: true,
+                    slug: true,
+                  }
+                }
+              }
+            },
+            reviews: {
+              take: 5,
+              orderBy: { createdAt: 'desc' },
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                  }
+                }
+              }
+            }
+          }
+        }),
+      ]);
+
+      total = countResult;
+      items = dbItems;
+    }
 
     // JSON 문자열을 배열/객체로 파싱하는 헬퍼 함수들
     const parseJsonField = (field: JsonValue | null): any[] => {
@@ -124,8 +208,8 @@ export class ExpertsService {
     const transformedItems = items.map(expert => ({
       ...expert,
       // 기존 카테고리 정보
-      categories: expert.categoryLinks.map(link => link.category.nameKo),
-      categorySlugs: expert.categoryLinks.map(link => link.category.slug),
+      categories: expert.categoryLinks.map((link: any) => link.category.nameKo),
+      categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
       recentReviews: expert.reviews,
       // JSON 문자열로 저장된 필드들을 실제 배열로 변환
       specialties: parseJsonField(expert.specialties),
@@ -140,34 +224,20 @@ export class ExpertsService {
       contactInfo: parseJsonObject(expert.contactInfo),
       socialProof: parseJsonObject(expert.socialProof),
       socialLinks: parseJsonObject(expert.socialLinks),
-      // Calculate ranking score
-      rankingScore: this.calculateRankingScore({
+      // Calculate ranking score (calculatedRankingScore가 있으면 사용, 없으면 ExpertLevelsService로 계산)
+      rankingScore: (expert as any).calculatedRankingScore ?? this.expertLevelsService.calculateRankingScore({
         totalSessions: expert.totalSessions,
         avgRating: expert.ratingAvg,
         reviewCount: expert.reviewCount,
         repeatClients: expert.repeatClients,
+        likeCount: 0,
       }),
     }));
 
     return { total, items: transformedItems };
   }
 
-  private calculateRankingScore(stats: {
-    totalSessions: number;
-    avgRating: number;
-    reviewCount: number;
-    repeatClients: number;
-  }) {
-    const { totalSessions, avgRating, reviewCount, repeatClients } = stats;
-
-    // 가중치 적용한 랭킹 점수 계산
-    const sessionScore = totalSessions * 0.3;
-    const ratingScore = avgRating * 10;
-    const reviewScore = reviewCount * 0.5;
-    const repeatScore = repeatClients * 0.8;
-
-    return sessionScore + ratingScore + reviewScore + repeatScore;
-  }
+  // calculateRankingScore 제거 - ExpertLevelsService 사용
 
   async findByDisplayId(displayId: string) {
     const expert = await this.prisma.expert.findUnique({
@@ -266,8 +336,8 @@ export class ExpertsService {
       socialProof: parseJsonObject(expert.socialProof),
       socialLinks: parseJsonObject(expert.socialLinks),
       // 카테고리 정보도 추가
-      categories: expert.categoryLinks.map(link => link.category.nameKo),
-      categorySlugs: expert.categoryLinks.map(link => link.category.slug),
+      categories: expert.categoryLinks.map((link: any) => link.category.nameKo),
+      categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
       // 예약 가능시간 정보 (정규화된 테이블 데이터)
       availabilitySlots: expert.availabilitySlots || [],
       // 레벨 정보 추가

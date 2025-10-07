@@ -32,16 +32,35 @@ export default function ExpertLevelBadge({
         setIsLoading(true);
         
         // 새로운 API를 통해 전문가 레벨 정보를 가져옴
-        const response = await fetch(`/api/expert-levels?action=getExpertLevel&expertId=${expertId}`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+        const response = await fetch(`${apiBaseUrl}/expert-levels?action=getExpertLevel&expertId=${expertId}`);
+
+        if (!response.ok) {
+          console.warn('레벨 정보 API 응답 오류:', response.status);
+          throw new Error(`HTTP ${response.status}`);
+        }
+
         const result = await response.json();
-        
-        if (result.currentLevel && result.levelTitle) {
-          setLevelData(result);
+
+        // API 응답은 {success: true, data: {...}} 형태
+        const data = result.success && result.data ? result.data : result;
+
+        if (data.currentLevel && data.levelTitle) {
+          setLevelData({
+            currentLevel: data.currentLevel,
+            levelTitle: data.levelTitle,
+            levelProgress: data.levelProgress || {
+              current: data.currentLevel,
+              next: data.currentLevel + 1,
+              percentage: 0
+            }
+          });
         } else {
+          console.warn('불완전한 레벨 데이터:', { result, data });
           // API에서 데이터를 가져올 수 없는 경우 기본 레벨 표시
           setLevelData({
             currentLevel: 1,
-            levelTitle: "Tier 1 (Lv.1-99)",
+            levelTitle: "Iron (아이언)",
             levelProgress: {
               current: 1,
               next: 2,
@@ -112,15 +131,15 @@ function getLevelBackgroundColor(level: number): string {
 function getSizeClasses(size: 'sm' | 'md' | 'lg' | 'like'): string {
   switch (size) {
     case 'sm':
-      return 'w-8 h-6 px-1';
+      return 'w-12 h-6 px-2';
     case 'md':
-      return 'w-10 h-6 px-2';
+      return 'w-14 h-6 px-3';
     case 'lg':
-      return 'w-12 h-8 px-3';
+      return 'w-16 h-8 px-4';
     case 'like':
       return 'px-3 py-1.5';
     default:
-      return 'w-10 h-6 px-2';
+      return 'w-14 h-6 px-3';
   }
 }
 

@@ -29,7 +29,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const { login, googleLogin, kakaoLogin, isLoginLoading, loginError } = useAuth();
+  const { login, googleLogin, kakaoLogin, isLoginLoading } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -76,18 +76,25 @@ const LoginForm = () => {
     setErrors({});
 
     try {
-      await login({ 
-        email: formData.email, 
-        password: formData.password 
+      await login({
+        email: formData.email,
+        password: formData.password
       });
-      
+
       // 로그인 성공 후 리다이렉트
       const redirectUrl = searchParams.get('redirect') || "/";
       router.push(redirectUrl);
     } catch (err: any) {
-      setErrors({ 
-        general: err.message || "로그인에 실패했습니다." 
-      });
+      // 이메일 미인증 에러 처리
+      if (err.error?.code === 'E_EMAIL_NOT_VERIFIED') {
+        setErrors({
+          general: '이메일 인증이 완료되지 않았습니다. 이메일을 확인하여 인증을 완료해주세요.'
+        });
+      } else {
+        setErrors({
+          general: err.message || "로그인에 실패했습니다."
+        });
+      }
     }
   };
 
@@ -114,10 +121,10 @@ const LoginForm = () => {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {(errors.general || loginError) && (
+        {errors.general && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
             <div className="text-sm text-red-600">
-              {errors.general || loginError?.message || "로그인에 실패했습니다."}
+              {errors.general}
             </div>
           </div>
         )}

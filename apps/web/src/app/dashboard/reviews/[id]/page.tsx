@@ -55,7 +55,14 @@ export default function ReviewDetailPage() {
 
     const loadReview = async () => {
       try {
-        const response = await fetch(`/api/reviews/${params.id}`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+        const response = await fetch(`${apiBaseUrl}/reviews/${params.id}`);
+        if (!response.ok) {
+          console.warn('리뷰 조회 실패:', response.status);
+          alert('리뷰를 찾을 수 없습니다.');
+          router.push('/dashboard/reviews');
+          return;
+        }
         const result = await response.json();
 
         if (result.success) {
@@ -82,7 +89,8 @@ export default function ReviewDetailPage() {
     if (!confirm('정말로 이 리뷰를 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/reviews/${params.id}`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews/${params.id}`, {
         method: 'DELETE',
       });
 

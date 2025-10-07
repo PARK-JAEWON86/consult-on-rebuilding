@@ -54,11 +54,24 @@ export default function WriteReviewPage() {
 
     const loadReservation = async () => {
       try {
-        const response = await fetch(`/api/reservations/${params.reservationId}`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+        const response = await fetch(`${apiBaseUrl}/reservations?userId=${user?.id}`);
+        if (!response.ok) {
+          console.warn('예약 정보 조회 실패:', response.status);
+          alert('예약 정보를 찾을 수 없습니다.');
+          router.push('/dashboard/reviews');
+          return;
+        }
         const result = await response.json();
 
-        if (result.success) {
-          setReservation(result.data);
+        if (result.success && Array.isArray(result.data)) {
+          const reservation = result.data.find((r: any) => r.id?.toString() === params.reservationId || r.displayId === params.reservationId);
+          if (reservation) {
+            setReservation(reservation);
+          } else {
+            alert('예약 정보를 찾을 수 없습니다.');
+            router.push('/dashboard/reviews');
+          }
         } else {
           alert('예약 정보를 찾을 수 없습니다.');
           router.push('/dashboard/reviews');
@@ -98,7 +111,8 @@ export default function WriteReviewPage() {
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/reviews', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

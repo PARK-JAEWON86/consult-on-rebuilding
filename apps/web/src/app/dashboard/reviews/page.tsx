@@ -15,6 +15,8 @@ import {
   Trash2,
   Filter,
   Search,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface Review {
@@ -45,7 +47,7 @@ interface PendingReview {
 export default function ReviewsPage() {
   const { isAuthenticated, user } = useAuth();
   const router = useRouter();
-  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [expandedReviewId, setExpandedReviewId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<number | 'all'>('all');
 
@@ -53,7 +55,12 @@ export default function ReviewsPage() {
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['myReviews', user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/reviews/my-reviews?userId=${user?.id}`);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews?userId=${user?.id}`);
+      if (!response.ok) {
+        console.warn('리뷰 목록 조회 실패:', response.status);
+        return [];
+      }
       const result = await response.json();
       return result.success ? result.data : [];
     },
@@ -64,15 +71,20 @@ export default function ReviewsPage() {
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
     queryKey: ['pendingReviews', user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/reviews/pending?userId=${user?.id}`);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reservations?userId=${user?.id}&status=completed&hasReview=false`);
+      if (!response.ok) {
+        console.warn('리뷰 대기 목록 조회 실패:', response.status);
+        return [];
+      }
       const result = await response.json();
       return result.success ? result.data : [];
     },
     enabled: !!user?.id && isAuthenticated,
   });
 
-  const reviews: Review[] = reviewsData || [];
-  const pendingReviews: PendingReview[] = pendingData || [];
+  const reviews: Review[] = Array.isArray(reviewsData) ? reviewsData : [];
+  const pendingReviews: PendingReview[] = Array.isArray(pendingData) ? pendingData : [];
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -85,7 +97,7 @@ export default function ReviewsPage() {
   }
 
   // 필터링된 리뷰
-  const filteredReviews = reviews.filter(review => {
+  const filteredReviews = Array.isArray(reviews) ? reviews.filter(review => {
     const matchesSearch = !searchQuery ||
       review.expertName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -94,14 +106,15 @@ export default function ReviewsPage() {
     const matchesRating = ratingFilter === 'all' || review.rating === ratingFilter;
 
     return matchesSearch && matchesRating;
-  });
+  }) : [];
 
   // 리뷰 삭제
   const handleDeleteReview = async (reviewId: number) => {
     if (!confirm('정말로 이 리뷰를 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/reviews/${reviewId}`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/reviews/${reviewId}`, {
         method: 'DELETE',
       });
 
@@ -242,83 +255,91 @@ export default function ReviewsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 왼쪽: 리뷰 목록 */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">작성한 리뷰</h2>
-            <div className="flex items-center space-x-2">
-              {/* 검색 */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="리뷰 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              {/* 별점 필터 */}
-              <select
-                value={ratingFilter}
-                onChange={(e) => setRatingFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">전체 별점</option>
-                <option value={5}>5점</option>
-                <option value={4}>4점</option>
-                <option value={3}>3점</option>
-                <option value={2}>2점</option>
-                <option value={1}>1점</option>
-              </select>
+      {/* 리뷰 목록 */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">작성한 리뷰</h2>
+          <div className="flex items-center space-x-2">
+            {/* 검색 */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="리뷰 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
+            {/* 별점 필터 */}
+            <select
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">전체 별점</option>
+              <option value={5}>5점</option>
+              <option value={4}>4점</option>
+              <option value={3}>3점</option>
+              <option value={2}>2점</option>
+              <option value={1}>1점</option>
+            </select>
           </div>
+        </div>
 
-          {reviewsLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
-                  <div className="h-16 bg-gray-200 rounded"></div>
-                </div>
-              ))}
-            </div>
-          ) : filteredReviews.length === 0 ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-              <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">리뷰가 없습니다</h3>
-              <p className="text-gray-600 mb-4">
-                {searchQuery || ratingFilter !== 'all'
-                  ? '검색 조건에 맞는 리뷰가 없습니다.'
-                  : '아직 작성한 리뷰가 없습니다. 상담 후 리뷰를 작성해보세요.'
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredReviews.map((review) => (
+        {reviewsLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+                <div className="h-16 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        ) : filteredReviews.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">리뷰가 없습니다</h3>
+            <p className="text-gray-600 mb-4">
+              {searchQuery || ratingFilter !== 'all'
+                ? '검색 조건에 맞는 리뷰가 없습니다.'
+                : '아직 작성한 리뷰가 없습니다. 상담 후 리뷰를 작성해보세요.'
+              }
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredReviews.map((review) => (
+              <div
+                key={review.id}
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-shadow hover:shadow-md"
+              >
+                {/* 리뷰 요약 (항상 표시) */}
                 <div
-                  key={review.id}
-                  className={`bg-white rounded-lg border border-gray-200 p-4 cursor-pointer transition-colors ${
-                    selectedReview?.id === review.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:shadow-md'
-                  }`}
-                  onClick={() => setSelectedReview(review)}
+                  className="p-4 cursor-pointer"
+                  onClick={() => setExpandedReviewId(expandedReviewId === review.id ? null : review.id)}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <User className="h-8 w-8 text-gray-400 bg-gray-100 rounded-full p-1.5" />
-                      <div>
+                    <div className="flex items-center space-x-3 flex-1">
+                      <User className="h-8 w-8 text-gray-400 bg-gray-100 rounded-full p-1.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-gray-900">{review.expertName}</h3>
                         <p className="text-sm text-gray-600">
                           {formatDate(review.consultationDate)} · {review.consultationType}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {renderStars(review.rating)}
-                      <span className="text-sm text-gray-600">{review.rating}.0</span>
+                    <div className="flex items-center space-x-3 flex-shrink-0">
+                      <div className="flex items-center space-x-1">
+                        {renderStars(review.rating)}
+                        <span className="text-sm text-gray-600 ml-1">{review.rating}.0</span>
+                      </div>
+                      {expandedReviewId === review.id ? (
+                        <ChevronUp className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      )}
                     </div>
                   </div>
 
@@ -345,97 +366,75 @@ export default function ReviewsPage() {
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* 오른쪽: 선택된 리뷰 상세 */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">리뷰 상세</h2>
-          {selectedReview ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <User className="h-10 w-10 text-gray-400 bg-gray-100 rounded-full p-2" />
+                {/* 리뷰 상세 (드롭다운) */}
+                {expandedReviewId === review.id && (
+                  <div className="border-t border-gray-200 bg-gray-50 p-6 space-y-4">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{selectedReview.expertName}</h3>
-                      <p className="text-sm text-gray-600">
-                        {formatDate(selectedReview.consultationDate)} · {selectedReview.consultationType}
-                      </p>
+                      <h4 className="font-semibold text-gray-900 mb-2 text-lg">{review.title}</h4>
+                      <p className="text-gray-700 whitespace-pre-line leading-relaxed">{review.content}</p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm px-3 py-1 rounded-full ${
+                        review.isPublic
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {review.isPublic ? '공개 리뷰' : '비공개 리뷰'}
+                      </span>
+                      {review.isAnonymous && (
+                        <span className="text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800">
+                          익명 작성
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-sm text-gray-500 pt-3 border-t">
+                      <p>작성일: {formatDate(review.createdAt)}</p>
+                      {review.updatedAt !== review.createdAt && (
+                        <p>수정일: {formatDate(review.updatedAt)}</p>
+                      )}
+                    </div>
+
+                    {/* 액션 버튼 */}
+                    <div className="flex space-x-2 pt-4 border-t">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/reviews/${review.id}/edit`);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        <Edit3 className="h-4 w-4 mr-1" />
+                        수정
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/dashboard/reviews/${review.id}`);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 transition-colors"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        상세보기
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteReview(review.id);
+                        }}
+                        className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    {renderStars(selectedReview.rating, 'md')}
-                    <span className="ml-2 text-lg font-medium text-gray-900">
-                      {selectedReview.rating}.0
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">{selectedReview.title}</h4>
-                  <p className="text-gray-700 whitespace-pre-line">{selectedReview.content}</p>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <span className={`text-sm px-3 py-1 rounded-full ${
-                    selectedReview.isPublic
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {selectedReview.isPublic ? '공개 리뷰' : '비공개 리뷰'}
-                  </span>
-                  {selectedReview.isAnonymous && (
-                    <span className="text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800">
-                      익명 작성
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-sm text-gray-500 pt-3 border-t">
-                  <p>작성일: {formatDate(selectedReview.createdAt)}</p>
-                  {selectedReview.updatedAt !== selectedReview.createdAt && (
-                    <p>수정일: {formatDate(selectedReview.updatedAt)}</p>
-                  )}
-                </div>
-
-                {/* 액션 버튼 */}
-                <div className="flex space-x-2 pt-4 border-t">
-                  <button
-                    onClick={() => router.push(`/dashboard/reviews/${selectedReview.id}/edit`)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                  >
-                    <Edit3 className="h-4 w-4 mr-1" />
-                    수정
-                  </button>
-                  <button
-                    onClick={() => router.push(`/dashboard/reviews/${selectedReview.id}`)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    상세보기
-                  </button>
-                  <button
-                    onClick={() => handleDeleteReview(selectedReview.id)}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                )}
               </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-              <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">리뷰를 선택해주세요</h3>
-              <p className="text-gray-600">
-                왼쪽에서 리뷰를 선택하면 상세 정보를 확인할 수 있습니다
-              </p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
