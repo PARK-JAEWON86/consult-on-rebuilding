@@ -231,7 +231,7 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => router.push(`/admin/users/${user.id}`)}
+                          onClick={() => router.push(`/admin/users/${user.id}` as any)}
                           className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900"
                         >
                           <Eye className="w-4 h-4" />

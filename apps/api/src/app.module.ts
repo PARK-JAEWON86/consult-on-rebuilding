@@ -25,6 +25,7 @@ import { ExpertStatsModule } from './expert-stats/expert-stats.module'
 import { ChatModule } from './chat/chat.module'
 import { SettlementsModule } from './settlements/settlements.module'
 import { AdminModule } from './admin/admin.module'
+import { NotificationsModule } from './notifications/notifications.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -57,6 +58,7 @@ import { validateEnv } from './config/env.schema'
     MailModule,
     ChatModule,
     SettlementsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

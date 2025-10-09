@@ -45,23 +45,30 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   // 사용자 정보 새로고침
   const refreshUser = async () => {
+    console.log('[AuthProvider] refreshUser called')
     setIsLoading(true)
     try {
       const response = await api.get('/auth/me')
+      console.log('[AuthProvider] /auth/me response:', response)
 
       if (response.success && response.data && response.data.user) {
+        console.log('[AuthProvider] Setting user:', response.data.user)
         setUser(response.data.user)
       } else {
+        console.log('[AuthProvider] No user data in response')
         setUser(null)
       }
     } catch (error) {
       // 401은 정상적인 미인증 상태이므로 에러 로그 출력하지 않음
       if ((error as any)?.status !== 401) {
-        console.error('Failed to refresh user:', error)
+        console.error('[AuthProvider] Failed to refresh user:', error)
+      } else {
+        console.log('[AuthProvider] 401 - user not authenticated')
       }
       setUser(null)
     } finally {
       setIsLoading(false)
+      console.log('[AuthProvider] refreshUser completed')
     }
   }
 
@@ -177,20 +184,10 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     }
   }
 
-  // 페이지 로드 시 인증 상태 확인 및 Google 로그인 후 리다이렉트 처리
+  // 페이지 로드 시 인증 상태 확인
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-
-    if (urlParams.get('auth') === 'success') {
-      // Google 로그인 성공 후 상태 확인
-      setTimeout(() => {
-        refreshUser()
-        // URL에서 auth 파라미터 제거
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete('auth')
-        window.history.replaceState({}, '', newUrl.toString())
-      }, 500)
-    } else if (!initialUser) {
+    // OAuth success는 HomePage에서 처리됨
+    if (!initialUser) {
       // initialUser가 없으면 (서버에서 인증 정보를 받지 못한 경우) 클라이언트에서 확인
       refreshUser()
     }

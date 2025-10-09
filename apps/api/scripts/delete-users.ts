@@ -60,7 +60,7 @@ async function deleteUsers(userIds: number[]) {
   }
 }
 
-deleteUsers([88, 104])
+deleteUsers([112, 113])
   .then(() => {
     console.log('✅ All users deleted successfully');
     process.exit(0);

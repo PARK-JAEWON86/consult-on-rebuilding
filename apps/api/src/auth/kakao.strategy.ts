@@ -14,26 +14,34 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
   }
 
   async validate(
-    accessToken: string,
-    refreshToken: string,
+    _accessToken: string,
+    _refreshToken: string,
     profile: any,
     done: any,
   ): Promise<any> {
-    const { id, username, _json } = profile
-
-    const user = {
-      providerId: id,
-      provider: 'kakao',
-      email: _json.kakao_account?.email || `kakao_${id}@kakao.user`,
-      name: _json.kakao_account?.profile?.nickname || username || 'Kakao User',
-      avatarUrl: _json.kakao_account?.profile?.profile_image_url,
-    }
-
     try {
+      const { id, username, _json } = profile
+
+      // 프로필 데이터 검증
+      if (!id) {
+        console.error('Kakao OAuth: Invalid profile data', { id })
+        return done(new Error('Invalid Kakao profile data'), false)
+      }
+
+      const user = {
+        providerId: id,
+        provider: 'kakao',
+        email: _json.kakao_account?.email || `kakao_${id}@kakao.user`,
+        name: _json.kakao_account?.profile?.nickname || username || 'Kakao User',
+        avatarUrl: _json.kakao_account?.profile?.profile_image_url,
+      }
+
       const result = await this.authService.validateOAuthUser(user)
       done(null, result)
     } catch (error) {
-      done(error, false)
+      console.error('Kakao OAuth validation error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'OAuth validation failed'
+      done(new Error(errorMessage), false)
     }
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -83,7 +83,7 @@ const LoginForm = () => {
 
       // 로그인 성공 후 리다이렉트
       const redirectUrl = searchParams.get('redirect') || "/";
-      router.push(redirectUrl);
+      router.push(redirectUrl as any);
     } catch (err: any) {
       // 이메일 미인증 에러 처리
       if (err.error?.code === 'E_EMAIL_NOT_VERIFIED') {
@@ -98,9 +98,9 @@ const LoginForm = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     try {
-      await googleLogin();
+      googleLogin();
     } catch (err: any) {
       setErrors({
         general: err.message || "Google 로그인에 실패했습니다."
@@ -108,15 +108,36 @@ const LoginForm = () => {
     }
   };
 
-  const handleKakaoLogin = async () => {
+  const handleKakaoLogin = () => {
     try {
-      await kakaoLogin();
+      kakaoLogin();
     } catch (err: any) {
       setErrors({
         general: err.message || "Kakao 로그인에 실패했습니다."
       });
     }
   };
+
+  // URL 파라미터에서 OAuth 에러 확인
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        'oauth-failed': '소셜 로그인에 실패했습니다. 다시 시도해주세요.',
+        'google-login-failed': 'Google 계정 연동 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        'kakao-login-failed': 'Kakao 계정 연동 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        'oauth-refresh-failed': '소셜 로그인 후 인증 처리 중 오류가 발생했습니다.',
+      };
+
+      if (errorMessages[errorParam]) {
+        setErrors({ general: errorMessages[errorParam] });
+        // URL에서 에러 파라미터 제거
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('error');
+        window.history.replaceState({}, '', newUrl.toString());
+      }
+    }
+  }, [searchParams]);
 
   return (
     <div className="space-y-6">

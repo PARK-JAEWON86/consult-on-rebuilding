@@ -1,28 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
-import nodemailer from 'nodemailer';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { Injectable, Logger } from '@nestjs/common'
+import nodemailer from 'nodemailer'
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 
 interface EmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
+  to: string
+  subject: string
+  html: string
+  text?: string
 }
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
-  private transporter?: nodemailer.Transporter;
-  private sesClient?: SESClient;
-  private readonly emailProvider: string;
+  private readonly logger = new Logger(MailService.name)
+  private transporter?: nodemailer.Transporter
+  private sesClient?: SESClient
+  private readonly emailProvider: string
 
   constructor() {
-    this.emailProvider = process.env.EMAIL_PROVIDER || 'smtp';
+    this.emailProvider = process.env.EMAIL_PROVIDER || 'smtp'
 
     if (this.emailProvider === 'ses') {
-      this.initializeSES();
+      this.initializeSES()
     } else {
-      this.initializeSMTP();
+      this.initializeSMTP()
     }
   }
 
@@ -34,11 +34,11 @@ export class MailService {
           accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
           secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
         },
-      });
-      this.logger.log('AWS SES client initialized successfully');
+      })
+      this.logger.log('AWS SES client initialized successfully')
     } catch (error) {
-      this.logger.error('Failed to initialize AWS SES client:', error);
-      throw error;
+      this.logger.error('Failed to initialize AWS SES client:', error)
+      throw error
     }
   }
 
@@ -55,35 +55,38 @@ export class MailService {
         tls: {
           rejectUnauthorized: false, // Gmail에서 필요할 수 있음
         },
-      });
-      this.logger.log('SMTP transporter initialized successfully');
+      })
+      this.logger.log('SMTP transporter initialized successfully')
     } catch (error) {
-      this.logger.error('Failed to initialize SMTP transporter:', error);
-      throw error;
+      this.logger.error('Failed to initialize SMTP transporter:', error)
+      throw error
     }
   }
 
   async sendMail(to: string, subject: string, html: string, text?: string) {
-    const emailOptions: EmailOptions = { to, subject, html, text };
+    const emailOptions: EmailOptions = { to, subject, html, text }
 
     if (this.emailProvider === 'ses') {
-      return this.sendWithSES(emailOptions);
+      return this.sendWithSES(emailOptions)
     } else {
-      return this.sendWithSMTP(emailOptions);
+      return this.sendWithSMTP(emailOptions)
     }
   }
 
   private async sendWithSES(options: EmailOptions) {
     try {
       if (!this.sesClient) {
-        throw new Error('SES client not initialized');
+        throw new Error('SES client not initialized')
       }
 
-      const fromEmail = process.env.SES_FROM_EMAIL || process.env.MAIL_FROM || 'no-reply@consult-on.kr';
-      const fromName = process.env.SES_FROM_NAME || 'Consult-On';
-      const from = `${fromName} <${fromEmail}>`;
+      const fromEmail =
+        process.env.SES_FROM_EMAIL ||
+        process.env.MAIL_FROM ||
+        'no-reply@consult-on.kr'
+      const fromName = process.env.SES_FROM_NAME || 'Consult-On'
+      const from = `${fromName} <${fromEmail}>`
 
-      this.logger.log(`Sending email via SES to: ${options.to}`);
+      this.logger.log(`Sending email via SES to: ${options.to}`)
 
       const command = new SendEmailCommand({
         Source: from,
@@ -108,26 +111,26 @@ export class MailService {
             }),
           },
         },
-      });
+      })
 
-      const result = await this.sesClient.send(command);
-      this.logger.log(`Email sent successfully via SES: ${result.MessageId}`);
-      return { messageId: result.MessageId };
+      const result = await this.sesClient.send(command)
+      this.logger.log(`Email sent successfully via SES: ${result.MessageId}`)
+      return { messageId: result.MessageId }
     } catch (error) {
-      this.logger.error(`Failed to send email via SES to ${options.to}:`, error);
-      throw error;
+      this.logger.error(`Failed to send email via SES to ${options.to}:`, error)
+      throw error
     }
   }
 
   private async sendWithSMTP(options: EmailOptions) {
     try {
       if (!this.transporter) {
-        throw new Error('SMTP transporter not initialized');
+        throw new Error('SMTP transporter not initialized')
       }
 
-      const from = process.env.MAIL_FROM || 'no-reply@localhost';
+      const from = process.env.MAIL_FROM || 'no-reply@localhost'
 
-      this.logger.log(`Sending email via SMTP to: ${options.to}`);
+      this.logger.log(`Sending email via SMTP to: ${options.to}`)
 
       const info = await this.transporter.sendMail({
         from,
@@ -135,13 +138,16 @@ export class MailService {
         subject: options.subject,
         html: options.html,
         ...(options.text && { text: options.text }),
-      });
+      })
 
-      this.logger.log(`Email sent successfully via SMTP: ${info.messageId}`);
-      return info;
+      this.logger.log(`Email sent successfully via SMTP: ${info.messageId}`)
+      return info
     } catch (error) {
-      this.logger.error(`Failed to send email via SMTP to ${options.to}:`, error);
-      throw error;
+      this.logger.error(
+        `Failed to send email via SMTP to ${options.to}:`,
+        error
+      )
+      throw error
     }
   }
 
@@ -150,28 +156,35 @@ export class MailService {
       if (this.emailProvider === 'ses') {
         // SES 연결 확인 - 간단한 테스트 이메일 전송 시도
         if (!this.sesClient) {
-          throw new Error('SES client not initialized');
+          throw new Error('SES client not initialized')
         }
-        this.logger.log('AWS SES connection verified successfully');
-        return true;
+        this.logger.log('AWS SES connection verified successfully')
+        return true
       } else {
         // SMTP 연결 확인
         if (!this.transporter) {
-          throw new Error('SMTP transporter not initialized');
+          throw new Error('SMTP transporter not initialized')
         }
-        await this.transporter.verify();
-        this.logger.log('SMTP connection verified successfully');
-        return true;
+        await this.transporter.verify()
+        this.logger.log('SMTP connection verified successfully')
+        return true
       }
     } catch (error) {
-      this.logger.error(`${this.emailProvider.toUpperCase()} connection verification failed:`, error);
-      return false;
+      this.logger.error(
+        `${this.emailProvider.toUpperCase()} connection verification failed:`,
+        error
+      )
+      return false
     }
   }
 
   // 회원가입 인증 이메일 전송
-  async sendVerificationEmail(to: string, verificationCode: string, userName?: string) {
-    const subject = '[Consult-On] 이메일 인증을 완료해주세요';
+  async sendVerificationEmail(
+    to: string,
+    verificationCode: string,
+    userName?: string
+  ) {
+    const subject = '[Consult-On] 이메일 인증을 완료해주세요'
 
     const html = `
       <!DOCTYPE html>
@@ -181,57 +194,55 @@ export class MailService {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>이메일 인증</title>
       </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
+        <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
 
-          <!-- Section 1: Header -->
-          <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); text-align: center; padding: 40px 20px;">
-            <h1 style="font-size: 24px; font-weight: bold; color: #ffffff; margin: 0; letter-spacing: -0.5px;">Consult-On</h1>
-          </div>
+          <!-- Header & Content Wrapper -->
+          <div style="display: flex; align-items: stretch;">
 
-          <!-- Section 2: Welcome -->
-          <div style="background-color: #ffffff; padding: 40px 30px; text-align: center;">
-            <h2 style="font-size: 20px; font-weight: 700; color: #1e40af; margin: 0 0 16px 0;">안녕하세요${userName ? `, ${userName}님` : ''}!</h2>
-            <p style="color: #4b5563; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">Consult-On 서비스에 회원가입해 주셔서 감사합니다.</p>
-            <p style="color: #4b5563; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">아래 인증 코드를 입력하여 이메일 인증을 완료해주세요.</p>
-          </div>
-
-          <!-- Section 3: Verification Code (HERO) -->
-          <div style="background: linear-gradient(to bottom, #f0f9ff, #e0f2fe); padding: 40px 30px; text-align: center;">
-            <div style="background: #ffffff; border: 3px solid #3b82f6; border-radius: 12px; padding: 30px; margin: 0 auto; max-width: 380px; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2), 0 4px 6px -2px rgba(59, 130, 246, 0.1);">
-              <p style="font-size: 12px; font-weight: 700; color: #3b82f6; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 1.5px;">인증 코드</p>
-              <div style="font-size: 42px; font-weight: 900; color: #2563eb; letter-spacing: 10px; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 16px 0;">${verificationCode}</div>
+            <!-- Left Side: Header -->
+            <div style="background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+              <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">이메일 인증을 완료하고<br/>모든 서비스를 이용하세요</p>
             </div>
-          </div>
 
-          <!-- Section 4: Security Info -->
-          <div style="background-color: #ffffff; padding: 40px 30px; text-align: center;">
-            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 10px; padding: 24px; margin: 0 auto; max-width: 420px;">
-              <span style="color: #1e40af; font-size: 15px; font-weight: 700; margin: 0 0 16px 0; display: block;">🔒 보안 안내</span>
-              <div style="margin: 0; padding: 0; text-align: center;">
-                <p style="color: #374151; margin: 0 0 10px 0; font-size: 13px;">✓ 이 인증 코드는 <strong>60분간 유효</strong>합니다</p>
-                <p style="color: #374151; margin: 0 0 10px 0; font-size: 13px;">✓ 보안을 위해 다른 사람과 공유하지 마세요</p>
-                <p style="color: #374151; margin: 0; font-size: 13px;">✓ 본인이 요청하지 않은 경우 이 이메일을 무시해주세요</p>
+            <!-- Right Side: Main Content -->
+            <div style="flex: 1; padding: 40px 35px;">
+
+              <!-- Welcome Message -->
+              <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">안녕하세요${userName ? `, ${userName}님` : ''}!</h2>
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">회원가입해 주셔서 감사합니다. 아래 인증 코드를 입력해주세요.</p>
+
+              <!-- Verification Code -->
+              <div style="background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">인증 코드</p>
+                <div style="font-size: 36px; font-weight: 700; color: #2563eb; letter-spacing: 8px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; margin: 0;">${verificationCode}</div>
               </div>
+
+              <!-- Security Info -->
+              <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px;">
+                <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+                  <span style="color: #3b82f6; font-size: 14px;">⏱</span>
+                  <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">이 인증 코드는 <strong>5분간 유효</strong>합니다</p>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                  <span style="color: #3b82f6; font-size: 14px;">🔒</span>
+                  <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">보안을 위해 다른 사람과 공유하지 마세요</p>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          <!-- Section 5: Additional Info -->
-          <div style="background-color: #f9fafb; padding: 30px; text-align: center;">
-            <p style="color: #4b5563; margin: 0 0 12px 0; font-size: 13px; line-height: 1.6;">인증이 완료되면 Consult-On의 모든 서비스를 이용하실 수 있습니다.</p>
-            <p style="color: #4b5563; margin: 0; font-size: 13px; line-height: 1.6;">궁금한 점이 있으시면 언제든지 고객센터로 문의해주세요.</p>
-          </div>
-
-          <!-- Section 6: Footer -->
-          <div style="background-color: #e5e7eb; padding: 30px; text-align: center;">
-            <p style="margin: 6px 0; font-size: 12px; color: #6b7280;">본 메일은 발신 전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
-            <p style="margin: 6px 0; font-size: 12px; color: #6b7280;">&copy; 2024 Consult-On. All rights reserved.</p>
+          <!-- Footer -->
+          <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">본 메일은 발신 전용입니다 · &copy; 2024 Consult-On. All rights reserved.</p>
           </div>
 
         </div>
       </body>
       </html>
-    `;
+    `
 
     const text = `
 [Consult-On] 이메일 인증
@@ -244,22 +255,26 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
 인증 코드: ${verificationCode}
 
 주의사항:
-- 이 인증 코드는 60분간 유효합니다.
+- 이 인증 코드는 5분간 유효합니다.
 - 보안을 위해 다른 사람과 공유하지 마세요.
 - 본인이 요청하지 않은 경우, 이 이메일을 무시해주세요.
 
 인증이 완료되면 Consult-On의 모든 서비스를 이용하실 수 있습니다.
 
 © 2024 Consult-On. All rights reserved.
-    `;
+    `
 
-    return this.sendMail(to, subject, html, text);
+    return this.sendMail(to, subject, html, text)
   }
 
   // 비밀번호 재설정 이메일 전송
-  async sendPasswordResetEmail(to: string, resetToken: string, userName?: string) {
-    const subject = '[Consult-On] 비밀번호 재설정 요청';
-    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
+  async sendPasswordResetEmail(
+    to: string,
+    resetToken: string,
+    userName?: string
+  ) {
+    const subject = '[Consult-On] 비밀번호 재설정 요청'
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`
 
     const html = `
       <!DOCTYPE html>
@@ -351,11 +366,11 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
 
         <div class="footer">
           <p>본 메일은 발신 전용입니다. 문의사항은 고객센터를 이용해주세요.</p>
-          <p>&copy; 2024 Consult-On. All rights reserved.</p>
+          <p>&copy; 2025 Consult-On. All rights reserved.</p>
         </div>
       </body>
       </html>
-    `;
+    `
 
     const text = `
 [Consult-On] 비밀번호 재설정 요청
@@ -373,8 +388,8 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
 - 본인이 요청하지 않은 경우, 이 이메일을 무시해주세요.
 
 © 2024 Consult-On. All rights reserved.
-    `;
+    `
 
-    return this.sendMail(to, subject, html, text);
+    return this.sendMail(to, subject, html, text)
   }
 }

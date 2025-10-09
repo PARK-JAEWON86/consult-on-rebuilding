@@ -22,7 +22,7 @@ export class AuthController {
     return {
       httpOnly: true,
       secure: isProduction, // 프로덕션에서는 true, 개발에서는 false
-      sameSite: isProduction ? 'none' as const : 'lax' as const, // 프로덕션에서는 none, 개발에서는 lax
+      sameSite: 'lax' as const, // CSRF 보호를 위해 'lax' 사용 (OAuth 콜백과 호환)
       path: '/',
       maxAge: maxAgeSec * 1000,
     }
@@ -137,47 +137,59 @@ export class AuthController {
     @Req() req: Request & { user: any },
     @Res({ passthrough: true }) res: Response
   ) {
-    const user = req.user
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+    try {
+      const user = req.user
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
 
-    // 신규 사용자 또는 온보딩 미완료 사용자
-    if (user.isNewUser || !user.onboardingCompleted) {
-      // 임시 토큰 생성
-      const tempToken = await this.auth.generateOAuthTempToken({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        provider: 'google',
-        isNewUser: user.isNewUser,
-      })
+      // OAuth 실패 시 처리
+      if (!user) {
+        console.error('Google OAuth callback: No user data received')
+        return res.redirect(`${frontendUrl}/auth/login?error=oauth-failed`)
+      }
 
-      // 온보딩 페이지로 리다이렉트
-      res.redirect(`${frontendUrl}/auth/onboarding?token=${tempToken}`)
-      return
+      // 신규 사용자 또는 온보딩 미완료 사용자
+      if (user.isNewUser || !user.onboardingCompleted) {
+        // 임시 토큰 생성
+        const tempToken = await this.auth.generateOAuthTempToken({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          provider: 'google',
+          isNewUser: user.isNewUser,
+        })
+
+        // 온보딩 페이지로 리다이렉트
+        res.redirect(`${frontendUrl}/auth/onboarding?token=${tempToken}`)
+        return
+      }
+
+      // 기존 사용자 - 바로 로그인
+      const secrets = {
+        access: process.env.JWT_ACCESS_SECRET!,
+        refresh: process.env.JWT_REFRESH_SECRET!,
+      }
+      const ttls = {
+        access: Number(process.env.JWT_ACCESS_TTL_SEC),
+        refresh: Number(process.env.JWT_REFRESH_TTL_SEC),
+      }
+
+      const access = this.auth.signAccess(user, secrets.access, ttls.access)
+      const refresh = this.auth.signRefresh(user, secrets.refresh, ttls.refresh)
+
+      // Store refresh token jti in Redis whitelist
+      const refreshPayload = JSON.parse(Buffer.from(refresh.split('.')[1], 'base64').toString())
+      await this.auth.storeRefreshToken(refreshPayload.jti, user.id, ttls.refresh)
+
+      res.cookie('access_token', access, this.cookieOpts(ttls.access))
+      res.cookie('refresh_token', refresh, this.cookieOpts(ttls.refresh))
+
+      // 홈으로 리다이렉트
+      res.redirect(`${frontendUrl}?auth=success`)
+    } catch (error) {
+      console.error('Google OAuth callback error:', error)
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+      res.redirect(`${frontendUrl}/auth/login?error=google-login-failed`)
     }
-
-    // 기존 사용자 - 바로 로그인
-    const secrets = {
-      access: process.env.JWT_ACCESS_SECRET!,
-      refresh: process.env.JWT_REFRESH_SECRET!,
-    }
-    const ttls = {
-      access: Number(process.env.JWT_ACCESS_TTL_SEC),
-      refresh: Number(process.env.JWT_REFRESH_TTL_SEC),
-    }
-
-    const access = this.auth.signAccess(user, secrets.access, ttls.access)
-    const refresh = this.auth.signRefresh(user, secrets.refresh, ttls.refresh)
-
-    // Store refresh token jti in Redis whitelist
-    const refreshPayload = JSON.parse(Buffer.from(refresh.split('.')[1], 'base64').toString())
-    await this.auth.storeRefreshToken(refreshPayload.jti, user.id, ttls.refresh)
-
-    res.cookie('access_token', access, this.cookieOpts(ttls.access))
-    res.cookie('refresh_token', refresh, this.cookieOpts(ttls.refresh))
-
-    // 홈으로 리다이렉트
-    res.redirect(`${frontendUrl}?auth=success`)
   }
 
   @Get('kakao')
@@ -192,47 +204,59 @@ export class AuthController {
     @Req() req: Request & { user: any },
     @Res({ passthrough: true }) res: Response
   ) {
-    const user = req.user
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+    try {
+      const user = req.user
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
 
-    // 신규 사용자 또는 온보딩 미완료 사용자
-    if (user.isNewUser || !user.onboardingCompleted) {
-      // 임시 토큰 생성
-      const tempToken = await this.auth.generateOAuthTempToken({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        provider: 'kakao',
-        isNewUser: user.isNewUser,
-      })
+      // OAuth 실패 시 처리
+      if (!user) {
+        console.error('Kakao OAuth callback: No user data received')
+        return res.redirect(`${frontendUrl}/auth/login?error=oauth-failed`)
+      }
 
-      // 온보딩 페이지로 리다이렉트
-      res.redirect(`${frontendUrl}/auth/onboarding?token=${tempToken}`)
-      return
+      // 신규 사용자 또는 온보딩 미완료 사용자
+      if (user.isNewUser || !user.onboardingCompleted) {
+        // 임시 토큰 생성
+        const tempToken = await this.auth.generateOAuthTempToken({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          provider: 'kakao',
+          isNewUser: user.isNewUser,
+        })
+
+        // 온보딩 페이지로 리다이렉트
+        res.redirect(`${frontendUrl}/auth/onboarding?token=${tempToken}`)
+        return
+      }
+
+      // 기존 사용자 - 바로 로그인
+      const secrets = {
+        access: process.env.JWT_ACCESS_SECRET!,
+        refresh: process.env.JWT_REFRESH_SECRET!,
+      }
+      const ttls = {
+        access: Number(process.env.JWT_ACCESS_TTL_SEC),
+        refresh: Number(process.env.JWT_REFRESH_TTL_SEC),
+      }
+
+      const access = this.auth.signAccess(user, secrets.access, ttls.access)
+      const refresh = this.auth.signRefresh(user, secrets.refresh, ttls.refresh)
+
+      // Store refresh token jti in Redis whitelist
+      const refreshPayload = JSON.parse(Buffer.from(refresh.split('.')[1], 'base64').toString())
+      await this.auth.storeRefreshToken(refreshPayload.jti, user.id, ttls.refresh)
+
+      res.cookie('access_token', access, this.cookieOpts(ttls.access))
+      res.cookie('refresh_token', refresh, this.cookieOpts(ttls.refresh))
+
+      // 홈으로 리다이렉트
+      res.redirect(`${frontendUrl}?auth=success`)
+    } catch (error) {
+      console.error('Kakao OAuth callback error:', error)
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+      res.redirect(`${frontendUrl}/auth/login?error=kakao-login-failed`)
     }
-
-    // 기존 사용자 - 바로 로그인
-    const secrets = {
-      access: process.env.JWT_ACCESS_SECRET!,
-      refresh: process.env.JWT_REFRESH_SECRET!,
-    }
-    const ttls = {
-      access: Number(process.env.JWT_ACCESS_TTL_SEC),
-      refresh: Number(process.env.JWT_REFRESH_TTL_SEC),
-    }
-
-    const access = this.auth.signAccess(user, secrets.access, ttls.access)
-    const refresh = this.auth.signRefresh(user, secrets.refresh, ttls.refresh)
-
-    // Store refresh token jti in Redis whitelist
-    const refreshPayload = JSON.parse(Buffer.from(refresh.split('.')[1], 'base64').toString())
-    await this.auth.storeRefreshToken(refreshPayload.jti, user.id, ttls.refresh)
-
-    res.cookie('access_token', access, this.cookieOpts(ttls.access))
-    res.cookie('refresh_token', refresh, this.cookieOpts(ttls.refresh))
-
-    // 홈으로 리다이렉트
-    res.redirect(`${frontendUrl}?auth=success`)
   }
 
   @Post('verify-email')

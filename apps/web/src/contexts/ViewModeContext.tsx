@@ -23,6 +23,26 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
+  // 초기 로드 및 사용자 변경 시 viewMode 설정
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedViewMode = localStorage.getItem('consulton-viewMode');
+      const isExpertUser = user?.roles?.includes('EXPERT');
+
+      // 전문가 사용자이고 인증된 경우, 항상 expert 모드로 시작
+      if (isAuthenticated && isExpertUser) {
+        setViewModeState('expert');
+        // localStorage에 저장된 값이 없거나 'user'인 경우에만 업데이트
+        if (storedViewMode !== '"expert"') {
+          localStorage.setItem('consulton-viewMode', JSON.stringify('expert'));
+        }
+      } else if (storedViewMode) {
+        // 일반 사용자는 저장된 값 사용
+        setViewModeState(JSON.parse(storedViewMode));
+      }
+    }
+  }, [user, isAuthenticated]);
+
   // URL 기반으로 viewMode 자동 설정
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -41,16 +61,6 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [pathname]);
-
-  // 초기 로드시 localStorage에서 viewMode 복원
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedViewMode = localStorage.getItem('consulton-viewMode');
-      if (storedViewMode) {
-        setViewModeState(JSON.parse(storedViewMode));
-      }
-    }
-  }, []);
 
   const setViewMode = (mode: ViewMode) => {
     setViewModeState(mode);

@@ -17,7 +17,7 @@ interface NavItem {
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { user, isAuthenticated, logout, isLogoutLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuth();
   const { viewMode, switchToExpertMode, switchToUserMode } = useViewMode();
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -25,7 +25,10 @@ export default function Navbar() {
   // 관리자 권한 확인 함수
   const isAdmin = user?.roles?.includes('ADMIN');
 
-  // 디버깅 로그 제거됨 - 무한 루프 방지
+  // 디버깅: 인증 상태 변경 감지
+  useEffect(() => {
+    console.log('[Navbar] Auth state changed:', { user: user?.email, isAuthenticated, isLoading });
+  }, [user, isAuthenticated, isLoading]);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -107,8 +110,16 @@ export default function Navbar() {
               </Link>
             ))}
 
+            {/* 로딩 중일 때 스켈레톤 표시 */}
+            {isLoading && (
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            )}
+
             {/* 비인증 사용자를 위한 로그인 버튼 */}
-            {!isAuthenticated && (
+            {!isLoading && !isAuthenticated && (
               <Button
                 onClick={() => router.push('/auth/login')}
                 variant="primary"
@@ -120,7 +131,7 @@ export default function Navbar() {
             )}
 
             {/* 인증된 사용자 메뉴 */}
-            {isAuthenticated && user && (
+            {!isLoading && isAuthenticated && user && (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
@@ -363,8 +374,21 @@ export default function Navbar() {
                 </Link>
               ))}
 
+              {/* 로딩 중 스켈레톤 */}
+              {isLoading && (
+                <div className="px-3 py-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="w-32 h-3 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 비인증 사용자를 위한 로그인 버튼 */}
-              {!isAuthenticated && (
+              {!isLoading && !isAuthenticated && (
                 <div className="px-3 py-2">
                   <Button
                     onClick={() => {
@@ -381,7 +405,7 @@ export default function Navbar() {
               )}
 
               {/* 모바일에서 인증된 사용자 정보 */}
-              {isAuthenticated && user && (
+              {!isLoading && isAuthenticated && user && (
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex items-center px-3 py-2">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3">

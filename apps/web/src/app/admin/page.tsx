@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
         { params: { period } }
       )
       console.log('Dashboard data loaded successfully:', response.data)
-      setData(response.data)
+      setData(response.data || null)
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error)
       console.error('Error details:', {

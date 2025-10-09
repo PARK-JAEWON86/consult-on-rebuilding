@@ -76,7 +76,7 @@ export const ClientStatsCard = ({
       {trend && (
         <div className="mt-4 flex items-center">
           <Badge
-            variant={trend.isPositive ? 'success' : 'destructive'}
+            variant={trend.isPositive ? 'green' : 'red'}
             className="text-xs"
           >
             {trend.isPositive ? '+' : ''}{trend.value}%

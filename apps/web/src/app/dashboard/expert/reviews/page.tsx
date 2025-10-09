@@ -90,7 +90,7 @@ export default function ExpertReviewsPage() {
     enabled: !!user?.id && isAuthenticated && user?.roles?.includes('EXPERT'),
   });
 
-  const reviews: Review[] = reviewsData || [];
+  const reviews: Review[] = Array.isArray(reviewsData) ? reviewsData : [];
   const stats: ReviewStats = statsData || { totalReviews: 0, averageRating: 0, ratingDistribution: {} };
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function ExpertReviewsPage() {
   }
 
   // 필터링된 리뷰
-  const filteredReviews = reviews.filter(review => {
+  const filteredReviews = reviews?.filter(review => {
     const matchesSearch = !searchQuery ||
       review.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       review.content.toLowerCase().includes(searchQuery.toLowerCase());

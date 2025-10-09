@@ -8,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id                    Int                   @id @default(autoincrement())
-  email                 String                @unique
+  id                    Int                      @id @default(autoincrement())
+  email                 String                   @unique
   name                  String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
   passwordHash          String?
   avatarUrl             String?
-  provider              String                @default("local")
+  provider              String                   @default("local")
   providerId            String?
   emailVerifiedAt       DateTime?
   roles                 Json
   phoneNumber           String?
-  phoneVerified         Boolean               @default(false)
+  phoneVerified         Boolean                  @default(false)
   phoneVerifiedAt       DateTime?
   onboardingCompletedAt DateTime?
   adminUser             AdminUser?
@@ -31,6 +31,7 @@ model User {
   emailVerifications    EmailVerification[]
   expert                Expert?
   notifications         Notification[]
+  notificationSettings  UserNotificationSetting?
   paymentMethods        PaymentMethod[]
   phoneVerifications    PhoneVerification[]
   reservations          Reservation[]
@@ -331,10 +332,29 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
+  actionUrl String?
   user      User                 @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([userId, type])
+}
+
+model UserNotificationSetting {
+  id                       Int      @id @default(autoincrement())
+  userId                   Int      @unique
+  upcomingReservations     Boolean  @default(true)
+  creditLow                Boolean  @default(true)
+  reviewRequests           Boolean  @default(true)
+  consultationCompleted    Boolean  @default(true)
+  systemNotifications      Boolean  @default(true)
+  emailNotifications       Boolean  @default(true)
+  pushNotifications        Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model PaymentMethod {
@@ -576,9 +596,12 @@ enum NotificationType {
   CONSULTATION_ACCEPTED
   CONSULTATION_REJECTED
   CONSULTATION_COMPLETED
+  CONSULTATION_UPCOMING
   PAYMENT_COMPLETED
   PAYMENT_FAILED
   CREDIT_PURCHASE_COMPLETED
+  CREDIT_LOW
+  REVIEW_REQUEST
   SYSTEM
 }
 

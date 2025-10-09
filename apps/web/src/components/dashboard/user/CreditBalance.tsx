@@ -3,21 +3,23 @@
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { 
-  CreditCard, 
-  TrendingUp, 
-  AlertCircle, 
+import Skeleton from '@/components/ui/Skeleton';
+import {
+  CreditCard,
+  TrendingUp,
+  AlertCircle,
   Plus,
   History,
   Gift
 } from "lucide-react";
-import type { CreditBalance, CreditTransaction } from '@/lib/credits';
+import type { CreditBalance as CreditBalanceType, CreditTransaction } from '@/lib/credits';
 
 interface CreditBalanceProps {
-  balance: CreditBalance;
+  balance: CreditBalanceType;
   recentTransactions: CreditTransaction[];
   onPurchaseCredits: () => void;
   onViewHistory: () => void;
+  isLoading?: boolean;
 }
 
 const CreditBalance = ({ 

@@ -16,8 +16,8 @@ export class AuthService {
     private readonly mail: MailService
   ) {}
 
-  private expireMinutes() { 
-    return Number(process.env.AUTH_CODE_EXPIRE_MIN || 60); 
+  private expireMinutes() {
+    return Number(process.env.AUTH_CODE_EXPIRE_MIN || 5);
   }
   
   private resendCooldownSec() { 

@@ -3,11 +3,12 @@
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { 
-  CheckCircle, 
-  Clock, 
-  CreditCard, 
-  Star, 
+import { ActivityItemSkeleton } from '@/components/ui/Skeleton';
+import {
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Star,
   MessageCircle,
   Video,
   Phone,
@@ -30,6 +31,7 @@ interface ActivityItem {
 interface RecentActivityProps {
   activities: ActivityItem[];
   onViewAll: () => void;
+  isLoading?: boolean;
 }
 
 const activityIcons = {
@@ -54,7 +56,7 @@ const typeIcons = {
   VOICE: Phone
 };
 
-export const RecentActivity = ({ activities, onViewAll }: RecentActivityProps) => {
+export const RecentActivity = ({ activities, onViewAll, isLoading }: RecentActivityProps) => {
   const formatTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -88,7 +90,13 @@ export const RecentActivity = ({ activities, onViewAll }: RecentActivityProps) =
       </div>
 
       <div className="space-y-4">
-        {activities.length > 0 ? (
+        {isLoading ? (
+          <>
+            {[1, 2, 3].map((i) => (
+              <ActivityItemSkeleton key={i} />
+            ))}
+          </>
+        ) : activities.length > 0 ? (
           activities.map((activity) => {
             const IconComponent = activityIcons[activity.type as keyof typeof activityIcons];
             const colorClass = activityColors[activity.type as keyof typeof activityColors];
@@ -116,13 +124,13 @@ export const RecentActivity = ({ activities, onViewAll }: RecentActivityProps) =
                   {/* 추가 정보 */}
                   <div className="flex items-center space-x-2 mt-2">
                     {activity.expertName && (
-                      <Badge variant="outline" size="sm">
+                      <Badge variant="gray" size="sm">
                         {activity.expertName}
                       </Badge>
                     )}
-                    
+
                     {activity.credits && (
-                      <Badge variant="outline" size="sm">
+                      <Badge variant="blue" size="sm">
                         {activity.credits.toLocaleString()} 크레딧
                       </Badge>
                     )}

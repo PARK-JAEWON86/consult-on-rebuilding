@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { fetchExperts, Expert } from '@/lib/experts';
 import { useCategoriesPublic } from '@/hooks/useCategories';
 import { Category } from '@/lib/categories';
-// import { useAuth } from '@/components/auth/AuthProvider'; // 현재 사용하지 않음
+import { useAuth } from '@/components/auth/AuthProvider';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -52,7 +52,7 @@ export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  // const { } = useAuth(); // 현재 사용하지 않음
+  const { refreshUser } = useAuth();
 
   // 검색 상태
   const [searchCategory, setSearchCategory] = useState('');
@@ -135,20 +135,27 @@ export default function HomePage() {
     return category ? category.name : categoryId;
   };
 
-  // Handle OAuth success redirect
+  // Handle OAuth success and onboarding completion redirect
   useEffect(() => {
     const authParam = searchParams.get('auth');
-    if (authParam === 'success') {
-      // 쿠키가 설정되기를 잠시 기다린 후 상태 업데이트
-      setTimeout(() => {
-        console.log('Google 로그인이 성공적으로 완료되었습니다!');
-        // URL에서 auth 파라미터 제거
-        router.replace('/', undefined);
-        // 페이지 새로고침으로 인증 상태 업데이트
-        window.location.reload();
-      }, 500);
+    const onboardingParam = searchParams.get('onboarding');
+
+    // OAuth 직접 완료 또는 온보딩 완료 후 처리
+    if (authParam === 'success' || onboardingParam === 'complete') {
+      const source = authParam === 'success' ? 'OAuth' : 'Onboarding';
+      console.log(`${source} completion detected in HomePage, refreshing user state...`);
+
+      // 사용자 정보 새로고침
+      refreshUser().then(() => {
+        console.log(`User state refreshed successfully in HomePage after ${source}`);
+        // URL에서 파라미터 제거
+        const newUrl = window.location.pathname;
+        router.replace(newUrl as any);
+      }).catch((error) => {
+        console.error(`Failed to refresh user in HomePage after ${source}:`, error);
+      });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, refreshUser]);
 
   // 검색 함수
   const handleSearch = async () => {

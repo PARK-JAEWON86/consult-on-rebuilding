@@ -93,8 +93,8 @@ export default function OnboardingPage() {
         return
       }
 
-      // 온보딩 완료 - 홈으로 리다이렉트
-      router.push('/')
+      // 온보딩 완료 - 홈으로 리다이렉트 (onboarding=complete 파라미터 추가하여 auth 상태 갱신 트리거)
+      router.push('/?onboarding=complete')
     } catch (error) {
       console.error('Onboarding completion error:', error)
       alert('온보딩 완료 중 오류가 발생했습니다.')

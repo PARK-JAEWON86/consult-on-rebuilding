@@ -15,26 +15,34 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   }
 
   async validate(
-    accessToken: string,
-    refreshToken: string,
+    _accessToken: string,
+    _refreshToken: string,
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    const { id, name, emails, photos } = profile
-    
-    const user = {
-      providerId: id,
-      provider: 'google',
-      email: emails[0].value,
-      name: `${name.givenName} ${name.familyName}`,
-      avatarUrl: photos[0]?.value,
-    }
-
     try {
+      const { id, name, emails, photos } = profile
+
+      // 프로필 데이터 검증
+      if (!id || !emails || !emails[0]?.value) {
+        console.error('Google OAuth: Invalid profile data', { id, emails })
+        return done(new Error('Invalid Google profile data'), false)
+      }
+
+      const user = {
+        providerId: id,
+        provider: 'google',
+        email: emails[0].value,
+        name: `${name.givenName || ''} ${name.familyName || ''}`.trim() || emails[0].value.split('@')[0],
+        avatarUrl: photos?.[0]?.value,
+      }
+
       const result = await this.authService.validateOAuthUser(user)
       done(null, result)
     } catch (error) {
-      done(error, false)
+      console.error('Google OAuth validation error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'OAuth validation failed'
+      done(new Error(errorMessage), false)
     }
   }
 }
