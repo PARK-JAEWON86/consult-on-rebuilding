@@ -148,4 +148,18 @@ export class ExpertsController {
       }
     };
   }
+
+  @Get(':displayId/available-slots')
+  async getAvailableSlots(
+    @Param('displayId') displayId: string,
+    @Query('date') date?: string
+  ) {
+    const targetDate = date ? new Date(date) : new Date();
+    const data = await this.svc.getAvailableTimeSlots(displayId, targetDate);
+
+    return {
+      success: true,
+      data
+    };
+  }
 }

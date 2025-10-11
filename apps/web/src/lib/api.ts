@@ -125,13 +125,17 @@ class APIClient {
     return response.data;
   }
 
-  async post<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const response = await this.client.post<ApiResponse<T>>(endpoint, data);
+  async post<T = any>(endpoint: string, data?: any, options?: { headers?: Record<string, string> }): Promise<ApiResponse<T>> {
+    const response = await this.client.post<ApiResponse<T>>(endpoint, data, {
+      headers: options?.headers,
+    });
     return response.data;
   }
 
-  async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    const response = await this.client.delete<ApiResponse<T>>(endpoint);
+  async delete<T = any>(endpoint: string, options?: { data?: any }): Promise<ApiResponse<T>> {
+    const response = await this.client.delete<ApiResponse<T>>(endpoint, {
+      data: options?.data,
+    });
     return response.data;
   }
 

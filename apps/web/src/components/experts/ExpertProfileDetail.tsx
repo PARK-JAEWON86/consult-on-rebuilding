@@ -11,8 +11,9 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import RatingStars from '@/components/ui/RatingStars';
 import Skeleton from '@/components/ui/Skeleton';
-import ReservationModal from '@/components/reservation/ReservationModal';
+import ReservationModalImproved from '@/components/reservation/ReservationModalImproved';
 import { calculateCreditsByLevel, calculateExpertLevel } from '@/utils/expertLevels';
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   Star,
   Clock,
@@ -69,6 +70,7 @@ export default function ExpertProfileDetail({
 }: ExpertProfileDetailProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews' | 'availability'>('overview');
   const [rankingTab, setRankingTab] = useState<'overall' | 'category'>('overall');
@@ -76,6 +78,17 @@ export default function ExpertProfileDetail({
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentPortfolioIndex, setCurrentPortfolioIndex] = useState(0);
+
+  // 사용자 크레딧 잔액 조회
+  const { data: creditsData } = useQuery({
+    queryKey: ['user-credits', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const response = await api.get(`http://localhost:4000/v1/credits/balance?userId=${user?.id}`);
+      return response.data;
+    },
+    enabled: !!user?.id && !isOwner
+  });
 
   const { data: expert, isLoading, error } = useQuery({
     queryKey: ['expert', displayId],
@@ -1002,9 +1015,44 @@ export default function ExpertProfileDetail({
                 {/* 예약 버튼 (비소유자일 때만 표시) */}
                 {!isOwner && (
                   <>
+                    {/* 크레딧 잔액 표시 */}
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-gray-600">내 크레딧</span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {creditsData?.data?.toLocaleString() || 0} 크레딧
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between">
+                          <span>30분 상담</span>
+                          <span>{Math.ceil(creditsPerMinute * 30).toLocaleString()} 크레딧</span>
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span>60분 상담</span>
+                          <span>{Math.ceil(creditsPerMinute * 60).toLocaleString()} 크레딧</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 크레딧 부족 경고 */}
+                    {creditsData?.data && creditsData.data < Math.ceil(creditsPerMinute * 30) && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p className="text-sm text-amber-800 mb-2">⚠️ 크레딧이 부족합니다</p>
+                        <Button
+                          variant="outline"
+                          className="w-full text-sm"
+                          onClick={() => router.push('/credits/purchase')}
+                        >
+                          크레딧 충전하기
+                        </Button>
+                      </div>
+                    )}
+
                     <Button
                       className="w-full"
                       onClick={handleConsultationRequest}
+                      disabled={creditsData?.data && creditsData.data < Math.ceil(creditsPerMinute * 30)}
                     >
                       상담 예약하기
                     </Button>
@@ -1239,7 +1287,7 @@ export default function ExpertProfileDetail({
 
       {/* 예약 모달 */}
       {!isOwner && (
-        <ReservationModal
+        <ReservationModalImproved
           isOpen={isReservationModalOpen}
           onClose={() => setIsReservationModalOpen(false)}
           expert={{

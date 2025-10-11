@@ -1,18 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/useToast';
 import Button from '@/components/ui/Button';
+import AvailableTimeSlotsCalendar from './AvailableTimeSlotsCalendar';
 import {
   Calendar,
   Clock,
   CreditCard,
   X,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 
 interface Expert {

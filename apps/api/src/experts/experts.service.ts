@@ -812,4 +812,145 @@ export class ExpertsService {
     // 업데이트된 프로필 반환 (변환된 형태로)
     return this.getExpertProfile(displayId);
   }
+
+  /**
+   * 전문가의 특정 날짜 예약 가능 시간 조회
+   * @param displayId 전문가 displayId
+   * @param targetDate 조회할 날짜
+   * @returns 예약 가능한 타임슬롯 목록
+   */
+  async getAvailableTimeSlots(displayId: string, targetDate: Date) {
+    // 1. 전문가 조회
+    const expert = await this.prisma.expert.findUnique({
+      where: { displayId },
+      select: { id: true, name: true }
+    });
+
+    if (!expert) {
+      throw new Error('Expert not found');
+    }
+
+    // 2. 요일 추출 (일요일=0, 월요일=1, ...)
+    const dayOfWeek = this.getDayOfWeekEnum(targetDate.getDay());
+
+    // 3. 전문가의 해당 요일 근무 시간 조회
+    const availabilitySlots = await this.prisma.expertAvailability.findMany({
+      where: {
+        expertId: expert.id,
+        dayOfWeek,
+        isActive: true
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    if (availabilitySlots.length === 0) {
+      return {
+        date: targetDate.toISOString().split('T')[0],
+        dayOfWeek,
+        slots: [],
+        message: '해당 날짜에 예약 가능한 시간이 없습니다.'
+      };
+    }
+
+    // 4. 해당 날짜의 기존 예약 조회
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingReservations = await this.prisma.reservation.findMany({
+      where: {
+        expertId: expert.id,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startAt: { gte: startOfDay, lte: endOfDay }
+      },
+      select: { startAt: true, endAt: true }
+    });
+
+    // 5. 30분 단위 타임슬롯 생성 및 예약 여부 체크
+    const slots: Array<{
+      time: string;
+      available: boolean;
+      reserved: boolean;
+    }> = [];
+
+    for (const availSlot of availabilitySlots) {
+      const slotStart = this.parseTime(availSlot.startTime);
+      const slotEnd = this.parseTime(availSlot.endTime);
+
+      // 30분 단위로 슬롯 생성
+      let currentTime = slotStart;
+      while (currentTime < slotEnd) {
+        const timeString = this.formatTime(currentTime);
+        const slotDateTime = this.combineDateAndTime(targetDate, currentTime);
+        const slotEndTime = currentTime + 30;
+
+        // 현재 시간보다 이전인지 체크 (과거 시간은 예약 불가)
+        const isPast = slotDateTime < new Date();
+
+        // 기존 예약과 겹치는지 체크
+        const isReserved = existingReservations.some(res => {
+          const resStart = res.startAt.getTime();
+          const resEnd = res.endAt.getTime();
+          const slotStartTime = slotDateTime.getTime();
+          const slotEndDateTime = this.combineDateAndTime(targetDate, slotEndTime);
+          const slotEndTime = slotEndDateTime.getTime();
+
+          // 겹침 체크: (슬롯시작 < 예약종료) && (슬롯종료 > 예약시작)
+          return slotStartTime < resEnd && slotEndTime > resStart;
+        });
+
+        slots.push({
+          time: timeString,
+          available: !isPast && !isReserved,
+          reserved: isReserved
+        });
+
+        currentTime = slotEndTime;
+      }
+    }
+
+    return {
+      date: targetDate.toISOString().split('T')[0],
+      dayOfWeek,
+      expertId: expert.id,
+      expertName: expert.name,
+      slots
+    };
+  }
+
+  /**
+   * 요일 숫자를 Enum으로 변환
+   * @param dayNum 0(일요일) ~ 6(토요일)
+   */
+  private getDayOfWeekEnum(dayNum: number): string {
+    const mapping = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    return mapping[dayNum];
+  }
+
+  /**
+   * 시간 문자열을 분 단위로 변환 (예: "09:00" -> 540)
+   */
+  private parseTime(timeStr: string): number {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  /**
+   * 분 단위를 시간 문자열로 변환 (예: 540 -> "09:00")
+   */
+  private formatTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * 날짜와 분 단위 시간을 결합하여 Date 객체 생성
+   */
+  private combineDateAndTime(date: Date, minutes: number): Date {
+    const result = new Date(date);
+    result.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+    return result;
+  }
 }

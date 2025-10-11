@@ -128,22 +128,45 @@ model ExpertCategory {
 }
 
 model Reservation {
-  id        Int               @id @default(autoincrement())
-  displayId String            @unique
-  userId    Int
-  expertId  Int
-  startAt   DateTime
-  endAt     DateTime
-  status    ReservationStatus @default(PENDING)
-  note      String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  cost      Int               @default(0)
-  expert    Expert            @relation(fields: [expertId], references: [id])
-  user      User              @relation(fields: [userId], references: [id])
+  id           Int               @id @default(autoincrement())
+  displayId    String            @unique
+  userId       Int
+  expertId     Int
+  startAt      DateTime
+  endAt        DateTime
+  status       ReservationStatus @default(PENDING)
+  note         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  cost         Int               @default(0)
+  confirmedAt  DateTime?         // 예약 확정 시간
+  canceledAt   DateTime?         // 취소 시간
+  canceledBy   Int?              // 취소한 사람 (userId 또는 expertId)
+  cancelReason String?           // 취소/거절 사유
+  refundAmount Int               @default(0) // 환불 금액
+  expert       Expert            @relation(fields: [expertId], references: [id])
+  user         User              @relation(fields: [userId], references: [id])
 
   @@unique([expertId, startAt])
   @@index([userId, createdAt])
+  @@index([expertId, startAt, endAt, status]) // 시간 충돌 검색 최적화
+  @@index([userId, status, createdAt(sort: Desc)]) // 사용자별 예약 조회 최적화
+
+  history ReservationHistory[]
+}
+
+model ReservationHistory {
+  id            Int               @id @default(autoincrement())
+  reservationId Int
+  fromStatus    ReservationStatus
+  toStatus      ReservationStatus
+  changedBy     Int               // userId 또는 expertId
+  reason        String?
+  createdAt     DateTime          @default(now())
+  reservation   Reservation       @relation(fields: [reservationId], references: [id])
+
+  @@index([reservationId])
+  @@index([createdAt])
 }
 
 model PaymentIntent {
@@ -564,9 +587,12 @@ model SettingChangeLog {
 }
 
 enum ReservationStatus {
-  PENDING
-  CONFIRMED
-  CANCELED
+  PENDING      // 승인 대기
+  CONFIRMED    // 예약 확정
+  CANCELED     // 취소됨
+  REJECTED     // 전문가 거절
+  COMPLETED    // 상담 완료
+  NO_SHOW      // 미출석
 }
 
 enum PaymentStatus {
