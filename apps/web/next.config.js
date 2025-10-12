@@ -7,6 +7,14 @@ const nextConfig = {
   env: {
     CUSTOM_KEY: 'my-value',
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:4000/v1/:path*',
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Agora SDK 관련 webpack 설정
     if (!isServer) {
@@ -18,12 +26,12 @@ const nextConfig = {
         crypto: false,
       };
     }
-    
+
     // 모듈 해석 개선
     config.resolve.alias = {
       ...config.resolve.alias,
     };
-    
+
     return config;
   },
 }

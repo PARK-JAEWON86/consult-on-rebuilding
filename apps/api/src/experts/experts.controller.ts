@@ -162,4 +162,66 @@ export class ExpertsController {
       data
     };
   }
+
+  @Put(':displayId/availability')
+  @UseGuards(JwtGuard)
+  async updateAvailability(
+    @Param('displayId') displayId: string,
+    @Body() availabilityData: any,
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+
+    // 권한 검증: 본인의 프로필만 수정 가능
+    const expert = await this.svc.findByDisplayId(displayId);
+    if (!expert || (expert as any).userId !== userId) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'E_UNAUTHORIZED',
+          message: 'You can only update your own availability'
+        }
+      });
+    }
+
+    const data = await this.svc.updateAvailabilitySlots(
+      displayId,
+      availabilityData.slots,
+      availabilityData.holidaySettings
+    );
+
+    return {
+      success: true,
+      data,
+      message: '예약 가능 시간이 성공적으로 업데이트되었습니다.'
+    };
+  }
+
+  @Get(':displayId/availability')
+  @UseGuards(JwtGuard)
+  async getAvailability(
+    @Param('displayId') displayId: string,
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+
+    // 권한 검증: 본인의 데이터만 조회 가능
+    const expert = await this.svc.findByDisplayId(displayId);
+    if (!expert || (expert as any).userId !== userId) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'E_UNAUTHORIZED',
+          message: 'You can only view your own availability'
+        }
+      });
+    }
+
+    const data = await this.svc.getAvailabilitySlots(displayId);
+
+    return {
+      success: true,
+      data
+    };
+  }
 }

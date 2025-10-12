@@ -53,8 +53,15 @@ export default function Navbar() {
     };
 
     if (showUserMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      // 약간의 지연을 두고 이벤트 리스너 등록하여 토글 버튼 클릭과 충돌 방지
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
   }, [showUserMenu]);
 
@@ -134,7 +141,10 @@ export default function Navbar() {
             {!isLoading && isAuthenticated && user && (
               <div className="relative" ref={dropdownRef}>
                 <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowUserMenu(!showUserMenu);
+                  }}
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
                   aria-expanded={showUserMenu}
                   aria-haspopup="true"
@@ -230,7 +240,10 @@ export default function Navbar() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('전문가 지원하기 버튼 클릭됨');
                             const status = (user as any)?.expertApplicationStatus;
                             if (status === 'PENDING') {
                               router.push("/experts/application-status");

@@ -911,6 +911,21 @@ export default function ExpertProfileDetail({
                           </div>
                         </div>
 
+                        {/* 공휴일 상담 안내 */}
+                        {(expertData as any).holidaySettings?.acceptHolidayConsultations && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="flex items-center mb-2">
+                              <Calendar className="h-5 w-5 text-green-600 mr-2" />
+                              <h4 className="text-sm font-semibold text-green-900">공휴일 상담 가능</h4>
+                            </div>
+                            {(expertData as any).holidaySettings?.holidayNote && (
+                              <p className="text-sm text-green-700 ml-7">
+                                {(expertData as any).holidaySettings.holidayNote}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {/* 예약 안내 */}
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center mb-3">

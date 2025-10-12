@@ -320,6 +320,13 @@ export class ExpertsService {
     const tierInfo = this.expertLevelsService.getTierInfo(calculatedLevel);
     const creditsPerMinute = this.expertLevelsService.calculateCreditsByLevel(calculatedLevel);
 
+    // availability Json 필드에서 공휴일 설정 추출
+    const availabilityData = parseJsonObject(expert.availability);
+    const holidaySettings = availabilityData?.holidaySettings || {
+      acceptHolidayConsultations: false,
+      holidayNote: ''
+    };
+
     return {
       ...expert,
       // 배열 필드들을 실제 배열로 변환
@@ -331,7 +338,7 @@ export class ExpertsService {
       portfolioFiles: parseJsonField(expert.portfolioFiles),
       portfolioItems: parseJsonField(expert.portfolioItems),
       // 객체 필드들을 실제 객체로 변환
-      availability: parseJsonObject(expert.availability),
+      availability: availabilityData,
       contactInfo: parseJsonObject(expert.contactInfo),
       socialProof: parseJsonObject(expert.socialProof),
       socialLinks: parseJsonObject(expert.socialLinks),
@@ -340,6 +347,8 @@ export class ExpertsService {
       categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
       // 예약 가능시간 정보 (정규화된 테이블 데이터)
       availabilitySlots: expert.availabilitySlots || [],
+      // 공휴일 설정 정보 추가
+      holidaySettings,
       // 레벨 정보 추가
       calculatedLevel,
       rankingScore,
@@ -453,8 +462,13 @@ export class ExpertsService {
             bio: dto.bio,
             keywords: JSON.stringify(dto.keywords),
             consultationTypes: JSON.stringify(dto.consultationTypes),
-            availability: JSON.stringify(dto.availability),
+            availability: JSON.stringify({
+              ...dto.availability,
+              holidaySettings: dto.holidaySettings
+            }),
             certifications: JSON.stringify(dto.certifications),
+            mbti: dto.mbti || null,
+            consultationStyle: dto.consultationStyle || null,
             profileImage: dto.profileImage || null,
             status: 'PENDING',
             currentStage: 'SUBMITTED',
@@ -737,6 +751,8 @@ export class ExpertsService {
       ratingAvg: expert.ratingAvg,
       reviewCount: expert.reviewCount,
       mbti: expert.mbti,
+      consultationStyle: expert.consultationStyle,
+      workExperience: expert.workExperience,
       userId: (expert as any).userId, // userId 필드 추가
     };
   }
@@ -769,6 +785,7 @@ export class ExpertsService {
       cancellationPolicy: profileData.cancellationPolicy,
       isProfileComplete: profileData.isProfileComplete || false,
       mbti: profileData.mbti,
+      consultationStyle: profileData.consultationStyle,
     };
 
     // JSON 필드들 처리
@@ -792,6 +809,9 @@ export class ExpertsService {
     }
     if (profileData.portfolioItems) {
       updateData.portfolioItems = stringifyJsonField(profileData.portfolioItems);
+    }
+    if (profileData.workExperience) {
+      updateData.workExperience = stringifyJsonField(profileData.workExperience);
     }
     if (profileData.availability) {
       updateData.availability = stringifyJsonObject(profileData.availability);
@@ -837,7 +857,7 @@ export class ExpertsService {
     const availabilitySlots = await this.prisma.expertAvailability.findMany({
       where: {
         expertId: expert.id,
-        dayOfWeek,
+        dayOfWeek: dayOfWeek as any,
         isActive: true
       },
       orderBy: { startTime: 'asc' }
@@ -889,15 +909,15 @@ export class ExpertsService {
         const isPast = slotDateTime < new Date();
 
         // 기존 예약과 겹치는지 체크
+        const slotEndDateTime = this.combineDateAndTime(targetDate, slotEndTime);
+        const slotEndTimeMs = slotEndDateTime.getTime();
         const isReserved = existingReservations.some(res => {
           const resStart = res.startAt.getTime();
           const resEnd = res.endAt.getTime();
           const slotStartTime = slotDateTime.getTime();
-          const slotEndDateTime = this.combineDateAndTime(targetDate, slotEndTime);
-          const slotEndTime = slotEndDateTime.getTime();
 
           // 겹침 체크: (슬롯시작 < 예약종료) && (슬롯종료 > 예약시작)
-          return slotStartTime < resEnd && slotEndTime > resStart;
+          return slotStartTime < resEnd && slotEndTimeMs > resStart;
         });
 
         slots.push({
@@ -952,5 +972,106 @@ export class ExpertsService {
     const result = new Date(date);
     result.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
     return result;
+  }
+
+  /**
+   * 전문가의 예약 가능 시간 슬롯 조회
+   * @param displayId 전문가 displayId
+   * @returns 모든 예약 가능 시간 슬롯 및 공휴일 설정
+   */
+  async getAvailabilitySlots(displayId: string) {
+    const expert = await this.prisma.expert.findUnique({
+      where: { displayId },
+      select: {
+        id: true,
+        availability: true
+      }
+    });
+
+    if (!expert) {
+      throw new Error('Expert not found');
+    }
+
+    const slots = await this.prisma.expertAvailability.findMany({
+      where: {
+        expertId: expert.id,
+      },
+      orderBy: [
+        { dayOfWeek: 'asc' },
+        { startTime: 'asc' }
+      ]
+    });
+
+    // availability Json 필드에서 공휴일 설정 추출
+    const availabilityData = expert.availability as any;
+    const holidaySettings = availabilityData?.holidaySettings || {
+      acceptHolidayConsultations: false,
+      holidayNote: ''
+    };
+
+    return {
+      slots,
+      holidaySettings
+    };
+  }
+
+  /**
+   * 전문가의 예약 가능 시간 슬롯 업데이트
+   * @param displayId 전문가 displayId
+   * @param slots 업데이트할 슬롯 목록
+   * @param holidaySettings 공휴일 상담 설정
+   */
+  async updateAvailabilitySlots(displayId: string, slots: any[], holidaySettings?: any) {
+    const expert = await this.prisma.expert.findUnique({
+      where: { displayId },
+      select: {
+        id: true,
+        availability: true
+      }
+    });
+
+    if (!expert) {
+      throw new Error('Expert not found');
+    }
+
+    // 트랜잭션으로 기존 슬롯 삭제 후 새로운 슬롯 생성 및 공휴일 설정 업데이트
+    await this.prisma.$transaction(async (tx) => {
+      // 기존 슬롯 모두 삭제
+      await tx.expertAvailability.deleteMany({
+        where: { expertId: expert.id }
+      });
+
+      // 새로운 슬롯 생성 (활성화된 슬롯만)
+      const activeSlots = slots.filter(slot => slot.isActive);
+
+      if (activeSlots.length > 0) {
+        await tx.expertAvailability.createMany({
+          data: activeSlots.map(slot => ({
+            expertId: expert.id,
+            dayOfWeek: slot.dayOfWeek,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isActive: true,
+          }))
+        });
+      }
+
+      // 공휴일 설정을 availability Json 필드에 저장
+      if (holidaySettings) {
+        const currentAvailability = (expert.availability as any) || {};
+        await tx.expert.update({
+          where: { id: expert.id },
+          data: {
+            availability: {
+              ...currentAvailability,
+              holidaySettings
+            }
+          }
+        });
+      }
+    });
+
+    // 업데이트된 슬롯 반환
+    return this.getAvailabilitySlots(displayId);
   }
 }

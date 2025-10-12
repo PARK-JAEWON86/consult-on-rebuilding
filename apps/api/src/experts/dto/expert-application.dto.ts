@@ -18,6 +18,12 @@ export const CreateExpertApplicationSchema = z.object({
     issuer: z.string()
   })),
   profileImage: z.string().optional(),
+  mbti: z.string().optional(),
+  consultationStyle: z.string().optional(),
+  holidaySettings: z.object({
+    acceptHolidayConsultations: z.boolean(),
+    holidayNote: z.string().optional()
+  }).optional(),
 });
 
 export type CreateExpertApplicationDto = z.infer<typeof CreateExpertApplicationSchema>;

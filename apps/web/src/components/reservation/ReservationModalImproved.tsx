@@ -71,6 +71,16 @@ export default function ReservationModalImproved({
     enabled: !!user?.id && isOpen
   });
 
+  // 전문가 공휴일 설정 조회
+  const { data: availabilityData } = useQuery({
+    queryKey: ['expert-availability', expert.displayId],
+    queryFn: async () => {
+      const response = await api.get(`/experts/${expert.displayId}/availability`);
+      return response.data;
+    },
+    enabled: isOpen
+  });
+
   const userCredits = creditsData?.data || 0;
   const totalCost = Math.ceil(creditsPerMinute * duration);
   const canAfford = userCredits >= totalCost;
@@ -205,6 +215,21 @@ export default function ReservationModalImproved({
               </div>
             </div>
           </div>
+
+          {/* 공휴일 상담 안내 */}
+          {availabilityData?.holidaySettings?.acceptHolidayConsultations && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center mb-2">
+                <CalendarIcon className="h-5 w-5 text-green-600 mr-2" />
+                <h4 className="text-sm font-semibold text-green-900">공휴일 상담 가능</h4>
+              </div>
+              {availabilityData.holidaySettings.holidayNote && (
+                <p className="text-sm text-green-700 ml-7">
+                  {availabilityData.holidaySettings.holidayNote}
+                </p>
+              )}
+            </div>
+          )}
 
           {step === 'select' ? (
             // 1단계: 날짜 및 시간 선택

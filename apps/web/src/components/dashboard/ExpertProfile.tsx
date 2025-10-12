@@ -329,14 +329,14 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
     }
   };
 
+  // 읽기 전용 모드
   if (!isEditing) {
-    // 읽기 전용 모드
     return (
       <div className="space-y-6">
         {/* 기본 정보 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start space-x-6 mb-6">
-            <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
+            <div className="w-32 h-40 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
               {formData.profileImage ? (
                 <img
                   src={formData.profileImage}
@@ -344,7 +344,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User className="h-16 w-16 text-gray-400" />
+                <User className="h-20 w-20 text-gray-400" />
               )}
             </div>
             <div className="flex-1">
@@ -405,7 +405,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
     );
   }
 
-  // 편집 모드
+  // 편집 모드 - Edit Mode
   return (
     <div className="space-y-6">
       {/* 뒤로가기 버튼 */}
@@ -427,6 +427,115 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
           <User className="h-5 w-5 mr-2" />
           기본 정보
         </h3>
+
+        {/* 프로필 사진 */}
+        <div className="mb-6 pb-6 border-b border-gray-200">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            프로필 사진
+          </label>
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              {formData.profileImage ? (
+                <div className="w-32 h-40 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
+                  <img
+                    src={formData.profileImage}
+                    alt={formData.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-32 h-40 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                  <User className="h-20 w-20 text-blue-600" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <input
+                type="file"
+                id="profile-image-input"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  // 파일 타입 검증
+                  if (!file.type.startsWith('image/')) {
+                    alert('이미지 파일만 업로드 가능합니다.');
+                    return;
+                  }
+
+                  // 파일 크기 검증 (5MB)
+                  const maxSize = 5 * 1024 * 1024;
+                  if (file.size > maxSize) {
+                    alert('이미지 크기는 5MB 이하로 제한됩니다.');
+                    return;
+                  }
+
+                  // 이미지 압축 및 리사이징
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      const ctx = canvas.getContext('2d');
+
+                      // 최대 너비/높이 설정
+                      const maxWidth = 800;
+                      const maxHeight = 800;
+                      let width = img.width;
+                      let height = img.height;
+
+                      // 비율 유지하며 리사이징
+                      if (width > height) {
+                        if (width > maxWidth) {
+                          height = (height * maxWidth) / width;
+                          width = maxWidth;
+                        }
+                      } else {
+                        if (height > maxHeight) {
+                          width = (width * maxHeight) / height;
+                          height = maxHeight;
+                        }
+                      }
+
+                      canvas.width = width;
+                      canvas.height = height;
+                      ctx?.drawImage(img, 0, 0, width, height);
+
+                      // JPEG로 압축 (품질 0.8)
+                      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                      // 압축된 이미지 크기 확인
+                      const compressedSize = (compressedDataUrl.length * 3) / 4;
+                      if (compressedSize > maxSize) {
+                        alert('압축 후에도 이미지가 너무 큽니다. 더 작은 이미지를 선택해주세요.');
+                        return;
+                      }
+
+                      handleInputChange('profileImage', compressedDataUrl);
+                    };
+                    img.src = ev.target?.result as string;
+                  };
+                  reader.readAsDataURL(file);
+
+                  // 파일 입력 초기화
+                  e.target.value = '';
+                }}
+              />
+              <label
+                htmlFor="profile-image-input"
+                className="cursor-pointer inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                사진 업로드
+              </label>
+              <p className="text-xs text-gray-500 mt-2">
+                JPG, PNG, WebP (최대 5MB)
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>

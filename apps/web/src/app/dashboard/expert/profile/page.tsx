@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import ExpertProfile from "@/components/dashboard/ExpertProfile";
 import ExpertProfileDetail from "@/components/experts/ExpertProfileDetail";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import AvailabilitySettings from "@/components/experts/AvailabilitySettings";
 
 interface User {
   id: string;
@@ -90,6 +91,7 @@ type ExpertProfileData = {
 export default function ExpertProfileEditPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // 디버깅용 로그
   console.log('🔍 프로필 페이지 상태:', {
@@ -103,11 +105,18 @@ export default function ExpertProfileEditPage() {
   const [initialData, setInitialData] = useState<
     Partial<ExpertProfileData> & { isProfileComplete?: boolean }
   >();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(searchParams.get('mode') === 'edit');
   const [currentExpertId, setCurrentExpertId] = useState<number | null>(null);
   const [currentDisplayId, setCurrentDisplayId] = useState<string | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const expertProfileRef = useRef<any>(null);
+
+  // URL 쿼리 파라미터로 편집 모드 활성화
+  useEffect(() => {
+    if (searchParams.get('mode') === 'edit') {
+      setIsEditing(true);
+    }
+  }, [searchParams]);
 
   // 인증 확인
   useEffect(() => {
@@ -611,6 +620,13 @@ export default function ExpertProfileEditPage() {
             isEditing={isEditing}
             onEditingChange={setIsEditing}
           />
+
+          {/* 예약 가능 시간 설정 섹션 */}
+          {currentDisplayId && (
+            <div className="mt-6">
+              <AvailabilitySettings displayId={currentDisplayId} />
+            </div>
+          )}
         </div>
         </DashboardLayout>
       ) : currentDisplayId || currentExpertId ? (
