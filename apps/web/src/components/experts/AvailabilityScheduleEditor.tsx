@@ -140,7 +140,10 @@ export default function AvailabilityScheduleEditor({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">예약 가능 시간 설정</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            예약 가능 시간 설정
+            <span className="text-red-500 ml-1">*</span>
+          </h3>
         </div>
         <p className="text-sm text-gray-500">요일별로 예약 가능한 시간대를 설정하세요</p>
       </div>

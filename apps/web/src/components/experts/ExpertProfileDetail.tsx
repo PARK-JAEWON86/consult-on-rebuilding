@@ -105,7 +105,7 @@ export default function ExpertProfileDetail({
       // 전체 랭킹과 전문가 개별 통계를 동시에 가져오기
       const [overallRankings, expertStats] = await Promise.all([
         api.get('http://localhost:4000/v1/expert-stats/rankings', { params: { type: 'overall' } }),
-        api.get(`http://localhost:4000/v1/expert-stats`, { params: { expertId: expert.data.id.toString() } })
+        api.get(`http://localhost:4000/v1/expert-stats`, { params: { expertId: expert.data!.id.toString() } })
       ]);
 
       if (!overallRankings.success || !expertStats.success) {
@@ -113,7 +113,7 @@ export default function ExpertProfileDetail({
       }
 
       const rankings = overallRankings.data.rankings || [];
-      const currentExpertRanking = rankings.find((r: any) => r.expertId === expert.data.id.toString());
+      const currentExpertRanking = rankings.find((r: any) => r.expertId === expert.data!.id.toString());
 
       return {
         overallRankings: rankings,
@@ -138,7 +138,7 @@ export default function ExpertProfileDetail({
 
   const handleConsultationRequest = () => {
     if (isOwner) {
-      showToast('info', '본인은 본인에게 상담을 요청할 수 없습니다.');
+      showToast('본인은 본인에게 상담을 요청할 수 없습니다.', 'warning');
       return;
     }
     setIsReservationModalOpen(true);
@@ -146,7 +146,7 @@ export default function ExpertProfileDetail({
 
   const handleLikeToggle = () => {
     setIsLiked(!isLiked);
-    showToast('success', isLiked ? '찜 목록에서 제거되었습니다.' : '찜 목록에 추가되었습니다.');
+    showToast(isLiked ? '찜 목록에서 제거되었습니다.' : '찜 목록에 추가되었습니다.', 'success');
   };
 
   const handleShare = () => {
@@ -158,7 +158,7 @@ export default function ExpertProfileDetail({
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      showToast('success', '링크가 복사되었습니다.');
+      showToast('링크가 복사되었습니다.', 'success');
     }
   };
 
@@ -327,7 +327,7 @@ export default function ExpertProfileDetail({
                     <div className="flex items-center space-x-3">
                       <h1 className="text-2xl font-bold text-gray-900">{expertData.name}</h1>
                       <Badge variant="blue">{(expertData as any).specialty || expertData.title}</Badge>
-                      <Badge variant="purple">
+                      <Badge variant="primary">
                         {tierInfo?.name || (expertData as any).level || 'Iron (아이언)'}
                       </Badge>
                     </div>
@@ -1057,7 +1057,7 @@ export default function ExpertProfileDetail({
                         <Button
                           variant="outline"
                           className="w-full text-sm"
-                          onClick={() => router.push('/credits/purchase')}
+                          onClick={() => router.push('/credits/purchase' as any)}
                         >
                           크레딧 충전하기
                         </Button>
@@ -1132,7 +1132,7 @@ export default function ExpertProfileDetail({
                       <div className="space-y-2">
                         {rankingData?.overallRankings?.slice(0, 5).map((item: any, index: number) => {
                           const rank = index + 1;
-                          const isCurrentExpert = item.expertId === expert?.data?.id?.toString();
+                          const isCurrentExpert = expert?.data ? item.expertId === expert.data.id?.toString() : false;
                           return (
                             <div
                               key={item.expertId}
@@ -1223,7 +1223,7 @@ export default function ExpertProfileDetail({
                       <div className="space-y-2">
                         {rankingData?.overallRankings?.slice(0, 5).map((item: any, index: number) => {
                           const rank = index + 1;
-                          const isCurrentExpert = item.expertId === expert?.data?.id?.toString();
+                          const isCurrentExpert = expert?.data ? item.expertId === expert.data.id?.toString() : false;
                           return (
                             <div
                               key={item.expertId}

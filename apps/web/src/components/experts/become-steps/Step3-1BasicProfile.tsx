@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ImageIcon, Sparkles, Clock, Tag, FileText, Upload, Briefcase, GraduationCap, Award, Plus, Trash2 } from 'lucide-react'
+import { ImageIcon, Sparkles, Clock, Tag, FileText, Upload, Briefcase, GraduationCap, Plus, Trash2 } from 'lucide-react'
 
 interface Category {
   id: number
@@ -18,12 +18,6 @@ interface Education {
   school: string
   major: string
   degree: string
-}
-
-interface Certification {
-  name: string
-  issuer: string
-  year: string
 }
 
 interface Step31BasicProfileProps {
@@ -61,12 +55,6 @@ interface Step31BasicProfileProps {
   onAddEducation: () => void
   onRemoveEducation: (index: number) => void
 
-  // 자격증
-  certifications: Certification[]
-  onCertificationChange: (index: number, field: keyof Certification, value: string) => void
-  onAddCertification: () => void
-  onRemoveCertification: (index: number) => void
-
   // 네비게이션
   onPrevious: () => void
   onNext: () => void
@@ -95,10 +83,6 @@ export default function Step31BasicProfile({
   onEducationChange,
   onAddEducation,
   onRemoveEducation,
-  certifications,
-  onCertificationChange,
-  onAddCertification,
-  onRemoveCertification,
   onPrevious,
   onNext,
 }: Step31BasicProfileProps) {
@@ -417,57 +401,6 @@ export default function Step31BasicProfile({
             className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center"
           >
             <Plus className="w-4 h-4 mr-1" /> 학력 추가
-          </button>
-        </div>
-      </div>
-
-      {/* 자격증 입력 섹션 */}
-      <div>
-        <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
-          <Award className="w-4 h-4 mr-2" /> 자격증
-          <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
-        </h3>
-        <div className="space-y-3">
-          {certifications.map((cert, index) => (
-            <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                <input
-                  type="text"
-                  value={cert.name}
-                  onChange={(e) => onCertificationChange(index, 'name', e.target.value)}
-                  placeholder="자격증명"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <input
-                  type="text"
-                  value={cert.issuer}
-                  onChange={(e) => onCertificationChange(index, 'issuer', e.target.value)}
-                  placeholder="발급기관"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <input
-                  type="text"
-                  value={cert.year}
-                  onChange={(e) => onCertificationChange(index, 'year', e.target.value)}
-                  placeholder="취득년도"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => onRemoveCertification(index)}
-                className="text-red-600 text-sm hover:text-red-700 flex items-center"
-              >
-                <Trash2 className="w-4 h-4 mr-1" /> 삭제
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={onAddCertification}
-            className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4 mr-1" /> 자격증 추가
           </button>
         </div>
       </div>

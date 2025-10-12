@@ -6,21 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import ExpertProfile from "@/components/dashboard/ExpertProfile";
+import ExpertProfileEdit from "@/components/dashboard/ExpertProfileEdit";
 import ExpertProfileDetail from "@/components/experts/ExpertProfileDetail";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import AvailabilitySettings from "@/components/experts/AvailabilitySettings";
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-  roles: ('USER' | 'EXPERT' | 'ADMIN')[];
-  createdAt: string;
-  updatedAt: string;
-  credits?: number;
-  avatarUrl?: string;
-  isEmailVerified?: boolean;
-}
 
 type ConsultationType = "video" | "chat" | "voice";
 
@@ -613,19 +601,88 @@ export default function ExpertProfileEditPage() {
               </button>
             </div>
           </div>
-          <ExpertProfile
-            ref={expertProfileRef}
-            expertData={initialData}
-            onSave={handleSave}
-            isEditing={isEditing}
-            onEditingChange={setIsEditing}
-          />
-
-          {/* 예약 가능 시간 설정 섹션 */}
-          {currentDisplayId && (
-            <div className="mt-6">
-              <AvailabilitySettings displayId={currentDisplayId} />
-            </div>
+          {isEditing ? (
+            <ExpertProfileEdit
+              ref={expertProfileRef}
+              expertData={{
+                name: initialData?.name || user?.name || '',
+                email: initialData?.contactInfo?.email || user?.email || '',
+                phoneNumber: initialData?.contactInfo?.phone || '',
+                specialty: initialData?.specialty || '',
+                experience: typeof initialData?.experience === 'number' ? initialData.experience : parseInt(String(initialData?.experience || 0)),
+                bio: initialData?.description || '',
+                profileImage: initialData?.profileImage || null,
+                keywords: initialData?.specialties || [],
+                workExperience: [{ company: '', position: '', period: '' }],
+                education: Array.isArray(initialData?.education) ?
+                  (initialData.education as string[]).map(edu => ({ school: edu, major: '', degree: '' })) :
+                  [{ school: '', major: '', degree: '' }],
+                certifications: initialData?.certifications?.map(cert => ({
+                  name: cert.name,
+                  issuer: cert.issuer,
+                  year: (cert as any).year || ''
+                })) || [{ name: '', issuer: '', year: '' }],
+                mbti: '',
+                consultationStyle: '',
+                consultationTypes: initialData?.consultationTypes || [],
+                availabilitySlots: [],
+                holidaySettings: { acceptHolidayConsultations: false, holidayNote: '' },
+                portfolioPreviews: [],
+                socialLinks: {
+                  website: initialData?.socialLinks?.linkedin || initialData?.contactInfo?.website || '',
+                  instagram: (initialData?.socialLinks as any)?.instagram || '',
+                  youtube: (initialData?.socialLinks as any)?.youtube || '',
+                  linkedin: initialData?.socialLinks?.linkedin || '',
+                  blog: (initialData?.socialLinks as any)?.blog || ''
+                },
+                totalSessions: initialData?.totalSessions || 0,
+                avgRating: initialData?.avgRating || 0,
+                completionRate: initialData?.completionRate || 0,
+                reviewCount: initialData?.reviewCount || 0
+              }}
+              onSave={(data) => {
+                const convertedData = {
+                  ...data,
+                  description: data.bio,
+                  specialties: data.keywords,
+                  languages: ['한국어'],
+                  hourlyRate: 0,
+                  creditsPerMinute: 0,
+                  level: '',
+                  responseTime: '2시간 내',
+                  averageSessionDuration: 60,
+                  cancellationPolicy: '24시간 전 취소 가능',
+                  availability: {
+                    monday: { available: false, hours: '09:00-18:00' },
+                    tuesday: { available: false, hours: '09:00-18:00' },
+                    wednesday: { available: false, hours: '09:00-18:00' },
+                    thursday: { available: false, hours: '09:00-18:00' },
+                    friday: { available: false, hours: '09:00-18:00' },
+                    saturday: { available: false, hours: '09:00-18:00' },
+                    sunday: { available: false, hours: '09:00-18:00' }
+                  },
+                  holidayPolicy: data.holidaySettings.holidayNote,
+                  contactInfo: {
+                    phone: '',
+                    email: '',
+                    location: '',
+                    website: data.socialLinks.website
+                  },
+                  portfolioFiles: [],
+                  isProfileComplete: true
+                };
+                handleSave(convertedData as any);
+              }}
+              onBack={() => setIsEditing(false)}
+            />
+          ) : (
+            <ExpertProfile
+              ref={expertProfileRef}
+              expertData={initialData}
+              onSave={handleSave}
+              isEditing={isEditing}
+              onEditingChange={setIsEditing}
+            />
           )}
         </div>
         </DashboardLayout>

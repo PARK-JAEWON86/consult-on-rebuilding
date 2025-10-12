@@ -825,10 +825,6 @@ export default function BecomeExpertPage() {
             onEducationChange={updateEducation}
             onAddEducation={addEducation}
             onRemoveEducation={removeEducation}
-            certifications={certifications}
-            onCertificationChange={updateCertification}
-            onAddCertification={addCertification}
-            onRemoveCertification={removeCertification}
             onPrevious={() => setStep(2)}
             onNext={() => setStep(3.5)}
           />
