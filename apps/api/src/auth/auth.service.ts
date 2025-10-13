@@ -320,13 +320,27 @@ export class AuthService {
 
       result.expertApplicationData = {
         id: expertApplication.id,
+        displayId: expertApplication.displayId,
         category: expertApplication.specialty.split(' - ')[0] || expertApplication.specialty,
         specialty: expertApplication.specialty,
         submittedAt: expertApplication.createdAt,
         currentStage: expertApplication.currentStage || 'SUBMITTED',
+        name: expertApplication.name,
+        email: expertApplication.email,
+        phoneNumber: expertApplication.phoneNumber,
+        experienceYears: expertApplication.experienceYears,
         bio: expertApplication.bio,
         keywords: parseJsonField(expertApplication.keywords),
-        consultationTypes: parseJsonField(expertApplication.consultationTypes)
+        consultationTypes: parseJsonField(expertApplication.consultationTypes),
+        certifications: parseJsonField(expertApplication.certifications),
+        education: parseJsonField(expertApplication.education),
+        workExperience: parseJsonField(expertApplication.workExperience),
+        profileImage: expertApplication.profileImage,
+        mbti: expertApplication.mbti,
+        consultationStyle: expertApplication.consultationStyle,
+        availability: parseJsonField(expertApplication.availability),
+        emailNotification: expertApplication.emailNotification,
+        smsNotification: expertApplication.smsNotification
       }
     }
 

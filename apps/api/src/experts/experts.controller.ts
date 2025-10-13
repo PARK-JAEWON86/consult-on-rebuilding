@@ -224,4 +224,20 @@ export class ExpertsController {
       data
     };
   }
+
+  @Put('application/notification-settings')
+  @UseGuards(JwtGuard)
+  async updateNotificationSettings(
+    @Body() settings: { emailNotification: boolean; smsNotification?: boolean },
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+    const data = await this.svc.updateApplicationNotificationSettings(userId, settings);
+
+    return {
+      success: true,
+      data,
+      message: '알림 설정이 업데이트되었습니다.'
+    };
+  }
 }

@@ -431,7 +431,45 @@ export class ExpertsService {
 
   async createApplication(userId: number, dto: CreateExpertApplicationDto) {
     try {
-      const displayId = ulid();
+      // 신청번호 형식: CO + YYMMDD + 상담분야번호(2자리) + 접수순서번호(4자리)
+      const now = new Date();
+      const yy = now.getFullYear().toString().slice(-2);
+      const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+      const dd = now.getDate().toString().padStart(2, '0');
+      const dateStr = `${yy}${mm}${dd}`;
+
+      // 카테고리 번호 추출 (specialty에서 카테고리명 추출 후 매핑)
+      const categoryMap: { [key: string]: string } = {
+        '심리상담': '01',
+        '법률상담': '02',
+        '재무상담': '03',
+        '건강상담': '04',
+        '진로상담': '05',
+        'IT상담': '06',
+        '교육상담': '07',
+        '부동산상담': '08',
+        '창업상담': '09',
+        '디자인상담': '10',
+      };
+
+      const categoryName = dto.specialty.split(' - ')[0] || dto.specialty;
+      const categoryNum = categoryMap[categoryName] || '99';
+
+      // 오늘 날짜의 접수 순서번호 조회
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      const todayCount = await this.prisma.expertApplication.count({
+        where: {
+          createdAt: {
+            gte: todayStart,
+            lt: todayEnd,
+          },
+        },
+      });
+
+      const sequenceNum = (todayCount + 1).toString().padStart(4, '0');
+      const displayId = `CO${dateStr}${categoryNum}${sequenceNum}`;
 
       console.log('Creating expert application for userId:', userId);
       console.log('Application data:', {
@@ -439,6 +477,9 @@ export class ExpertsService {
         name: dto.name,
         email: dto.email,
         specialty: dto.specialty,
+        categoryName,
+        categoryNum,
+        sequenceNum,
         experienceYears: dto.experienceYears,
         keywordsCount: dto.keywords?.length,
         consultationTypesCount: dto.consultationTypes?.length,
@@ -456,6 +497,7 @@ export class ExpertsService {
             userId,
             name: dto.name,
             email: dto.email,
+            phoneNumber: dto.phoneNumber,
             jobTitle: dto.jobTitle || '',
             specialty: dto.specialty,
             experienceYears: dto.experienceYears,
@@ -467,6 +509,8 @@ export class ExpertsService {
               holidaySettings: dto.holidaySettings
             }),
             certifications: JSON.stringify(dto.certifications),
+            education: JSON.stringify(dto.education || []),
+            workExperience: JSON.stringify(dto.workExperience || []),
             mbti: dto.mbti || null,
             consultationStyle: dto.consultationStyle || null,
             profileImage: dto.profileImage || null,
@@ -1013,6 +1057,42 @@ export class ExpertsService {
       slots,
       holidaySettings
     };
+  }
+
+  /**
+   * 전문가 신청 알림 설정 업데이트
+   * @param userId 사용자 ID
+   * @param settings 알림 설정 (emailNotification, smsNotification)
+   */
+  async updateApplicationNotificationSettings(
+    userId: number,
+    settings: { emailNotification: boolean; smsNotification?: boolean }
+  ) {
+    // 사용자의 가장 최근 전문가 신청 조회
+    const application = await this.prisma.expertApplication.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!application) {
+      throw new Error('Expert application not found');
+    }
+
+    // 알림 설정 업데이트
+    const updated = await this.prisma.expertApplication.update({
+      where: { id: application.id },
+      data: {
+        emailNotification: settings.emailNotification,
+        smsNotification: settings.smsNotification ?? false
+      },
+      select: {
+        id: true,
+        emailNotification: true,
+        smsNotification: true
+      }
+    });
+
+    return updated;
   }
 
   /**

@@ -245,29 +245,34 @@ model Review {
 }
 
 model ExpertApplication {
-  id                Int                     @id @default(autoincrement())
-  displayId         String                  @unique
-  userId            Int
-  name              String
-  email             String
-  jobTitle          String?
-  specialty         String
-  experienceYears   Int                     @default(0)
-  bio               String
-  keywords          Json
-  consultationTypes Json
-  availability      Json
-  certifications    Json
-  profileImage      String?                 @db.Text
-  mbti              String?
-  consultationStyle String?
-  status            ExpertApplicationStatus @default(PENDING)
-  reviewedAt        DateTime?
-  reviewedBy        Int?
-  reviewNotes       String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  currentStage      String?                 @default("SUBMITTED")
+  id                   Int                     @id @default(autoincrement())
+  displayId            String                  @unique
+  userId               Int
+  name                 String
+  email                String
+  phoneNumber          String?
+  jobTitle             String?
+  specialty            String
+  experienceYears      Int                     @default(0)
+  bio                  String
+  keywords             Json
+  consultationTypes    Json
+  availability         Json
+  certifications       Json
+  education            Json                    @default("[]")
+  workExperience       Json                    @default("[]")
+  profileImage         String?                 @db.Text
+  mbti                 String?
+  consultationStyle    String?
+  status               ExpertApplicationStatus @default(PENDING)
+  reviewedAt           DateTime?
+  reviewedBy           Int?
+  reviewNotes          String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  currentStage         String?                 @default("SUBMITTED")
+  emailNotification    Boolean                 @default(true)
+  smsNotification      Boolean                 @default(false)
 
   @@index([userId, status])
   @@index([status, createdAt])

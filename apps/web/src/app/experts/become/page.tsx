@@ -101,7 +101,6 @@ export default function BecomeExpertPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
-  const [detailedSpecialty, setDetailedSpecialty] = useState('')
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
   // 사용자 정보 로드 시 이름과 이메일 자동 설정
@@ -157,20 +156,6 @@ export default function BecomeExpertPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
   const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([])
-
-  // 카테고리별 세부 상담분야 예시
-  const detailedSpecialtyExamples: { [key: string]: string } = {
-    '심리상담': '스트레스 상담, 부부관계 상담, 업무 스트레스 등',
-    '법률상담': '계약법, 가족법, 노동법, 부동산법 등',
-    '재무상담': '투자 상담, 자산관리, 세무 상담, 연금 설계 등',
-    '건강상담': '영양 상담, 운동 처방, 만성질환 관리 등',
-    '진로상담': '취업 상담, 이직 상담, 커리어 코칭 등',
-    'IT상담': '프로그래밍 멘토링, 웹개발, 앱개발, 클라우드 등',
-    '교육상담': '입시 상담, 유학 상담, 학습법 코칭 등',
-    '부동산상담': '매매 상담, 임대차 상담, 부동산 투자 등',
-    '창업상담': '사업계획 수립, 자금조달, 마케팅 전략 등',
-    '디자인상담': 'UI/UX 디자인, 브랜딩, 그래픽 디자인 등',
-  }
 
   // 일정 및 자격증 (Step 3에서 이동)
   // 예약 가능 시간 (슬롯 기반 시스템)
@@ -638,24 +623,42 @@ export default function BecomeExpertPage() {
     const selectedCategory = categories.find(cat => cat.id === selectedCategoryId)
     const categoryName = selectedCategory ? selectedCategory.nameKo : ''
 
-    // 세부 상담분야를 specialty에 포함
-    const fullSpecialty = detailedSpecialty
-      ? `${categoryName} - ${detailedSpecialty}`
+    // 키워드를 specialty에 포함 (키워드가 있는 경우)
+    const keywordsText = keywords.length > 0 ? keywords.join(', ') : ''
+    const fullSpecialty = keywordsText
+      ? `${categoryName} - ${keywordsText}`
       : categoryName || specialty
 
     // API로 전송할 데이터 구성
+    // availability를 요일별 객체로 변환 (DTO 형식에 맞춤)
+    const availabilityByDay = availabilitySlots.reduce((acc, slot) => {
+      const dayKey = slot.dayOfWeek
+      if (!acc[dayKey]) {
+        acc[dayKey] = {
+          available: true,
+          hours: `${slot.startTime}-${slot.endTime}`
+        }
+      } else {
+        // 같은 요일에 여러 시간대가 있는 경우 추가
+        acc[dayKey].hours += `, ${slot.startTime}-${slot.endTime}`
+      }
+      return acc
+    }, {} as Record<string, { available: boolean; hours: string }>)
+
     const applicationData = {
       name: fullName,
       email: email,
+      phoneNumber: verifiedPhone,
       jobTitle: '', // 필요시 추가
       specialty: fullSpecialty,
       experienceYears: experienceYears,
       bio: bio,
       keywords: keywords.filter((k) => k.trim()),
       consultationTypes: consultationTypes,
-      availability: {
-        slots: availabilitySlots,
-        holidaySettings: holidaySettings
+      availability: availabilityByDay,
+      holidaySettings: {
+        acceptHolidayConsultations: holidaySettings.acceptHolidayConsultations,
+        holidayNote: holidaySettings.holidayNote || undefined
       },
       certifications: certifications
         .filter((c) => c.name.trim())
@@ -663,7 +666,23 @@ export default function BecomeExpertPage() {
           name: c.name,
           issuer: c.issuer || ''
         })),
+      education: education
+        .filter((e) => e.school.trim())
+        .map((e) => ({
+          school: e.school,
+          major: e.major || '',
+          degree: e.degree || ''
+        })),
+      workExperience: workExperience
+        .filter((w) => w.company.trim())
+        .map((w) => ({
+          company: w.company,
+          position: w.position || '',
+          period: w.period || ''
+        })),
       profileImage: profileImage,
+      mbti: mbti || undefined,
+      consultationStyle: consultationStyle || undefined,
     }
 
     try {
@@ -817,6 +836,10 @@ export default function BecomeExpertPage() {
             getRecommendedKeywords={getRecommendedKeywords}
             bio={bio}
             onBioChange={setBio}
+            mbti={mbti}
+            onMbtiChange={setMbti}
+            consultationStyle={consultationStyle}
+            onConsultationStyleChange={setConsultationStyle}
             workExperience={workExperience}
             onWorkExperienceChange={updateWorkExperience}
             onAddWorkExperience={addWorkExperience}
@@ -833,10 +856,6 @@ export default function BecomeExpertPage() {
         {/* Step 3-2: 일정 및 상담 설정 */}
         {step === 3.5 && (
           <Step32ScheduleSettings
-            mbti={mbti}
-            onMbtiChange={setMbti}
-            consultationStyle={consultationStyle}
-            onConsultationStyleChange={setConsultationStyle}
             consultationTypes={consultationTypes}
             onToggleConsultationType={toggleConsultationType}
             availabilitySlots={availabilitySlots}

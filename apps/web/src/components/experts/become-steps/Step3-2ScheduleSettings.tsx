@@ -21,12 +21,6 @@ interface SocialLinks {
 }
 
 interface Step32ScheduleSettingsProps {
-  // MBTI & 상담 스타일
-  mbti: string
-  onMbtiChange: (value: string) => void
-  consultationStyle: string
-  onConsultationStyleChange: (value: string) => void
-
   // 상담 유형
   consultationTypes: ConsultationType[]
   onToggleConsultationType: (type: ConsultationType) => void
@@ -59,18 +53,7 @@ interface Step32ScheduleSettingsProps {
   validationMessage: string
 }
 
-const mbtiTypes = [
-  'ISTJ', 'ISFJ', 'INFJ', 'INTJ',
-  'ISTP', 'ISFP', 'INFP', 'INTP',
-  'ESTP', 'ESFP', 'ENFP', 'ENTP',
-  'ESTJ', 'ESFJ', 'ENFJ', 'ENTJ',
-]
-
 export default function Step32ScheduleSettings({
-  mbti,
-  onMbtiChange,
-  consultationStyle,
-  onConsultationStyleChange,
   consultationTypes,
   onToggleConsultationType,
   availabilitySlots,
@@ -245,42 +228,6 @@ export default function Step32ScheduleSettings({
             </div>
           </div>
         )}
-      </div>
-
-      {/* MBTI & 상담 스타일 */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-4">
-          <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
-            <Users className="w-4 h-4 mr-2" /> MBTI
-            <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
-          </label>
-          <select
-            value={mbti}
-            onChange={(e) => onMbtiChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">선택하세요</option>
-            {mbtiTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="md:col-span-8">
-          <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
-            <MessageCircle className="w-4 h-4 mr-2" /> 상담 스타일
-            <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
-          </label>
-          <input
-            type="text"
-            value={consultationStyle}
-            onChange={(e) => onConsultationStyleChange(e.target.value)}
-            placeholder="예: 따뜻하고 공감적인 태도로 내담자의 감정을 경청하며 상담합니다"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
       </div>
 
       {/* 상담 유형 */}

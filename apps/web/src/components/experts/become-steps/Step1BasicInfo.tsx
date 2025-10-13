@@ -46,7 +46,7 @@ export default function Step1BasicInfo({
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              이름
+              이름 <span className="text-gray-500 text-xs">(본명)</span>
               <span className="text-red-500 ml-1">*</span>
             </label>
             <input

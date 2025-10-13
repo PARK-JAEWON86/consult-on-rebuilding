@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const CreateExpertApplicationSchema = z.object({
   name: z.string().min(1, '이름은 필수입니다'),
   email: z.string().email('올바른 이메일 형식이 아닙니다'),
+  phoneNumber: z.string().min(1, '전화번호는 필수입니다'),
   jobTitle: z.string().optional(),
   specialty: z.string().min(1, '전문 분야는 필수입니다'),
   experienceYears: z.number().min(0, '경력은 0 이상이어야 합니다'),
@@ -17,6 +18,16 @@ export const CreateExpertApplicationSchema = z.object({
     name: z.string(),
     issuer: z.string()
   })),
+  education: z.array(z.object({
+    school: z.string(),
+    major: z.string(),
+    degree: z.string()
+  })).optional(),
+  workExperience: z.array(z.object({
+    company: z.string(),
+    position: z.string(),
+    period: z.string()
+  })).optional(),
   profileImage: z.string().optional(),
   mbti: z.string().optional(),
   consultationStyle: z.string().optional(),

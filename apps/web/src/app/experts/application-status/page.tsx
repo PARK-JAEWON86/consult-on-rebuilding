@@ -6,6 +6,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { CheckCircle2, Clock, Mail, Home, FileText, Bell } from 'lucide-react'
 import ApplicationTimeline from '@/components/experts/ApplicationTimeline'
 import ApplicationSummaryCard from '@/components/experts/ApplicationSummaryCard'
+import { api } from '@/lib/api'
 
 export default function ApplicationStatusPage() {
   const router = useRouter()
@@ -13,6 +14,16 @@ export default function ApplicationStatusPage() {
   const [applicationData, setApplicationData] = useState<any>(null)
   const [emailNotification, setEmailNotification] = useState(true)
   const [smsNotification, setSmsNotification] = useState(false)
+  const [isSavingNotification, setIsSavingNotification] = useState(false)
+
+  // 사용자 정보 로드 시 알림 설정 초기화
+  useEffect(() => {
+    if (user && (user as any).expertApplicationData) {
+      const appData = (user as any).expertApplicationData
+      setEmailNotification(appData.emailNotification ?? true)
+      setSmsNotification(appData.smsNotification ?? false)
+    }
+  }, [user])
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -33,6 +44,41 @@ export default function ApplicationStatusPage() {
       }
     }
   }, [user, isLoading, router])
+
+  // 알림 설정 업데이트 함수
+  const handleNotificationChange = async (type: 'email' | 'sms', value: boolean) => {
+    try {
+      setIsSavingNotification(true)
+
+      const newSettings = {
+        emailNotification: type === 'email' ? value : emailNotification,
+        smsNotification: type === 'sms' ? value : smsNotification
+      }
+
+      const response = await api.put('/experts/application/notification-settings', newSettings)
+
+      if (response.data.success) {
+        // 성공 시 상태 업데이트
+        if (type === 'email') {
+          setEmailNotification(value)
+        } else {
+          setSmsNotification(value)
+        }
+      }
+    } catch (error) {
+      console.error('알림 설정 업데이트 실패:', error)
+      alert('알림 설정 업데이트에 실패했습니다. 다시 시도해주세요.')
+
+      // 실패 시 이전 값으로 복구
+      if (type === 'email') {
+        setEmailNotification(!value)
+      } else {
+        setSmsNotification(!value)
+      }
+    } finally {
+      setIsSavingNotification(false)
+    }
+  }
 
   if (isLoading || !user) {
     return (
@@ -76,19 +122,32 @@ export default function ApplicationStatusPage() {
             <ApplicationSummaryCard
               applicationData={{
                 id: (user as any)?.expertApplicationData?.id || 0,
+                displayId: (user as any)?.expertApplicationData?.displayId,
                 categoryName: (user as any)?.expertApplicationData?.category || '전문 분야',
                 specialty: (user as any)?.expertApplicationData?.specialty || '세부 전문',
                 submittedAt: new Date((user as any)?.expertApplicationData?.submittedAt || Date.now()),
+                name: (user as any)?.expertApplicationData?.name,
+                email: (user as any)?.expertApplicationData?.email,
+                phoneNumber: (user as any)?.expertApplicationData?.phoneNumber,
+                experienceYears: (user as any)?.expertApplicationData?.experienceYears,
                 bio: (user as any)?.expertApplicationData?.bio,
                 keywords: (user as any)?.expertApplicationData?.keywords,
                 consultationTypes: (user as any)?.expertApplicationData?.consultationTypes,
+                certifications: (user as any)?.expertApplicationData?.certifications,
+                education: (user as any)?.expertApplicationData?.education,
+                workExperience: (user as any)?.expertApplicationData?.workExperience,
+                profileImage: (user as any)?.expertApplicationData?.profileImage,
+                mbti: (user as any)?.expertApplicationData?.mbti,
+                consultationStyle: (user as any)?.expertApplicationData?.consultationStyle,
+                availability: (user as any)?.expertApplicationData?.availability,
               }}
             />
           </div>
 
-          {/* 알림 설정 카드 (우측, 1/3 너비) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+          {/* 우측 컬럼: 알림 설정 + 상태 정보 */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* 알림 설정 카드 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Bell className="w-5 h-5 text-gray-700" />
                 <h3 className="font-semibold text-gray-900">알림 설정</h3>
@@ -99,16 +158,21 @@ export default function ApplicationStatusPage() {
                   <input
                     type="checkbox"
                     checked={emailNotification}
-                    onChange={(e) => setEmailNotification(e.target.checked)}
-                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => handleNotificationChange('email', e.target.checked)}
+                    disabled={isSavingNotification}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   />
                 </label>
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700">SMS 알림</span>
+                <label className="flex items-center justify-between cursor-not-allowed opacity-50">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-gray-700">SMS 알림</span>
+                    <span className="text-xs text-gray-500">(기능구현 준비중)</span>
+                  </div>
                   <input
                     type="checkbox"
                     checked={smsNotification}
                     onChange={(e) => setSmsNotification(e.target.checked)}
+                    disabled
                     className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
                 </label>
@@ -117,70 +181,70 @@ export default function ApplicationStatusPage() {
                 검수 상태가 변경되면 선택하신 방법으로 알려드립니다
               </p>
             </div>
+
+            {/* 상태 정보 카드 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="space-y-4">
+                {/* 검수 기간 */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-9 h-9 bg-blue-50 rounded-full flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-0.5">예상 검수 기간</h3>
+                    <p className="text-gray-600 text-xs">
+                      평균 1~3 영업일 소요
+                    </p>
+                  </div>
+                </div>
+
+                {/* 결과 통보 */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-9 h-9 bg-green-50 rounded-full flex items-center justify-center">
+                    <Mail className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-0.5">결과 안내</h3>
+                    <p className="text-gray-600 text-xs">
+                      이메일로 결과 전송
+                    </p>
+                  </div>
+                </div>
+
+                {/* 추가 서류 */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-9 h-9 bg-purple-50 rounded-full flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-0.5">추가 서류 요청</h3>
+                    <p className="text-gray-600 text-xs">
+                      필요 시 요청 가능
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 안내 사항 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+              <h3 className="font-semibold text-blue-900 mb-2 text-sm">안내 사항</h3>
+              <ul className="space-y-2 text-xs text-blue-800">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>검수 과정에서 제출하신 정보의 정확성을 확인합니다</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>영업일 기준으로 처리되며, 주말 및 공휴일은 제외됩니다</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>승인 완료 시 바로 전문가 활동을 시작하실 수 있습니다</span>
+                </li>
+              </ul>
+            </div>
           </div>
-        </div>
-
-        {/* 상태 정보 카드 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 검수 기간 */}
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1">예상 검수 기간</h3>
-                <p className="text-gray-600 text-sm">
-                  평균 1~3 영업일 소요
-                </p>
-              </div>
-            </div>
-
-            {/* 결과 통보 */}
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
-                <Mail className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1">결과 안내</h3>
-                <p className="text-gray-600 text-sm">
-                  이메일로 결과 전송
-                </p>
-              </div>
-            </div>
-
-            {/* 추가 서류 */}
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">
-                <FileText className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1">추가 서류 요청</h3>
-                <p className="text-gray-600 text-sm">
-                  필요 시 요청 가능
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 안내 사항 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-3">안내 사항</h3>
-          <ul className="space-y-2 text-sm text-blue-800">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>검수 과정에서 제출하신 정보의 정확성을 확인합니다</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>영업일 기준으로 처리되며, 주말 및 공휴일은 제외됩니다</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>승인 완료 시 바로 전문가 활동을 시작하실 수 있습니다</span>
-            </li>
-          </ul>
         </div>
 
         {/* 액션 버튼 */}

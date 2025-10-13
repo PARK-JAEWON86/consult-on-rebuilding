@@ -392,4 +392,138 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
 
     return this.sendMail(to, subject, html, text)
   }
+
+  // 전문가 신청 상태 변경 알림 이메일 전송
+  async sendExpertApplicationStatusEmail(
+    to: string,
+    status: 'APPROVED' | 'REJECTED',
+    applicantName: string,
+    applicationId: string,
+    rejectionReason?: string
+  ) {
+    const isApproved = status === 'APPROVED'
+    const subject = isApproved
+      ? '[Consult-On] 전문가 신청이 승인되었습니다 🎉'
+      : '[Consult-On] 전문가 신청 검토 결과 안내'
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>전문가 신청 결과</title>
+      </head>
+      <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
+        <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <div style="background: linear-gradient(180deg, ${isApproved ? '#10b981' : '#ef4444'} 0%, ${isApproved ? '#059669' : '#dc2626'} 100%); padding: 40px 30px; text-align: center;">
+            <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0;">
+              ${isApproved ? '🎉 축하합니다!' : '📋 검토 결과 안내'}
+            </h1>
+            <p style="font-size: 16px; color: rgba(255, 255, 255, 0.95); margin: 0;">
+              ${isApproved ? '전문가 신청이 승인되었습니다' : '전문가 신청 검토가 완료되었습니다'}
+            </p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 35px;">
+            <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">
+              안녕하세요, ${applicantName}님!
+            </h2>
+
+            ${isApproved ? `
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.8;">
+                제출하신 전문가 등록 신청이 <strong style="color: #10b981;">승인</strong>되었습니다.<br/>
+                이제 Consult-On 플랫폼에서 전문가로 활동하실 수 있습니다.
+              </p>
+
+              <!-- Next Steps -->
+              <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; color: #166534; margin: 0 0 16px 0;">다음 단계</h3>
+                <ol style="margin: 0; padding-left: 20px; color: #166534;">
+                  <li style="margin-bottom: 8px;">전문가 대시보드에 로그인하세요</li>
+                  <li style="margin-bottom: 8px;">프로필을 완성하고 공개 설정을 확인하세요</li>
+                  <li style="margin-bottom: 8px;">예약 가능 시간을 설정하세요</li>
+                  <li>첫 상담 요청을 기다려보세요!</li>
+                </ol>
+              </div>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL}/dashboard/expert"
+                   style="display: inline-block; background-color: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                  전문가 대시보드로 이동
+                </a>
+              </div>
+            ` : `
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.8;">
+                제출하신 전문가 등록 신청을 신중히 검토한 결과, 아쉽게도 현재 단계에서는 승인이 어려운 것으로 판단되었습니다.
+              </p>
+
+              ${rejectionReason ? `
+                <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <h3 style="font-size: 16px; font-weight: 600; color: #991b1b; margin: 0 0 12px 0;">검토 의견</h3>
+                  <p style="margin: 0; color: #7f1d1d; font-size: 14px; line-height: 1.6;">${rejectionReason}</p>
+                </div>
+              ` : ''}
+
+              <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.6;">
+                  <strong>재신청 안내:</strong><br/>
+                  피드백을 반영하여 언제든지 다시 신청하실 수 있습니다. 자격 요건을 보완한 후 재신청해 주시기 바랍니다.
+                </p>
+              </div>
+            `}
+
+            <!-- Application Info -->
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-top: 24px;">
+              <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0;">신청 번호</p>
+              <p style="font-size: 14px; font-weight: 600; color: #1e293b; margin: 0; font-family: monospace;">${applicationId}</p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">
+              문의사항이 있으시면 <a href="mailto:consult.on.official@gmail.com" style="color: #3b82f6; text-decoration: none;">consult.on.official@gmail.com</a>로 연락주세요
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8;">© 2024 Consult-On. All rights reserved.</p>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `
+
+    const text = `
+[Consult-On] 전문가 신청 결과
+
+안녕하세요, ${applicantName}님!
+
+${isApproved
+  ? `축하합니다! 제출하신 전문가 등록 신청이 승인되었습니다.
+
+다음 단계:
+1. 전문가 대시보드에 로그인하세요
+2. 프로필을 완성하고 공개 설정을 확인하세요
+3. 예약 가능 시간을 설정하세요
+4. 첫 상담 요청을 기다려보세요!
+
+전문가 대시보드: ${process.env.FRONTEND_URL}/dashboard/expert`
+  : `제출하신 전문가 등록 신청을 검토한 결과, 현재 단계에서는 승인이 어려운 것으로 판단되었습니다.
+
+${rejectionReason ? `검토 의견: ${rejectionReason}\n` : ''}
+재신청 안내: 피드백을 반영하여 언제든지 다시 신청하실 수 있습니다.`
+}
+
+신청 번호: ${applicationId}
+
+문의: consult.on.official@gmail.com
+© 2024 Consult-On. All rights reserved.
+    `
+
+    return this.sendMail(to, subject, html, text)
+  }
 }
