@@ -329,6 +329,7 @@ export class AuthService {
         email: expertApplication.email,
         phoneNumber: expertApplication.phoneNumber,
         experienceYears: expertApplication.experienceYears,
+        languages: parseJsonField(expertApplication.languages),
         bio: expertApplication.bio,
         keywords: parseJsonField(expertApplication.keywords),
         consultationTypes: parseJsonField(expertApplication.consultationTypes),

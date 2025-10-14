@@ -130,6 +130,7 @@ export default function ApplicationStatusPage() {
                 email: (user as any)?.expertApplicationData?.email,
                 phoneNumber: (user as any)?.expertApplicationData?.phoneNumber,
                 experienceYears: (user as any)?.expertApplicationData?.experienceYears,
+                languages: (user as any)?.expertApplicationData?.languages,
                 bio: (user as any)?.expertApplicationData?.bio,
                 keywords: (user as any)?.expertApplicationData?.keywords,
                 consultationTypes: (user as any)?.expertApplicationData?.consultationTypes,

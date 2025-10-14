@@ -504,6 +504,7 @@ export class ExpertsService {
             bio: dto.bio,
             keywords: JSON.stringify(dto.keywords),
             consultationTypes: JSON.stringify(dto.consultationTypes),
+            languages: JSON.stringify(dto.languages || ['한국어']),
             availability: JSON.stringify({
               ...dto.availability,
               holidaySettings: dto.holidaySettings

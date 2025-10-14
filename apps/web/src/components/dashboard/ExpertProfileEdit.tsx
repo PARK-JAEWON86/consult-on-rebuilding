@@ -440,33 +440,45 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
     handleInputChange('holidaySettings', holidaySettings);
   };
 
-  // 경력(년) 자동 계산
+  // 경력(년) 자동 계산 (개월 단위 포함)
   useEffect(() => {
     const calculateTotalExperience = () => {
-      const currentYear = new Date().getFullYear();
-      let totalYears = 0;
+      const currentDate = new Date();
+      let totalMonths = 0;
 
       formData.workExperience.forEach((exp) => {
         if (!exp.period || !exp.company) return;
 
-        const periodMatch = exp.period.match(/(\d{4})/);
-        if (!periodMatch) return;
+        // 정규식: "2020.01 ~ 2023.12" 또는 "2020 ~ 2023" 또는 "2020.01 ~ 현재"
+        const periodRegex = /(\d{4})(?:\.(\d{1,2}))?\s*~\s*(?:(\d{4})(?:\.(\d{1,2}))?|(현재|재직중))/;
+        const match = exp.period.match(periodRegex);
 
-        const startYear = parseInt(periodMatch[1]);
-        const endMatch = exp.period.match(/~\s*(\d{4})|~\s*(현재|재직중)/);
-        let endYear = currentYear;
+        if (!match) return;
 
-        if (endMatch) {
-          if (endMatch[1]) {
-            endYear = parseInt(endMatch[1]);
-          }
+        const startYear = parseInt(match[1]);
+        const startMonth = match[2] ? parseInt(match[2]) : 1;
+
+        let endYear: number;
+        let endMonth: number;
+
+        if (match[5]) {
+          // "현재" 또는 "재직중"
+          endYear = currentDate.getFullYear();
+          endMonth = currentDate.getMonth() + 1;
+        } else if (match[3]) {
+          endYear = parseInt(match[3]);
+          endMonth = match[4] ? parseInt(match[4]) : 12;
+        } else {
+          return;
         }
 
-        const years = Math.max(0, endYear - startYear);
-        totalYears += years;
+        const months = (endYear - startYear) * 12 + (endMonth - startMonth);
+        totalMonths += Math.max(0, months);
       });
 
-      handleInputChange('experience', totalYears);
+      // 총 개월 수를 년 단위로 변환 (소수점 첫째 자리)
+      const years = Math.round((totalMonths / 12) * 10) / 10;
+      handleInputChange('experience', years);
     };
 
     calculateTotalExperience();
@@ -500,7 +512,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
           >
             <div className="flex items-center justify-center gap-2">
               <Calendar className="w-4 h-4" />
-              일정 및 설정
+              자격증 및 일정 설정
             </div>
           </button>
         </div>
@@ -628,12 +640,12 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
 
                   <div>
                     <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
-                      <Clock className="w-4 h-4 mr-2" /> 경력 (년)
+                      <Clock className="w-4 h-4 mr-2" /> 경력
                       <span className="ml-2 text-xs text-gray-500 font-normal">(경력 사항 입력 시 자동 계산)</span>
                     </label>
                     <input
-                      type="number"
-                      value={formData.experience}
+                      type="text"
+                      value={formData.experience === 0 ? '0년' : `${Math.floor(formData.experience)}년 ${Math.round((formData.experience % 1) * 12)}개월`}
                       readOnly
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed text-sm"
                     />
@@ -790,7 +802,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                     </button>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-10">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1.5fr] gap-3 pr-10">
                     <input
                       type="text"
                       value={exp.company}
@@ -810,7 +822,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                       value={exp.period}
                       onChange={(e) => updateWorkExperience(index, 'period', e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="2020.01 ~ 2023.12"
+                      placeholder="기간 (예: 2020.01 ~ 2023.12 또는 2020.01 ~ 현재)"
                     />
                   </div>
                 </div>

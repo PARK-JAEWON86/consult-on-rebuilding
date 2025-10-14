@@ -30,7 +30,6 @@ import {
 
 // Step Components
 import Step1BasicInfo from '@/components/experts/become-steps/Step1BasicInfo'
-import Step2PhoneVerification from '@/components/experts/become-steps/Step2PhoneVerification'
 import Step31BasicProfile from '@/components/experts/become-steps/Step3-1BasicProfile'
 import Step32ScheduleSettings from '@/components/experts/become-steps/Step3-2ScheduleSettings'
 import Step4Terms from '@/components/experts/become-steps/Step4Terms'
@@ -38,7 +37,7 @@ import Step5Review from '@/components/experts/become-steps/Step5Review'
 import Step6Complete from '@/components/experts/become-steps/Step6Complete'
 import { AvailabilitySlot, HolidaySettings } from '@/components/experts/AvailabilityScheduleEditor'
 
-type Step = 1 | 2 | 3 | 3.5 | 4 | 5 | 6
+type Step = 1 | 2 | 2.5 | 3 | 4 | 5
 
 type ConsultationType = 'video' | 'chat' | 'voice'
 
@@ -114,18 +113,6 @@ export default function BecomeExpertPage() {
     }
   }, [user, isLoading])
 
-  // 휴대폰 인증
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [phoneVerified, setPhoneVerified] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
-  const [codeSent, setCodeSent] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(0)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [verifiedPhone, setVerifiedPhone] = useState('')
-
-  // 간편인증 모달
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  const [isSending, setIsSending] = useState(false)
 
   // 2단계: 전문 정보 + 일정/자격증 (통합)
   const [specialty, setSpecialty] = useState('')
@@ -138,6 +125,7 @@ export default function BecomeExpertPage() {
   >([])
   const [mbti, setMbti] = useState('')
   const [consultationStyle, setConsultationStyle] = useState('')
+  const [languages, setLanguages] = useState<string[]>(['한국어'])
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'schedule'>('basic')
 
   // 필수 항목 검증 상태
@@ -315,13 +303,10 @@ export default function BecomeExpertPage() {
   const [agreePrivacy, setAgreePrivacy] = useState(false)
   const agree = agreeService && agreePrivacy
 
-  // Step 1: 기본정보 (이름, 이메일, 휴대폰)
-  const canGoNextStep1 = phoneNumber.length >= 10 && phoneNumber.length <= 11 && /^01[0-9]{8,9}$/.test(phoneNumber)
+  // Step 1: 기본정보 (이름, 이메일)
+  const canGoNextStep1 = fullName.trim() !== '' && email.trim() !== ''
 
-  // Step 2: 본인인증 (모달 완료 필수)
-  const canGoNextStep2 = phoneVerified === true
-
-  // Step 3: 전문정보
+  // Step 2: 전문정보
   const hasAvailability = availabilitySlots.length > 0 && availabilitySlots.some(slot => slot.isActive)
 
   const canGoNextStep3 =
@@ -352,101 +337,52 @@ export default function BecomeExpertPage() {
     }
   }, [specialty, categories])
 
-  // 경력(년) 자동 계산: workExperience의 period에서 연도 추출
+  // 경력(년) 자동 계산: workExperience의 period에서 연도와 월 추출하여 정밀 계산
   useEffect(() => {
     const calculateTotalExperience = () => {
-      const currentYear = new Date().getFullYear()
-      let totalYears = 0
+      const currentDate = new Date()
+      let totalMonths = 0
 
       workExperience.forEach((exp) => {
         if (!exp.period || !exp.company) return // 빈 항목은 스킵
 
         // period 형식: "2020.01 ~ 2023.12" 또는 "2020 ~ 2023" 또는 "2020.01 ~ 현재"
-        const periodMatch = exp.period.match(/(\d{4})/)
-        if (!periodMatch) return
+        const periodRegex = /(\d{4})(?:\.(\d{1,2}))?\s*~\s*(?:(\d{4})(?:\.(\d{1,2}))?|(현재|재직중))/
+        const match = exp.period.match(periodRegex)
 
-        const startYear = parseInt(periodMatch[1])
+        if (!match) return
 
-        // 종료 연도 찾기
-        const endMatch = exp.period.match(/~\s*(\d{4})|~\s*(현재|재직중)/)
-        let endYear = currentYear
+        const startYear = parseInt(match[1])
+        const startMonth = match[2] ? parseInt(match[2]) : 1 // 월이 없으면 1월로 가정
 
-        if (endMatch) {
-          if (endMatch[1]) {
-            endYear = parseInt(endMatch[1])
-          }
-          // "현재" 또는 "재직중"인 경우 현재 연도 사용
+        let endYear: number
+        let endMonth: number
+
+        if (match[5]) {
+          // "현재" 또는 "재직중"인 경우
+          endYear = currentDate.getFullYear()
+          endMonth = currentDate.getMonth() + 1 // getMonth()는 0-11이므로 +1
+        } else if (match[3]) {
+          // 종료 날짜가 있는 경우
+          endYear = parseInt(match[3])
+          endMonth = match[4] ? parseInt(match[4]) : 12 // 월이 없으면 12월로 가정
+        } else {
+          return
         }
 
-        const years = Math.max(0, endYear - startYear)
-        totalYears += years
+        // 개월 수 계산
+        const months = (endYear - startYear) * 12 + (endMonth - startMonth)
+        totalMonths += Math.max(0, months)
       })
 
-      setExperienceYears(totalYears)
+      // 개월을 년으로 변환 (소수점 첫째 자리까지, 반올림)
+      const years = Math.round((totalMonths / 12) * 10) / 10
+      setExperienceYears(years)
     }
 
     calculateTotalExperience()
   }, [workExperience])
 
-  const handleSendVerificationCode = async () => {
-    if (!phoneNumber || !/^01[0-9]{8,9}$/.test(phoneNumber)) {
-      alert('올바른 휴대폰 번호를 입력해주세요 (예: 01012345678)')
-      return
-    }
-
-    setIsSending(true)
-    try {
-      const response = await fetch('http://localhost:4000/v1/auth/send-phone-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber })
-      })
-      const result = await response.json()
-
-      if (result.success) {
-        setCodeSent(true)
-        setTimeLeft(180)
-        alert('인증번호가 발송되었습니다')
-      } else {
-        alert(result.error?.message || '인증번호 발송에 실패했습니다')
-      }
-    } catch (error) {
-      console.error('Failed to send verification code:', error)
-      alert('인증번호 발송에 실패했습니다')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      alert('인증번호 6자리를 입력해주세요')
-      return
-    }
-
-    setIsVerifying(true)
-    try {
-      const response = await fetch('http://localhost:4000/v1/auth/verify-phone-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, code: verificationCode })
-      })
-      const result = await response.json()
-
-      if (result.success && result.data.verified) {
-        setPhoneVerified(true)
-        setVerifiedPhone(phoneNumber)
-        alert('본인인증이 완료되었습니다')
-      } else {
-        alert(result.error?.message || '인증번호가 일치하지 않습니다')
-      }
-    } catch (error) {
-      console.error('Failed to verify code:', error)
-      alert('인증 확인에 실패했습니다')
-    } finally {
-      setIsVerifying(false)
-    }
-  }
 
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -648,13 +584,13 @@ export default function BecomeExpertPage() {
     const applicationData = {
       name: fullName,
       email: email,
-      phoneNumber: verifiedPhone,
       jobTitle: '', // 필요시 추가
       specialty: fullSpecialty,
       experienceYears: experienceYears,
       bio: bio,
       keywords: keywords.filter((k) => k.trim()),
       consultationTypes: consultationTypes,
+      languages: languages.filter((lang) => lang.trim()),
       availability: availabilityByDay,
       holidaySettings: {
         acceptHolidayConsultations: holidaySettings.acceptHolidayConsultations,
@@ -772,22 +708,17 @@ export default function BecomeExpertPage() {
           <li
             className={`px-3 py-1 rounded-full border ${step >= 2 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
           >
-            2. 본인인증
+            2. 전문정보
           </li>
           <li
             className={`px-3 py-1 rounded-full border ${step >= 3 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
           >
-            3. 전문정보
+            3. 서비스 이용약관
           </li>
           <li
             className={`px-3 py-1 rounded-full border ${step >= 4 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
           >
-            4. 서비스 이용약관
-          </li>
-          <li
-            className={`px-3 py-1 rounded-full border ${step >= 5 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
-          >
-            5. 검수 및 통보
+            4. 검수 및 통보
           </li>
         </ol>
       </nav>
@@ -798,29 +729,15 @@ export default function BecomeExpertPage() {
           <Step1BasicInfo
             fullName={fullName}
             email={email}
-            phoneNumber={phoneNumber}
             onFullNameChange={setFullName}
             onEmailChange={setEmail}
-            onPhoneNumberChange={setPhoneNumber}
             onNext={() => setStep(2)}
-            canGoNext={fullName.trim() !== '' && email.trim() !== '' && phoneNumber.trim() !== ''}
+            canGoNext={canGoNextStep1}
           />
         )}
 
-        {/* Step 2: 휴대폰 인증 */}
+        {/* Step 2-1: 기본 프로필 */}
         {step === 2 && (
-          <Step2PhoneVerification
-            phoneNumber={phoneNumber}
-            phoneVerified={phoneVerified}
-            onOpenAuthModal={() => setShowAuthModal(true)}
-            onPrevious={() => setStep(1)}
-            onNext={() => setStep(3)}
-            canGoNext={phoneVerified}
-          />
-        )}
-
-        {/* Step 3-1: 기본 프로필 */}
-        {step === 3 && (
           <Step31BasicProfile
             profileImage={profileImage}
             onProfileImageUpload={handleProfileImageUpload}
@@ -840,6 +757,8 @@ export default function BecomeExpertPage() {
             onMbtiChange={setMbti}
             consultationStyle={consultationStyle}
             onConsultationStyleChange={setConsultationStyle}
+            languages={languages}
+            onLanguagesChange={setLanguages}
             workExperience={workExperience}
             onWorkExperienceChange={updateWorkExperience}
             onAddWorkExperience={addWorkExperience}
@@ -848,13 +767,13 @@ export default function BecomeExpertPage() {
             onEducationChange={updateEducation}
             onAddEducation={addEducation}
             onRemoveEducation={removeEducation}
-            onPrevious={() => setStep(2)}
-            onNext={() => setStep(3.5)}
+            onPrevious={() => setStep(1)}
+            onNext={() => setStep(2.5)}
           />
         )}
 
-        {/* Step 3-2: 일정 및 상담 설정 */}
-        {step === 3.5 && (
+        {/* Step 2-2: 일정 및 상담 설정 */}
+        {step === 2.5 && (
           <Step32ScheduleSettings
             consultationTypes={consultationTypes}
             onToggleConsultationType={toggleConsultationType}
@@ -870,11 +789,11 @@ export default function BecomeExpertPage() {
             onRemovePortfolio={removePortfolioFile}
             socialLinks={socialLinks}
             onSocialLinkChange={handleSocialLinkChange}
-            onPrevious={() => setStep(3)}
+            onPrevious={() => setStep(2)}
             onNext={() => {
               if (canGoNextStep3) {
                 setShowValidation(false)
-                setStep(4)
+                setStep(3)
               } else {
                 setShowValidation(true)
               }
@@ -885,254 +804,32 @@ export default function BecomeExpertPage() {
           />
         )}
 
-        {/* Step 4: 약관 동의 */}
-        {step === 4 && (
+        {/* Step 3: 약관 동의 */}
+        {step === 3 && (
           <Step4Terms
             agreeService={agreeService}
             onAgreeServiceChange={setAgreeService}
             agreePrivacy={agreePrivacy}
             onAgreePrivacyChange={setAgreePrivacy}
-            onPrevious={() => setStep(3.5)}
-            onNext={() => agree && setStep(5)}
+            onPrevious={() => setStep(2.5)}
+            onNext={() => agree && setStep(4)}
             canGoNext={agree}
           />
         )}
 
-        {/* Step 5: 최종 검토 */}
-        {step === 5 && (
+        {/* Step 4: 최종 검토 */}
+        {step === 4 && (
           <Step5Review
-            onPrevious={() => setStep(4)}
+            onPrevious={() => setStep(3)}
             onSubmit={handleSubmit}
           />
         )}
 
-        {/* Step 6: 완료 화면 */}
-        {step === 6 && (
+        {/* Step 5: 완료 화면 */}
+        {step === 5 && (
           <Step6Complete email={email} />
         )}
       </div>
-
-      {/* 간편인증 모달 */}
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* 모달 헤더 */}
-            <div className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h2 className="text-xl font-bold">간편인증</h2>
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="text-white hover:text-gray-300"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* 모달 본문 */}
-            <div className="p-6">
-              {/* 인증 서비스 선택 */}
-              <div className="mb-6">
-                <div className="grid grid-cols-5 gap-3">
-                  {/* KB모바일 */}
-                  <button
-                    onClick={() => {
-                      // TODO: KB모바일 인증 연동
-                      setPhoneVerified(true)
-                      setShowAuthModal(false)
-                    }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-14 h-14 bg-yellow-400 rounded-2xl flex items-center justify-center">
-                      <span className="text-xl font-bold text-gray-800">KB</span>
-                    </div>
-                    <span className="text-[10px] text-center text-gray-700 leading-tight">KB모바일<br/>인증서</span>
-                  </button>
-
-                  {/* 삼성패스 */}
-                  <button
-                    onClick={() => {
-                      setPhoneVerified(true)
-                      setShowAuthModal(false)
-                    }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center">
-                      <span className="text-white text-[9px] font-bold leading-tight text-center">SAMSUNG<br/>Pass</span>
-                    </div>
-                    <span className="text-[10px] text-center text-gray-700 leading-tight">삼성패스</span>
-                  </button>
-
-                  {/* PASS */}
-                  <button
-                    onClick={() => {
-                      setPhoneVerified(true)
-                      setShowAuthModal(false)
-                    }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-14 h-14 bg-pink-600 rounded-2xl flex items-center justify-center">
-                      <span className="text-white text-base font-bold">PASS</span>
-                    </div>
-                    <span className="text-[10px] text-center text-gray-700 leading-tight">통신사 인증서<br/>(SKT,KT,LG U+)</span>
-                  </button>
-
-                  {/* 카카오톡 */}
-                  <button
-                    onClick={() => {
-                      setPhoneVerified(true)
-                      setShowAuthModal(false)
-                    }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-14 h-14 bg-yellow-400 rounded-2xl flex items-center justify-center">
-                      <span className="text-xl">💬</span>
-                    </div>
-                    <span className="text-[10px] text-center text-gray-700 leading-tight">카카오톡</span>
-                  </button>
-
-                  {/* 페이코 */}
-                  <button
-                    onClick={() => {
-                      setPhoneVerified(true)
-                      setShowAuthModal(false)
-                    }}
-                    className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">PAYCO</span>
-                    </div>
-                    <span className="text-[10px] text-center text-gray-700 leading-tight">페이코</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-end mt-3">
-                  <button className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                    다른 서비스는 없나요 <span className="text-lg">❓</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="h-px bg-gray-200 my-6" />
-
-              {/* 정보 입력 폼 */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
-                  <input
-                    type="text"
-                    placeholder="홍길동"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">주민등록번호</label>
-                    <input
-                      type="text"
-                      placeholder="900101"
-                      maxLength={6}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      maxLength={7}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">휴대폰번호</label>
-                  <div className="flex gap-2">
-                    <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                      <option>010</option>
-                      <option>011</option>
-                      <option>016</option>
-                      <option>017</option>
-                      <option>018</option>
-                      <option>019</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="12341234"
-                      maxLength={8}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 약관 동의 */}
-              <div className="mt-6 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">간편인증서비스 이용에 대한 동의</h3>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="rounded" />
-                    <span>개인정보 이용 동의(필수)</span>
-                    <button className="ml-auto text-gray-500 hover:text-gray-700 border border-gray-300 px-3 py-1 rounded text-xs">
-                      자세히보기
-                    </button>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="rounded" />
-                    <span>고유식별번호처리 동의(필수)</span>
-                    <button className="ml-auto text-gray-500 hover:text-gray-700 border border-gray-300 px-3 py-1 rounded text-xs">
-                      자세히보기
-                    </button>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="rounded" />
-                    <span>서비스 이용 약관 동의(필수)</span>
-                    <button className="ml-auto text-gray-500 hover:text-gray-700 border border-gray-300 px-3 py-1 rounded text-xs">
-                      자세히보기
-                    </button>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="rounded" />
-                    <span>제3자 정보제공 동의(필수)</span>
-                    <button className="ml-auto text-gray-500 hover:text-gray-700 border border-gray-300 px-3 py-1 rounded text-xs">
-                      자세히보기
-                    </button>
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Info className="w-4 h-4" />
-                  <span>사용방법 안내</span>
-                </div>
-              </div>
-
-              {/* 하단 버튼 */}
-              <div className="mt-8 flex gap-4">
-                <button
-                  onClick={() => setShowAuthModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
-                >
-                  닫기
-                </button>
-                <button
-                  onClick={() => {
-                    // TODO: 실제 인증 처리
-                    setPhoneVerified(true)
-                    setShowAuthModal(false)
-                    setStep(3)
-                  }}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  인증 요청
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

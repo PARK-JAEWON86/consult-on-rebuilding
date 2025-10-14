@@ -120,7 +120,10 @@ export class ExpertApplicationsService {
         ...application,
         keywords: parseJsonField(application.keywords),
         consultationTypes: parseJsonField(application.consultationTypes),
+        languages: parseJsonField(application.languages),
         certifications: parseJsonField(application.certifications),
+        education: parseJsonField(application.education),
+        workExperience: parseJsonField(application.workExperience),
         availability: typeof application.availability === 'string'
           ? JSON.parse(application.availability)
           : application.availability,
@@ -221,16 +224,21 @@ export class ExpertApplicationsService {
       return { updatedApplication, expert, user }
     })
 
-    // 4. 승인 이메일 발송
-    try {
-      await this.mail.sendMail(
-        application.email,
-        '[Consult-On] 전문가 등록이 승인되었습니다',
-        `<p>안녕하세요 ${application.name}님,</p><p>전문가 등록 신청이 승인되었습니다.<br>지금 바로 전문가 대시보드에서 활동을 시작하실 수 있습니다.</p><p>감사합니다.</p>`,
-        `안녕하세요 ${application.name}님,\n\n전문가 등록 신청이 승인되었습니다.\n지금 바로 전문가 대시보드에서 활동을 시작하실 수 있습니다.\n\n감사합니다.`
-      )
-    } catch (error) {
-      console.error('Failed to send approval email:', error)
+    // 4. 승인 이메일 발송 (emailNotification 설정 확인)
+    if (application.emailNotification) {
+      try {
+        await this.mail.sendExpertApplicationStatusEmail(
+          application.email,
+          'APPROVED',
+          application.name,
+          application.displayId
+        )
+        console.log(`✅ Approval email sent to ${application.email}`)
+      } catch (error) {
+        console.error('Failed to send approval email:', error)
+      }
+    } else {
+      console.log(`ℹ️ Email notification disabled for application ${application.displayId}`)
     }
 
     return {
@@ -272,16 +280,22 @@ export class ExpertApplicationsService {
       },
     })
 
-    // 거절 이메일 발송
-    try {
-      await this.mail.sendMail(
-        application.email,
-        '[Consult-On] 전문가 등록 검토 결과',
-        `<p>안녕하세요 ${application.name}님,</p><p>전문가 등록 신청을 검토한 결과, 현재로서는 승인이 어려울 것 같습니다.</p>${dto.reviewNotes ? `<p>${dto.reviewNotes}</p>` : ''}<p>향후 재지원도 가능하니, 궁금하신 사항이 있으시면 언제든지 문의해주세요.</p><p>감사합니다.</p>`,
-        `안녕하세요 ${application.name}님,\n\n전문가 등록 신청을 검토한 결과, 현재로서는 승인이 어려울 것 같습니다.\n\n${dto.reviewNotes || ''}\n\n향후 재지원도 가능하니, 궁금하신 사항이 있으시면 언제든지 문의해주세요.\n\n감사합니다.`
-      )
-    } catch (error) {
-      console.error('Failed to send rejection email:', error)
+    // 거절 이메일 발송 (emailNotification 설정 확인)
+    if (application.emailNotification) {
+      try {
+        await this.mail.sendExpertApplicationStatusEmail(
+          application.email,
+          'REJECTED',
+          application.name,
+          application.displayId,
+          dto.reviewNotes
+        )
+        console.log(`✅ Rejection email sent to ${application.email}`)
+      } catch (error) {
+        console.error('Failed to send rejection email:', error)
+      }
+    } else {
+      console.log(`ℹ️ Email notification disabled for application ${application.displayId}`)
     }
 
     return {
@@ -325,12 +339,13 @@ export class ExpertApplicationsService {
 
     // 추가 정보 요청 이메일 발송
     try {
-      await this.mail.sendMail(
+      await this.mail.sendAdditionalInfoRequestEmail(
         application.email,
-        '[Consult-On] 전문가 등록 - 추가 정보가 필요합니다',
-        `<p>안녕하세요 ${application.name}님,</p><p>전문가 등록 신청을 검토하던 중 추가 정보가 필요합니다.</p><p><strong>요청 사항:</strong></p><p>${dto.reviewNotes}</p><p>추가 정보를 제공해주시면 빠른 시일 내에 검토를 완료하겠습니다.</p><p>감사합니다.</p>`,
-        `안녕하세요 ${application.name}님,\n\n전문가 등록 신청을 검토하던 중 추가 정보가 필요합니다.\n\n요청 사항:\n${dto.reviewNotes}\n\n추가 정보를 제공해주시면 빠른 시일 내에 검토를 완료하겠습니다.\n\n감사합니다.`
+        application.name,
+        application.displayId,
+        dto.reviewNotes
       )
+      console.log(`✅ Additional info request email sent to ${application.email}`)
     } catch (error) {
       console.error('Failed to send additional info request email:', error)
     }

@@ -403,7 +403,7 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
   ) {
     const isApproved = status === 'APPROVED'
     const subject = isApproved
-      ? '[Consult-On] 전문가 신청이 승인되었습니다 🎉'
+      ? '[Consult-On] 전문가 신청이 승인되었습니다'
       : '[Consult-On] 전문가 신청 검토 결과 안내'
 
     const html = `
@@ -417,79 +417,97 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
       <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
         <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
 
-          <!-- Header -->
-          <div style="background: linear-gradient(180deg, ${isApproved ? '#10b981' : '#ef4444'} 0%, ${isApproved ? '#059669' : '#dc2626'} 100%); padding: 40px 30px; text-align: center;">
-            <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0;">
-              ${isApproved ? '🎉 축하합니다!' : '📋 검토 결과 안내'}
-            </h1>
-            <p style="font-size: 16px; color: rgba(255, 255, 255, 0.95); margin: 0;">
-              ${isApproved ? '전문가 신청이 승인되었습니다' : '전문가 신청 검토가 완료되었습니다'}
-            </p>
-          </div>
+          <!-- Header & Content Wrapper -->
+          <div style="display: flex; align-items: stretch;">
 
-          <!-- Main Content -->
-          <div style="padding: 40px 35px;">
-            <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">
-              안녕하세요, ${applicantName}님!
-            </h2>
+            <!-- Left Side: Header -->
+            <div style="background: ${isApproved ? 'linear-gradient(180deg, #10b981 0%, #059669 100%)' : 'linear-gradient(180deg, #ef4444 0%, #dc2626 100%)'}; padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+              <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">${isApproved ? '전문가 신청이<br/>승인되었습니다' : '전문가 신청 검토<br/>결과를 안내드립니다'}</p>
+            </div>
 
-            ${isApproved ? `
-              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.8;">
-                제출하신 전문가 등록 신청이 <strong style="color: #10b981;">승인</strong>되었습니다.<br/>
-                이제 Consult-On 플랫폼에서 전문가로 활동하실 수 있습니다.
-              </p>
+            <!-- Right Side: Main Content -->
+            <div style="flex: 1; padding: 40px 35px;">
 
-              <!-- Next Steps -->
-              <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-                <h3 style="font-size: 16px; font-weight: 600; color: #166534; margin: 0 0 16px 0;">다음 단계</h3>
-                <ol style="margin: 0; padding-left: 20px; color: #166534;">
-                  <li style="margin-bottom: 8px;">전문가 대시보드에 로그인하세요</li>
-                  <li style="margin-bottom: 8px;">프로필을 완성하고 공개 설정을 확인하세요</li>
-                  <li style="margin-bottom: 8px;">예약 가능 시간을 설정하세요</li>
-                  <li>첫 상담 요청을 기다려보세요!</li>
-                </ol>
-              </div>
+              <!-- Welcome Message -->
+              <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">${isApproved ? '🎉 축하합니다!' : '검토 결과 안내'}</h2>
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">안녕하세요, ${applicantName}님!</p>
 
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.FRONTEND_URL}/dashboard/expert"
-                   style="display: inline-block; background-color: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-                  전문가 대시보드로 이동
-                </a>
-              </div>
-            ` : `
-              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.8;">
-                제출하신 전문가 등록 신청을 신중히 검토한 결과, 아쉽게도 현재 단계에서는 승인이 어려운 것으로 판단되었습니다.
-              </p>
-
-              ${rejectionReason ? `
-                <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-                  <h3 style="font-size: 16px; font-weight: 600; color: #991b1b; margin: 0 0 12px 0;">검토 의견</h3>
-                  <p style="margin: 0; color: #7f1d1d; font-size: 14px; line-height: 1.6;">${rejectionReason}</p>
+              ${isApproved ? `
+                <!-- Approval Message -->
+                <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <p style="color: #166534; margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; font-weight: 600;">
+                    ✅ 전문가 등록 신청이 승인되었습니다
+                  </p>
+                  <p style="color: #166534; margin: 0; font-size: 13px; line-height: 1.6;">
+                    이제 Consult-On 플랫폼에서 전문가로 활동하실 수 있습니다.
+                  </p>
                 </div>
-              ` : ''}
 
-              <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
-                <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.6;">
-                  <strong>재신청 안내:</strong><br/>
-                  피드백을 반영하여 언제든지 다시 신청하실 수 있습니다. 자격 요건을 보완한 후 재신청해 주시기 바랍니다.
-                </p>
+                <!-- Next Steps -->
+                <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                  <p style="font-size: 11px; font-weight: 600; color: #1e40af; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">다음 단계</p>
+                  <div style="font-size: 13px; color: #475569; line-height: 1.8;">
+                    <div style="margin-bottom: 8px;">📍 전문가 대시보드에 로그인하세요</div>
+                    <div style="margin-bottom: 8px;">📍 프로필을 완성하고 공개 설정을 확인하세요</div>
+                    <div style="margin-bottom: 8px;">📍 예약 가능 시간을 설정하세요</div>
+                    <div>📍 첫 상담 요청을 기다려보세요!</div>
+                  </div>
+                </div>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 24px 0;">
+                  <a href="${process.env.FRONTEND_URL}/dashboard/expert" style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                    전문가 대시보드로 이동
+                  </a>
+                </div>
+              ` : `
+                <!-- Rejection Message -->
+                <div style="background: #fef2f2; border: 2px solid #fecaca; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <p style="color: #991b1b; margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; font-weight: 600;">
+                    검토 결과
+                  </p>
+                  <p style="color: #7f1d1d; margin: 0; font-size: 13px; line-height: 1.6;">
+                    제출하신 전문가 등록 신청을 신중히 검토한 결과, 아쉽게도 현재 단계에서는 승인이 어려운 것으로 판단되었습니다.
+                  </p>
+                </div>
+
+                ${rejectionReason ? `
+                  <!-- Review Notes -->
+                  <div style="background: #fff7ed; border-left: 3px solid #f59e0b; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                    <p style="font-size: 11px; font-weight: 600; color: #92400e; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">검토 의견</p>
+                    <p style="color: #92400e; margin: 0; font-size: 13px; line-height: 1.6;">
+                      ${rejectionReason}
+                    </p>
+                  </div>
+                ` : ''}
+
+                <!-- Re-application Info -->
+                <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px;">
+                  <div style="display: flex; align-items: flex-start; gap: 8px;">
+                    <span style="color: #3b82f6; font-size: 14px;">ℹ️</span>
+                    <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">
+                      <strong>재신청 안내:</strong> 피드백을 반영하여 언제든지 다시 신청하실 수 있습니다. 자격 요건을 보완한 후 재신청해 주시기 바랍니다.
+                    </p>
+                  </div>
+                </div>
+              `}
+
+              <!-- Application Info -->
+              <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-top: 24px;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">신청 번호</p>
+                <div style="font-size: 18px; font-weight: 700; color: #1e293b; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; margin: 0;">${applicationId}</div>
               </div>
-            `}
 
-            <!-- Application Info -->
-            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-top: 24px;">
-              <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0;">신청 번호</p>
-              <p style="font-size: 14px; font-weight: 600; color: #1e293b; margin: 0; font-family: monospace;">${applicationId}</p>
             </div>
           </div>
 
           <!-- Footer -->
           <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">
-              문의사항이 있으시면 <a href="mailto:consult.on.official@gmail.com" style="color: #3b82f6; text-decoration: none;">consult.on.official@gmail.com</a>로 연락주세요
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+              문의: <a href="mailto:consult.on.official@gmail.com" style="color: #3b82f6; text-decoration: none;">consult.on.official@gmail.com</a>
             </p>
-            <p style="margin: 0; font-size: 12px; color: #94a3b8;">© 2024 Consult-On. All rights reserved.</p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">본 메일은 발신 전용입니다 · © 2024 Consult-On. All rights reserved.</p>
           </div>
 
         </div>
@@ -517,6 +535,117 @@ ${isApproved
 ${rejectionReason ? `검토 의견: ${rejectionReason}\n` : ''}
 재신청 안내: 피드백을 반영하여 언제든지 다시 신청하실 수 있습니다.`
 }
+
+신청 번호: ${applicationId}
+
+문의: consult.on.official@gmail.com
+© 2024 Consult-On. All rights reserved.
+    `
+
+    return this.sendMail(to, subject, html, text)
+  }
+
+  // 추가 정보 요청 이메일 전송
+  async sendAdditionalInfoRequestEmail(
+    to: string,
+    applicantName: string,
+    applicationId: string,
+    requestNotes: string
+  ) {
+    const subject = '[Consult-On] 전문가 등록 - 추가 정보가 필요합니다'
+
+    // 줄바꿈을 <br> 태그로 변환
+    const formattedNotes = requestNotes.replace(/\n/g, '<br>')
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>추가 정보 요청</title>
+      </head>
+      <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
+        <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header & Content Wrapper -->
+          <div style="display: flex; align-items: stretch;">
+
+            <!-- Left Side: Header -->
+            <div style="background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+              <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">전문가 등록<br/>추가 정보 요청</p>
+            </div>
+
+            <!-- Right Side: Main Content -->
+            <div style="flex: 1; padding: 40px 35px;">
+
+              <!-- Welcome Message -->
+              <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">추가 정보가 필요합니다</h2>
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">안녕하세요, ${applicantName}님!</p>
+
+              <!-- Info Request Message -->
+              <div style="background: #fffbeb; border: 2px solid #fde68a; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <p style="color: #92400e; margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; font-weight: 600;">
+                  📝 검토 진행 중
+                </p>
+                <p style="color: #78350f; margin: 0; font-size: 13px; line-height: 1.6;">
+                  제출하신 전문가 등록 신청을 검토하던 중 아래 사항에 대한 추가 정보가 필요합니다.
+                </p>
+              </div>
+
+              <!-- Request Details -->
+              <div style="background: #fff7ed; border-left: 3px solid #f59e0b; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                <p style="font-size: 11px; font-weight: 600; color: #92400e; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">요청 사항</p>
+                <div style="color: #92400e; margin: 0; font-size: 13px; line-height: 1.6;">
+                  ${formattedNotes}
+                </div>
+              </div>
+
+              <!-- Next Steps -->
+              <div style="background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; padding: 16px 20px;">
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                  <span style="color: #3b82f6; font-size: 14px;">ℹ️</span>
+                  <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.5;">
+                    <strong>다음 단계:</strong> 추가 정보를 준비하신 후 재신청 또는 이메일로 회신해 주시기 바랍니다. 빠른 시일 내에 검토를 완료하겠습니다.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Application Info -->
+              <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-top: 24px;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">신청 번호</p>
+                <div style="font-size: 18px; font-weight: 700; color: #1e293b; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; margin: 0;">${applicationId}</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+              문의: <a href="mailto:consult.on.official@gmail.com" style="color: #3b82f6; text-decoration: none;">consult.on.official@gmail.com</a>
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">본 메일은 발신 전용입니다 · © 2024 Consult-On. All rights reserved.</p>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `
+
+    const text = `
+[Consult-On] 전문가 등록 - 추가 정보 요청
+
+안녕하세요, ${applicantName}님!
+
+제출하신 전문가 등록 신청을 검토하던 중 아래 사항에 대한 추가 정보가 필요합니다.
+
+요청 사항:
+${requestNotes}
+
+다음 단계: 추가 정보를 준비하신 후 재신청 또는 이메일로 회신해 주시기 바랍니다.
+빠른 시일 내에 검토를 완료하겠습니다.
 
 신청 번호: ${applicationId}
 

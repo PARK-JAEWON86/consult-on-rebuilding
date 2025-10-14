@@ -257,6 +257,7 @@ model ExpertApplication {
   bio                  String
   keywords             Json
   consultationTypes    Json
+  languages            Json                    @default("[\"한국어\"]")
   availability         Json
   certifications       Json
   education            Json                    @default("[]")

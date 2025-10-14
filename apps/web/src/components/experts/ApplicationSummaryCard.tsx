@@ -15,6 +15,7 @@ interface ApplicationData {
   email?: string
   phoneNumber?: string
   experienceYears?: number
+  languages?: string[]
   certifications?: Array<{ name: string; issuer: string }>
   education?: Array<{ school: string; major: string; degree: string }>
   workExperience?: Array<{ company: string; position: string; period: string }>
@@ -111,6 +112,23 @@ export default function ApplicationSummaryCard({
             <span className="font-medium text-gray-900">
               {applicationData.experienceYears}년
             </span>
+          </div>
+        )}
+
+        {/* 구사 언어 */}
+        {applicationData.languages && applicationData.languages.length > 0 && (
+          <div className="flex justify-between items-start">
+            <span className="text-sm text-gray-600 pt-1">구사 언어</span>
+            <div className="flex flex-wrap gap-2 justify-end max-w-[60%]">
+              {applicationData.languages.map((language, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full"
+                >
+                  {language}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

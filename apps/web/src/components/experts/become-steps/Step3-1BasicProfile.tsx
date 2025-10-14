@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ImageIcon, Sparkles, Clock, Tag, FileText, Upload, Briefcase, GraduationCap, Plus, Trash2, Users, MessageCircle } from 'lucide-react'
+import { ImageIcon, Sparkles, Clock, Tag, FileText, Upload, Briefcase, GraduationCap, Plus, Trash2, Users, MessageCircle, Globe } from 'lucide-react'
 
 interface Category {
   id: number
@@ -56,6 +56,10 @@ interface Step31BasicProfileProps {
   consultationStyle: string
   onConsultationStyleChange: (value: string) => void
 
+  // 구사 언어
+  languages: string[]
+  onLanguagesChange: (languages: string[]) => void
+
   // 경력사항
   workExperience: WorkExperience[]
   onWorkExperienceChange: (index: number, field: keyof WorkExperience, value: string) => void
@@ -92,6 +96,8 @@ export default function Step31BasicProfile({
   onMbtiChange,
   consultationStyle,
   onConsultationStyleChange,
+  languages,
+  onLanguagesChange,
   workExperience,
   onWorkExperienceChange,
   onAddWorkExperience,
@@ -113,6 +119,12 @@ export default function Step31BasicProfile({
     if (!selectedCategoryId) missingFields.push('상담분야')
     if (keywords.length === 0) missingFields.push('키워드')
     if (bio.trim().length < 30) missingFields.push('자기소개(30자 이상)')
+
+    // 경력사항 필수 검증: 최소 1개 이상의 유효한 경력 필요
+    const hasValidWorkExperience = workExperience.some(exp =>
+      exp.company.trim() && exp.position.trim() && exp.period.trim()
+    )
+    if (!hasValidWorkExperience) missingFields.push('경력사항(최소 1개)')
 
     return missingFields
   }
@@ -175,9 +187,9 @@ export default function Step31BasicProfile({
           </div>
         </div>
 
-        {/* 상담분야, 경력, 키워드 */}
+        {/* 상담분야, 경력, 구사 언어 */}
         <div className="flex-1 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
                 <Sparkles className="w-4 h-4 mr-2" /> 상담분야
@@ -205,17 +217,36 @@ export default function Step31BasicProfile({
 
             <div>
               <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
-                <Clock className="w-4 h-4 mr-2" /> 경력 (년)
+                <Clock className="w-4 h-4 mr-2" /> 경력
                 <span className="ml-2 text-xs text-gray-500 font-normal">(경력 사항 입력 시 자동 계산)</span>
               </label>
               <input
-                type="number"
-                min={0}
-                value={experienceYears}
+                type="text"
+                value={experienceYears === 0 ? '0년' : `${Math.floor(experienceYears)}년 ${Math.round((experienceYears % 1) * 12)}개월`}
                 readOnly
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed"
                 title="경력 사항에서 자동으로 계산됩니다"
+              />
+            </div>
+
+            <div>
+              <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
+                <Globe className="w-4 h-4 mr-2" /> 구사 언어
+                <span className="ml-2 text-xs text-gray-500 font-normal">(콤마로 구분)</span>
+              </label>
+              <input
+                type="text"
+                value={languages.join(', ')}
+                onChange={(e) => {
+                  const languagesArray = e.target.value
+                    .split(',')
+                    .map(lang => lang.trim())
+                    .filter(lang => lang.length > 0);
+                  onLanguagesChange(languagesArray);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="예: 한국어, 영어"
               />
             </div>
           </div>
@@ -357,12 +388,13 @@ export default function Step31BasicProfile({
       <div>
         <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
           <Briefcase className="w-4 h-4 mr-2" /> 경력사항
-          <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
+          <span className="text-red-500 ml-1">*</span>
+          <span className="ml-2 text-xs text-gray-500 font-normal">(최소 1개)</span>
         </h3>
         <div className="space-y-3">
           {workExperience.map((exp, index) => (
             <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1.5fr] gap-3 mb-3">
                 <input
                   type="text"
                   value={exp.company}
@@ -381,7 +413,7 @@ export default function Step31BasicProfile({
                   type="text"
                   value={exp.period}
                   onChange={(e) => onWorkExperienceChange(index, 'period', e.target.value)}
-                  placeholder="기간 (예: 2020 ~ 2023)"
+                  placeholder="기간 (예: 2020.01 ~ 2023.12 또는 2020.01 ~ 현재)"
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>

@@ -6,10 +6,8 @@ import { Info } from 'lucide-react'
 interface Step1BasicInfoProps {
   fullName: string
   email: string
-  phoneNumber: string
   onFullNameChange: (value: string) => void
   onEmailChange: (value: string) => void
-  onPhoneNumberChange: (value: string) => void
   onNext: () => void
   canGoNext: boolean
 }
@@ -17,10 +15,8 @@ interface Step1BasicInfoProps {
 export default function Step1BasicInfo({
   fullName,
   email,
-  phoneNumber,
   onFullNameChange,
   onEmailChange,
-  onPhoneNumberChange,
   onNext,
   canGoNext,
 }: Step1BasicInfoProps) {
@@ -41,9 +37,9 @@ export default function Step1BasicInfo({
         </div>
       </div>
 
-      {/* 기본 정보: 이름, 이메일, 휴대폰 번호 */}
+      {/* 기본 정보: 이름, 이메일 */}
       <div className="max-w-full">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               이름 <span className="text-gray-500 text-xs">(본명)</span>
@@ -70,27 +66,6 @@ export default function Step1BasicInfo({
               placeholder="이메일을 입력하세요"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              휴대폰 번호
-              <span className="text-red-500 ml-1">*</span>
-            </label>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^0-9]/g, '')
-                onPhoneNumberChange(value)
-              }}
-              placeholder="01012345678"
-              maxLength={11}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              숫자만 입력해주세요 (하이픈 제외)
-            </p>
           </div>
         </div>
       </div>
