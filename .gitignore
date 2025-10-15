@@ -119,3 +119,7 @@ ehthumbs.db
 database/backups/
 *.sql
 *.sql.gz
+
+# Test files with credentials (never commit)
+**/test-api-key.js
+**/test-*.js

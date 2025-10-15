@@ -103,6 +103,9 @@ export default function AdminDashboardPage() {
       {/* 빠른 액션 */}
       <QuickActions
         pendingApplications={data.summary.experts.pending_applications}
+        additionalInfoRequested={data.summary.experts.additional_info_requested}
+        approvedApplications={data.summary.experts.approved_applications}
+        rejectedApplications={data.summary.experts.rejected_applications}
         reportedContent={data.summary.community.reported_content}
       />
 
@@ -185,7 +188,8 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ApplicationStatusChart data={[
           { name: '대기중', value: data.summary.experts.pending_applications },
-          { name: '승인됨', value: data.summary.experts.total - data.summary.experts.pending_applications },
+          { name: '정보 요청됨', value: data.summary.experts.additional_info_requested },
+          { name: '승인됨', value: data.summary.experts.approved_applications },
         ]} />
 
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">

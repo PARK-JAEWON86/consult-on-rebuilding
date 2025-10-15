@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAIUsage,
@@ -13,6 +12,7 @@ import {
   AIUsageResponse,
   AVERAGE_TOKENS_PER_TURN
 } from '@/lib/ai-usage';
+import { api } from '@/lib/api';
 import {
   Bot, User, Send, Plus, Brain, Zap, AlertCircle, Loader2,
   ThumbsUp, ThumbsDown, Copy, MoreVertical
@@ -38,7 +38,7 @@ interface ChatSession {
 }
 
 export default function ChatPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -89,10 +89,11 @@ export default function ChatPage() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // 로딩 중이 아니고, 인증되지 않은 경우에만 리다이렉트
+    if (!isAuthLoading && !isAuthenticated) {
       router.push('/auth/login?redirect=/chat');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthLoading, isAuthenticated, router]);
 
   useEffect(() => {
     scrollToBottom();
@@ -166,6 +167,18 @@ export default function ChatPage() {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // 인증 상태 확인
+    if (!isAuthenticated) {
+      const authErrorMessage: ChatMessage = {
+        id: `msg-${Date.now()}-auth-error`,
+        role: 'assistant',
+        content: '로그인이 필요한 서비스입니다. 로그인 후 이용해주세요.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, authErrorMessage]);
+      return;
+    }
+
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -178,15 +191,35 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // 시뮬레이션된 AI 응답 (실제로는 AI API 호출)
-      const response = await simulateAIResponse(userMessage.content);
+      // 디버깅: API 호출 정보 출력
+      console.log('[Chat] Sending message to API:', {
+        endpoint: '/chat/message',
+        sessionId: currentSessionId !== 'new' ? currentSessionId : undefined,
+        messageLength: userMessage.content.length
+      });
+
+      // 백엔드 API 호출로 실제 GPT 응답 받기
+      const data = await api.post('/chat/message', {
+        message: userMessage.content,
+        sessionId: currentSessionId !== 'new' ? currentSessionId : undefined
+      });
+
+      console.log('[Chat] API response received:', {
+        success: data.success,
+        hasData: !!data.data,
+        tokenCount: data.data?.tokenCount
+      });
+
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message || 'API 응답 형식이 올바르지 않습니다.');
+      }
 
       const assistantMessage: ChatMessage = {
-        id: `msg-${Date.now()}-assistant`,
+        id: data.data.messageId,
         role: 'assistant',
-        content: response.content,
+        content: data.data.content,
         timestamp: new Date(),
-        tokens: response.tokens
+        tokens: data.data.tokenCount
       };
 
       const updatedMessages = [...messages, userMessage, assistantMessage];
@@ -196,9 +229,9 @@ export default function ChatPage() {
       localStorage.setItem(`chat-messages-${currentSessionId}`, JSON.stringify(updatedMessages));
 
       // 토큰 사용량 기록
-      if (response.tokens) {
+      if (data.data.tokenCount) {
         await recordUsageMutation.mutateAsync({
-          tokens: response.tokens,
+          tokens: data.data.tokenCount,
           precise: preciseMode
         });
       }
@@ -206,12 +239,35 @@ export default function ChatPage() {
       // 세션 업데이트
       updateCurrentSession([userMessage, assistantMessage]);
 
-    } catch (error) {
-      console.error('AI 응답 생성 실패:', error);
+    } catch (error: any) {
+      // 상세 에러 로깅
+      console.error('[Chat] Error details:', {
+        message: error?.message,
+        status: error?.status,
+        context: error?.context,
+        error: error
+      });
+
+      // 에러 타입에 따른 메시지 생성
+      let errorContent = '죄송합니다. 현재 AI 서비스에 문제가 발생했습니다.';
+
+      if (error?.status === 401) {
+        errorContent = '인증이 만료되었습니다. 다시 로그인해주세요.';
+      } else if (error?.status === 429) {
+        errorContent = 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error?.status >= 500) {
+        errorContent = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error?.message) {
+        // 개발 환경에서는 실제 에러 메시지도 표시
+        if (process.env.NODE_ENV === 'development') {
+          errorContent += `\n\n[개발 모드] ${error.message}`;
+        }
+      }
+
       const errorMessage: ChatMessage = {
         id: `msg-${Date.now()}-error`,
         role: 'assistant',
-        content: '죄송합니다. 현재 AI 서비스에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        content: errorContent,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -220,28 +276,6 @@ export default function ChatPage() {
     }
   };
 
-  const simulateAIResponse = async (userInput: string): Promise<{ content: string; tokens: number }> => {
-    // 실제로는 AI API 호출
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-    const responses = [
-      "안녕하세요! 궁금한 점이 있으시면 언제든 말씀해 주세요. 최선을 다해 도움을 드리겠습니다.",
-      "좋은 질문이네요. 이에 대해 자세히 설명해 드리겠습니다...",
-      "네, 이해했습니다. 관련하여 몇 가지 방법을 제안해 드릴 수 있습니다.",
-      "흥미로운 주제군요. 이 문제에 대해 다각도로 접근해 보겠습니다.",
-    ];
-
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    // 평균 토큰 사용량 기반으로 시뮬레이션 (±20% 변동)
-    const baseTokens = AVERAGE_TOKENS_PER_TURN;
-    const variation = Math.floor(baseTokens * 0.4 * Math.random() - baseTokens * 0.2); // -20% ~ +20%
-    const tokens = baseTokens + variation;
-
-    return {
-      content: randomResponse + `\n\n${userInput}에 대한 구체적인 답변을 제공해 드리겠습니다. 추가로 궁금한 점이 있으시면 언제든 말씀해 주세요.`,
-      tokens: preciseMode ? Math.floor(tokens * 1.2) : tokens
-    };
-  };
 
   const updateCurrentSession = (newMessages: ChatMessage[]) => {
     const updatedSessions = chatSessions.map(session =>
@@ -384,12 +418,21 @@ export default function ChatPage() {
   const remainingTokens = (aiUsage?.summary?.remainingFreeTokens || 0) + (aiUsage?.summary?.remainingPurchasedTokens || 0);
   const canAffordChat = remainingTokens > 500; // 최소 500토큰 필요
 
+  // 로딩 중이면 로딩 화면 표시
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // 인증되지 않은 경우 null 반환 (리다이렉트 진행 중)
   if (!isAuthenticated) {
     return null;
   }
 
   return (
-    <DashboardLayout variant="user">
       <div className="flex flex-col h-full bg-gray-50 pb-32">
       {/* 페이지 헤더 - 토큰 잔량과 새 대화 버튼 */}
       <div className="bg-gray-50 border-b border-gray-200 p-2">
@@ -628,6 +671,5 @@ export default function ChatPage() {
         </div>
       </div>
       </div>
-    </DashboardLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIUsageService } from '../ai-usage/ai-usage.service';
+import { OpenAIService } from '../openai/openai.service';
 
 interface ChatMessage {
   id: string;
@@ -25,7 +26,8 @@ interface ChatSession {
 export class ChatService {
   constructor(
     private prisma: PrismaService,
-    private aiUsageService: AIUsageService
+    private aiUsageService: AIUsageService,
+    private openaiService: OpenAIService,
   ) {}
 
   async getChatSessions(userId: number, limit: number = 20, search?: string) {
@@ -38,7 +40,7 @@ export class ChatService {
       ];
     }
 
-    const sessions = await (this.prisma as any).chatSession.findMany({
+    const sessions = await this.prisma.chatSession.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
       take: limit,
@@ -67,7 +69,7 @@ export class ChatService {
   }
 
   async getChatSession(userId: number, sessionId: string) {
-    const session = await (this.prisma as any).chatSession.findFirst({
+    const session = await this.prisma.chatSession.findFirst({
       where: { id: sessionId, userId },
       include: {
         messages: {
@@ -99,7 +101,7 @@ export class ChatService {
   }
 
   async createChatSession(userId: number) {
-    const session = await (this.prisma as any).chatSession.create({
+    const session = await this.prisma.chatSession.create({
       data: {
         userId,
         title: '새로운 상담',
@@ -120,40 +122,80 @@ export class ChatService {
   }
 
   async sendMessage(userId: number, message: string, sessionId?: string) {
+    console.log('[ChatService] sendMessage 호출됨:', { userId, message: message.substring(0, 50), sessionId });
+
     let session;
 
     // 세션이 없으면 새로 생성
     if (!sessionId) {
+      console.log('[ChatService] 새 세션 생성 중...');
       session = await this.createChatSession(userId);
       sessionId = session.id;
+      console.log('[ChatService] 새 세션 생성 완료:', sessionId);
     } else {
-      session = await (this.prisma as any).chatSession.findFirst({
+      console.log('[ChatService] 기존 세션 조회 중:', sessionId);
+      session = await this.prisma.chatSession.findFirst({
         where: { id: sessionId, userId },
+        include: {
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 20, // 최근 20개 메시지만 컨텍스트로 사용
+          },
+        },
       });
 
       if (!session) {
         throw new Error('세션을 찾을 수 없습니다.');
       }
+      console.log('[ChatService] 기존 세션 조회 완료, 메시지 수:', session.messages?.length || 0);
     }
 
     // 사용자 메시지 저장
-    const userMessage = await (this.prisma as any).chatMessage.create({
-      data: {
-        sessionId,
-        type: 'user',
-        content: message,
-        tokenCount: 0,
-        creditsUsed: 0,
-      },
-    });
+    console.log('[ChatService] 사용자 메시지 저장 중...', { sessionId, messageLength: message.length });
+    let userMessage;
+    try {
+      userMessage = await this.prisma.chatMessage.create({
+        data: {
+          sessionId,
+          type: 'user',
+          content: message,
+          tokenCount: 0,
+          creditsUsed: 0,
+        },
+      });
+      console.log('[ChatService] 사용자 메시지 저장 완료:', userMessage.id);
+    } catch (error) {
+      console.error('[ChatService] 사용자 메시지 저장 실패:', error);
+      throw error;
+    }
 
-    // AI 응답 생성 (여기서는 간단한 응답으로 시뮬레이션)
-    const aiResponse = await this.generateAIResponse(message);
-    const tokenCount = this.estimateTokenCount(aiResponse);
+    // 🔥 OpenAI API로 응답 생성
+    console.log('[ChatService] OpenAI API 호출 준비 중...');
+    const systemPrompt = this.openaiService.getSystemPrompt();
+    const conversationHistory = this.buildConversationHistory(session.messages || []);
+    conversationHistory.push({ type: 'user', content: message });
+
+    let aiResponse: string;
+    let tokenCount: number;
+
+    try {
+      const response = await this.openaiService.generateChatResponse(
+        conversationHistory,
+        systemPrompt
+      );
+      aiResponse = response.content;
+      tokenCount = response.tokenCount;
+    } catch (error) {
+      // Fallback: 에러 발생 시 기본 응답
+      console.error('OpenAI API Error:', error);
+      aiResponse = '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      tokenCount = this.estimateTokenCount(aiResponse);
+    }
+
     const creditsUsed = this.calculateCreditsUsed(tokenCount);
 
     // AI 메시지 저장
-    const aiMessage = await (this.prisma as any).chatMessage.create({
+    const aiMessage = await this.prisma.chatMessage.create({
       data: {
         sessionId,
         type: 'ai',
@@ -167,7 +209,7 @@ export class ChatService {
     await this.aiUsageService.addTurnUsage(userId, tokenCount, false);
 
     // 세션 업데이트 (제목, 토큰/크레딧 합계)
-    const updatedSession = await (this.prisma as any).chatSession.update({
+    const updatedSession = await this.prisma.chatSession.update({
       where: { id: sessionId },
       data: {
         title: session.title === '새로운 상담' ? this.generateSessionTitle(message) : session.title,
@@ -193,7 +235,7 @@ export class ChatService {
 
   async deleteChatSession(userId: number, sessionId: string) {
     // 세션 소유권 확인
-    const session = await (this.prisma as any).chatSession.findFirst({
+    const session = await this.prisma.chatSession.findFirst({
       where: { id: sessionId, userId },
     });
 
@@ -202,42 +244,23 @@ export class ChatService {
     }
 
     // 관련 메시지들과 함께 세션 삭제
-    await (this.prisma as any).chatMessage.deleteMany({
+    await this.prisma.chatMessage.deleteMany({
       where: { sessionId },
     });
 
-    await (this.prisma as any).chatSession.delete({
+    await this.prisma.chatSession.delete({
       where: { id: sessionId },
     });
   }
 
-  private async generateAIResponse(userMessage: string): Promise<string> {
-    // 실제로는 여기에 OpenAI API 호출이나 다른 AI 서비스 호출이 들어갑니다
-    // 현재는 간단한 시뮬레이션 응답을 제공합니다
-
-    const responses = [
-      '안녕하세요! 좋은 질문이네요. 이 문제에 대해 다양한 관점에서 생각해볼 수 있습니다.',
-      '그런 상황이라면 정말 어려우셨을 것 같아요. 먼저 현재 상황을 정확히 파악해보는 것이 중요합니다.',
-      '이해합니다. 이런 고민을 하고 계시는군요. 단계별로 접근해보면 좋을 것 같습니다.',
-      '좋은 접근 방법이네요. 이 경우에는 몇 가지 옵션을 고려해볼 수 있습니다.',
-      '말씀해주신 내용을 보니 신중하게 생각하고 계시는 것 같습니다. 제가 도움드릴 수 있는 방법을 알려드릴게요.',
-    ];
-
-    // 키워드 기반 응답
-    if (userMessage.includes('스트레스')) {
-      return '스트레스 관리는 현대인에게 매우 중요한 주제입니다. 규칙적인 운동, 충분한 수면, 명상이나 호흡법 등이 도움이 될 수 있습니다. 또한 스트레스의 원인을 파악하고 이를 해결하기 위한 구체적인 계획을 세우는 것도 중요합니다.';
-    }
-
-    if (userMessage.includes('투자')) {
-      return '투자는 신중한 접근이 필요한 영역입니다. 먼저 자신의 투자 목표와 위험 감수 능력을 명확히 하고, 분산 투자의 원칙을 따르는 것이 좋습니다. 또한 투자하기 전에 충분한 공부와 정보 수집이 필요합니다.';
-    }
-
-    if (userMessage.includes('건강')) {
-      return '건강 관리는 생활 습관의 개선에서 시작됩니다. 균형 잡힌 식단, 규칙적인 운동, 충분한 수면, 스트레스 관리가 기본입니다. 또한 정기적인 건강 검진을 통해 조기에 문제를 발견하고 대처하는 것이 중요합니다.';
-    }
-
-    // 기본 응답
-    return responses[Math.floor(Math.random() * responses.length)] + ' 더 구체적인 상황이나 고민이 있으시면 자세히 말씀해 주세요.';
+  /**
+   * 대화 컨텍스트 구성
+   */
+  private buildConversationHistory(messages: any[]): Array<{ type: 'user' | 'ai'; content: string }> {
+    return messages.map((msg) => ({
+      type: msg.type === 'user' ? 'user' : 'ai',
+      content: msg.content,
+    }));
   }
 
   private estimateTokenCount(text: string): number {

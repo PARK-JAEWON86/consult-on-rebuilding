@@ -26,6 +26,7 @@ import {
   Briefcase,
   Tag,
   FileText,
+  XCircle,
 } from 'lucide-react'
 
 // Step Components
@@ -735,6 +736,33 @@ export default function BecomeExpertPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 거절 알림 배너 */}
+      {(user as any)?.expertApplicationStatus === 'REJECTED' && (user as any)?.expertApplicationData?.reviewNotes && (
+        <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-6 rounded-r-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <XCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-red-900 mb-2">
+                지원이 거절되었습니다
+              </h3>
+              <p className="text-sm text-red-800 mb-3">
+                안타깝지만 현재 지원이 승인되지 않았습니다. 아래 사유를 확인하시고 보완 후 재지원하실 수 있습니다.
+              </p>
+              <div className="bg-white border border-red-200 rounded-lg p-4">
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                  {(user as any).expertApplicationData.reviewNotes}
+                </pre>
+              </div>
+              <p className="text-xs text-red-700 mt-3">
+                💡 정보를 수정하여 재지원하실 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 추가 정보 요청 알림 배너 */}
       {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' && (user as any)?.expertApplicationData?.reviewNotes && (
         <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
@@ -744,7 +772,7 @@ export default function BecomeExpertPage() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-amber-900 mb-2">
-                📝 추가 정보 요청
+                추가 정보 요청
               </h3>
               <p className="text-sm text-amber-800 mb-3">
                 관리자가 다음 사항에 대한 추가 정보를 요청했습니다. 아래 내용을 확인하시고 해당 항목을 보완하여 재제출해주세요.

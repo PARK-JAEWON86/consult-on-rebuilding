@@ -13,6 +13,7 @@ interface ApplicationStatusChartProps {
 
 const COLORS = {
   '대기중': '#f59e0b',
+  '정보 요청됨': '#f97316',
   '승인됨': '#10b981',
   '거절됨': '#ef4444',
 }
@@ -28,10 +29,14 @@ export default function ApplicationStatusChart({ data }: ApplicationStatusChartP
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
+            isAnimationActive={true}
+            animationBegin={0}
+            animationDuration={800}
+            animationEasing="ease-out"
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />

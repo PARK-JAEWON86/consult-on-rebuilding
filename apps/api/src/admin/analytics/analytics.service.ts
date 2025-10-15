@@ -582,9 +582,12 @@ export class AnalyticsService {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
-    const [totalExperts, pendingApplications, activeConsultations, totalRevenue] = await Promise.all([
+    const [totalExperts, pendingApplications, additionalInfoRequested, approvedApplications, rejectedApplications, activeConsultations, totalRevenue] = await Promise.all([
       this.prisma.expert.count({ where: { isActive: true } }),
-      this.prisma.expertApplication.count({ where: { status: 'PENDING' } }),
+      this.prisma.expertApplication.count({ where: { status: 'PENDING', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'ADDITIONAL_INFO_REQUESTED', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'APPROVED', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'REJECTED', viewedByAdmin: false } }),
       this.prisma.session.count({
         where: {
           status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
@@ -603,6 +606,9 @@ export class AnalyticsService {
     return {
       totalExperts,
       pendingApplications,
+      additionalInfoRequested,
+      approvedApplications,
+      rejectedApplications,
       activeConsultations,
       totalRevenue: totalRevenue._sum.cost || 0,
     }
@@ -641,8 +647,10 @@ export class AnalyticsService {
       totalExperts,
       activeExperts,
       pendingApplications,
-      totalApplications,
+      additionalInfoRequested,
       approvedApplications,
+      rejectedApplications,
+      totalApplications,
       totalConsultations,
       todayConsultations,
       pendingConsultations,
@@ -663,9 +671,11 @@ export class AnalyticsService {
       this.prisma.user.count({ where: { createdAt: { gte: startDate } } }), // Using createdAt as proxy for active users
       this.prisma.expert.count(),
       this.prisma.expert.count({ where: { isActive: true } }),
-      this.prisma.expertApplication.count({ where: { status: 'PENDING' } }),
+      this.prisma.expertApplication.count({ where: { status: 'PENDING', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'ADDITIONAL_INFO_REQUESTED', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'APPROVED', viewedByAdmin: false } }),
+      this.prisma.expertApplication.count({ where: { status: 'REJECTED', viewedByAdmin: false } }),
       this.prisma.expertApplication.count(),
-      this.prisma.expertApplication.count({ where: { status: 'APPROVED' } }),
       this.prisma.session.count(),
       this.prisma.session.count({ where: { createdAt: { gte: startDate } } }),
       this.prisma.session.count({ where: { status: { in: ['SCHEDULED', 'IN_PROGRESS'] } } }),
@@ -738,6 +748,9 @@ export class AnalyticsService {
         total: totalExperts,
         active: activeExperts,
         pending_applications: pendingApplications,
+        additional_info_requested: additionalInfoRequested,
+        approved_applications: approvedApplications,
+        rejected_applications: rejectedApplications,
         approval_rate: Math.round(approvalRate * 10) / 10,
       },
       consultations: {
@@ -765,13 +778,38 @@ export class AnalyticsService {
   }
 
   private async buildChartData(startDate: Date) {
-    // TODO: Implement chart data building
-    // For now, return empty arrays to match the interface
+    // Category distribution: count experts per category
+    const categoryGroups = await this.prisma.expertCategory.groupBy({
+      by: ['categoryId'],
+      _count: {
+        expertId: true
+      },
+      orderBy: {
+        _count: {
+          expertId: 'desc'
+        }
+      }
+    })
+
+    const categoryDistribution = await Promise.all(
+      categoryGroups.map(async (item) => {
+        const category = await this.prisma.category.findUnique({
+          where: { id: item.categoryId },
+          select: { nameKo: true }
+        })
+        return {
+          category: category?.nameKo || 'Unknown',
+          count: item._count.expertId
+        }
+      })
+    )
+
+    // TODO: Implement other chart data (user_growth, revenue_trend, etc.)
     return {
       user_growth: [],
       revenue_trend: [],
       consultation_stats: [],
-      category_distribution: [],
+      category_distribution: categoryDistribution,
       expert_level_distribution: [],
       rating_distribution: [],
     }

@@ -78,6 +78,17 @@ export class ExpertApplicationsService {
       })
     }
 
+    // 관리자가 조회하면 viewedByAdmin을 true로 업데이트
+    if (!application.viewedByAdmin) {
+      await this.prisma.expertApplication.update({
+        where: { id },
+        data: {
+          viewedByAdmin: true,
+          viewedAt: new Date(),
+        },
+      })
+    }
+
     // JSON 필드 파싱 (이중 인코딩된 경우 처리)
     const parseJsonField = (field: any): any => {
       if (!field) return []

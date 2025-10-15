@@ -47,6 +47,9 @@ export default function UserGrowthChart({ data }: UserGrowthChartProps) {
             dot={{ fill: '#3b82f6', r: 3 }}
             activeDot={{ r: 5 }}
             name="신규 사용자"
+            isAnimationActive={true}
+            animationDuration={1000}
+            animationEasing="ease-in-out"
           />
         </LineChart>
       </ResponsiveContainer>

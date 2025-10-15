@@ -120,6 +120,14 @@ export class ChatController {
         data: result,
       };
     } catch (error: any) {
+      // 디버깅: 실제 에러 로깅
+      console.error('[ChatController] sendMessage 에러 발생:', {
+        errorMessage: error?.message,
+        errorStack: error?.stack,
+        errorName: error?.name,
+        fullError: error
+      });
+
       return {
         success: false,
         error: {

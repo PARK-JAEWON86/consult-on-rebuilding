@@ -46,7 +46,15 @@ export default function RevenueChart({ data }: RevenueChartProps) {
               '매출',
             ]}
           />
-          <Bar dataKey="revenue" fill="#f59e0b" name="매출" radius={[4, 4, 0, 0]} />
+          <Bar
+            dataKey="revenue"
+            fill="#f59e0b"
+            name="매출"
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={true}
+            animationDuration={1000}
+            animationEasing="ease-in-out"
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>

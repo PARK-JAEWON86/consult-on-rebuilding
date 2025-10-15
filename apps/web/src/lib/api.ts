@@ -28,6 +28,19 @@ class APIClient {
     // Response interceptor to handle standard API response format and show toasts
     this.client.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
+        // 디버깅: 응답 구조 로깅
+        console.log('[API Interceptor] Response received:', {
+          url: response.config.url,
+          status: response.status,
+          dataStructure: {
+            hasSuccess: 'success' in response.data,
+            successValue: response.data.success,
+            hasData: 'data' in response.data,
+            hasError: 'error' in response.data,
+          },
+          fullData: response.data
+        });
+
         if (!response.data.success && response.data.error) {
           throw new Error(response.data.error.message || 'API Error');
         }

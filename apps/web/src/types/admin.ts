@@ -11,6 +11,9 @@ export interface DashboardMetrics {
     total: number
     active: number
     pending_applications: number
+    additional_info_requested: number
+    approved_applications: number
+    rejected_applications: number
     approval_rate: number
   }
   consultations: {
