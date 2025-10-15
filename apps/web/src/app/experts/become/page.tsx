@@ -93,7 +93,7 @@ export default function BecomeExpertPage() {
       // 이미 승인됨 - 전문가 대시보드로
       router.push('/dashboard/expert')
     }
-    // REJECTED나 null은 계속 진행 (재지원 허용)
+    // ADDITIONAL_INFO_REQUESTED, REJECTED나 null은 계속 진행 (재지원 허용)
   }, [user, isLoading, router])
 
   // 1단계: 기본 정보 + 휴대폰 인증
@@ -172,6 +172,77 @@ export default function BecomeExpertPage() {
     linkedin: '',
     blog: '',
   })
+
+  // ADDITIONAL_INFO_REQUESTED 상태일 때 기존 지원 정보로 폼 자동 채우기
+  useEffect(() => {
+    if (!user || isLoading) return
+
+    const status = (user as any).expertApplicationStatus
+    const appData = (user as any).expertApplicationData
+
+    if (status === 'ADDITIONAL_INFO_REQUESTED' && appData) {
+      console.log('🔄 추가 정보 요청 상태 - 기존 데이터로 폼 채우기:', appData)
+
+      // 1단계: 기본 정보
+      if (appData.specialty) {
+        setSpecialty(appData.specialty)
+        // specialty에서 카테고리 추출 (예: "심리상담 - 가족상담" -> "심리상담")
+        const categoryName = appData.specialty.split(' - ')[0]
+        // 카테고리가 로드되었으면 해당 카테고리 ID 찾기
+        if (categories.length > 0) {
+          const matchedCategory = categories.find(cat => cat.nameKo === categoryName)
+          if (matchedCategory) {
+            setSelectedCategoryId(matchedCategory.id)
+          }
+        }
+      }
+      if (appData.profileImage) {
+        setProfileImage(appData.profileImage)
+      }
+
+      // 2단계: 전문 정보
+      setExperienceYears(appData.experienceYears || 0)
+      setBio(appData.bio || '')
+      setKeywords(appData.keywords || [])
+      setConsultationTypes(appData.consultationTypes || [])
+      setLanguages(appData.languages || ['한국어'])
+      setMbti(appData.mbti || '')
+      setConsultationStyle(appData.consultationStyle || '')
+
+      // 자격증 및 경력
+      setCertifications(appData.certifications || [{ name: '', issuer: '', year: '' }])
+      setEducation(appData.education || [{ school: '', major: '', degree: '' }])
+      setWorkExperience(appData.workExperience || [{ company: '', position: '', period: '' }])
+
+      // 스케줄
+      if (appData.availability) {
+        setAvailabilitySlots(appData.availability.slots || [])
+        setHolidaySettings(appData.availability.holidays || {
+          acceptHolidayConsultations: false,
+          holidayNote: ''
+        })
+      }
+
+      console.log('✅ 폼 자동 채우기 완료')
+    }
+  }, [user, isLoading, categories])
+
+  // 카테고리 로드 후 specialty에 따른 추천 키워드 설정
+  useEffect(() => {
+    if (!user || isLoading || isLoadingCategories) return
+
+    const status = (user as any).expertApplicationStatus
+    const appData = (user as any).expertApplicationData
+
+    if (status === 'ADDITIONAL_INFO_REQUESTED' && appData && appData.specialty && categories.length > 0) {
+      // specialty 기반으로 추천 키워드 설정
+      const recommendedKeywords = getRecommendedKeywords(appData.specialty)
+      if (recommendedKeywords.length > 0) {
+        setSuggestedKeywords(recommendedKeywords)
+        console.log('✅ 추천 키워드 설정 완료:', recommendedKeywords)
+      }
+    }
+  }, [user, isLoading, isLoadingCategories, categories])
 
   // 전문분야별 추천 키워드 생성 함수
   const getRecommendedKeywords = (specialtyName: string): string[] => {
@@ -664,11 +735,41 @@ export default function BecomeExpertPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 추가 정보 요청 알림 배너 */}
+      {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' && (user as any)?.expertApplicationData?.reviewNotes && (
+        <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <Info className="w-6 h-6 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                📝 추가 정보 요청
+              </h3>
+              <p className="text-sm text-amber-800 mb-3">
+                관리자가 다음 사항에 대한 추가 정보를 요청했습니다. 아래 내용을 확인하시고 해당 항목을 보완하여 재제출해주세요.
+              </p>
+              <div className="bg-white border border-amber-200 rounded-lg p-4">
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                  {(user as any).expertApplicationData.reviewNotes}
+                </pre>
+              </div>
+              <p className="text-xs text-amber-700 mt-3">
+                💡 아래 폼이 기존 제출 정보로 자동으로 채워져 있습니다. 요청된 항목만 수정하여 다시 제출하시면 됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">전문가 등록</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' ? '전문가 등록 - 추가 정보 제출' : '전문가 등록'}
+        </h1>
         <p className="text-gray-600 mt-1">
-          경험과 지식을 나누고 수익을 만들어보세요. 3단계로 등록 신청을 완료할
-          수 있습니다.
+          {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED'
+            ? '요청된 항목을 확인하고 수정하여 재제출해주세요.'
+            : '경험과 지식을 나누고 수익을 만들어보세요. 3단계로 등록 신청을 완료할 수 있습니다.'}
         </p>
       </header>
 

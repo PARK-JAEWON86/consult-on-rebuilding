@@ -302,8 +302,8 @@ export class AuthService {
       result.expert = user.expert
     }
 
-    // ExpertApplication 상세 정보 추가 (PENDING 상태인 경우)
-    if (expertApplication && expertApplication.status === 'PENDING') {
+    // ExpertApplication 상세 정보 추가 (PENDING 또는 ADDITIONAL_INFO_REQUESTED 상태인 경우)
+    if (expertApplication && (expertApplication.status === 'PENDING' || expertApplication.status === 'ADDITIONAL_INFO_REQUESTED')) {
       // JSON 필드 파싱 헬퍼
       const parseJsonField = (field: any): any => {
         if (!field) return [];
@@ -328,6 +328,7 @@ export class AuthService {
         name: expertApplication.name,
         email: expertApplication.email,
         phoneNumber: expertApplication.phoneNumber,
+        jobTitle: expertApplication.jobTitle,
         experienceYears: expertApplication.experienceYears,
         languages: parseJsonField(expertApplication.languages),
         bio: expertApplication.bio,
@@ -341,7 +342,8 @@ export class AuthService {
         consultationStyle: expertApplication.consultationStyle,
         availability: parseJsonField(expertApplication.availability),
         emailNotification: expertApplication.emailNotification,
-        smsNotification: expertApplication.smsNotification
+        smsNotification: expertApplication.smsNotification,
+        reviewNotes: expertApplication.reviewNotes || null
       }
     }
 

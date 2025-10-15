@@ -34,8 +34,8 @@ export default function ApplicationStatusPage() {
     if (user) {
       const status = (user as any).expertApplicationStatus
 
-      // 상태가 PENDING이 아니면 리다이렉트
-      if (status !== 'PENDING') {
+      // PENDING과 ADDITIONAL_INFO_REQUESTED가 아니면 리다이렉트
+      if (status !== 'PENDING' && status !== 'ADDITIONAL_INFO_REQUESTED') {
         if (status === 'APPROVED' || user.expert) {
           router.push('/dashboard/expert')
         } else {

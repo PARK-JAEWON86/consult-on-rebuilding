@@ -247,6 +247,8 @@ export default function Navbar() {
                             const status = (user as any)?.expertApplicationStatus;
                             if (status === 'PENDING') {
                               router.push("/experts/application-status");
+                            } else if (status === 'ADDITIONAL_INFO_REQUESTED') {
+                              router.push("/experts/become");
                             } else if (status === 'APPROVED') {
                               router.push("/dashboard/expert");
                             } else if (status === 'REJECTED') {
@@ -259,6 +261,8 @@ export default function Navbar() {
                           className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-100 ${
                             (user as any)?.expertApplicationStatus === 'PENDING'
                               ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100 font-medium'
+                              : (user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED'
+                              ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 font-medium'
                               : (user as any)?.expertApplicationStatus === 'APPROVED'
                               ? 'text-green-700 font-medium'
                               : (user as any)?.expertApplicationStatus === 'REJECTED'
@@ -273,6 +277,8 @@ export default function Navbar() {
                               const status = (user as any)?.expertApplicationStatus;
                               if (status === 'PENDING') {
                                 return <Clock className="w-4 h-4 text-yellow-600 animate-pulse" />;
+                              } else if (status === 'ADDITIONAL_INFO_REQUESTED') {
+                                return <AlertCircle className="w-4 h-4 text-amber-600 animate-pulse" />;
                               } else if (status === 'APPROVED') {
                                 return <CheckCircle2 className="w-4 h-4 text-green-600" />;
                               } else if (status === 'REJECTED') {
@@ -288,16 +294,22 @@ export default function Navbar() {
                             {(() => {
                               const status = (user as any)?.expertApplicationStatus;
                               if (status === 'PENDING') return '검수 진행중';
+                              if (status === 'ADDITIONAL_INFO_REQUESTED') return '추가 정보 요청됨';
                               if (status === 'APPROVED') return '전문가 대시보드';
                               if (status === 'REJECTED') return '전문가 재지원';
                               return '전문가 지원하기';
                             })()}
                           </span>
 
-                          {/* 상태 뱃지 (PENDING일 때만) */}
+                          {/* 상태 뱃지 */}
                           {(user as any)?.expertApplicationStatus === 'PENDING' && (
                             <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
                               진행중
+                            </span>
+                          )}
+                          {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' && (
+                            <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-200 text-amber-800">
+                              수정필요
                             </span>
                           )}
                         </button>
@@ -501,6 +513,8 @@ export default function Navbar() {
                           const status = (user as any)?.expertApplicationStatus;
                           if (status === 'PENDING') {
                             router.push("/experts/application-status");
+                          } else if (status === 'ADDITIONAL_INFO_REQUESTED') {
+                            router.push("/experts/become");
                           } else if (status === 'APPROVED') {
                             router.push("/dashboard/expert");
                           } else if (status === 'REJECTED') {
@@ -513,6 +527,8 @@ export default function Navbar() {
                         className={`block w-full text-left px-3 py-2 text-sm rounded-md ${
                           (user as any)?.expertApplicationStatus === 'PENDING'
                             ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100 font-medium'
+                            : (user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED'
+                            ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 font-medium'
                             : (user as any)?.expertApplicationStatus === 'APPROVED'
                             ? 'text-green-700 font-medium hover:bg-gray-50'
                             : (user as any)?.expertApplicationStatus === 'REJECTED'
@@ -524,6 +540,8 @@ export default function Navbar() {
                           const status = (user as any)?.expertApplicationStatus;
                           if (status === 'PENDING') {
                             return <Clock className="w-4 h-4 inline mr-2 text-yellow-600 animate-pulse" />;
+                          } else if (status === 'ADDITIONAL_INFO_REQUESTED') {
+                            return <AlertCircle className="w-4 h-4 inline mr-2 text-amber-600 animate-pulse" />;
                           } else if (status === 'APPROVED') {
                             return <CheckCircle2 className="w-4 h-4 inline mr-2 text-green-600" />;
                           } else if (status === 'REJECTED') {
@@ -535,6 +553,7 @@ export default function Navbar() {
                         {(() => {
                           const status = (user as any)?.expertApplicationStatus;
                           if (status === 'PENDING') return '검수 진행중';
+                          if (status === 'ADDITIONAL_INFO_REQUESTED') return '추가 정보 요청됨';
                           if (status === 'APPROVED') return '전문가 대시보드';
                           if (status === 'REJECTED') return '전문가 재지원';
                           return '전문가 지원하기';
@@ -542,6 +561,11 @@ export default function Navbar() {
                         {(user as any)?.expertApplicationStatus === 'PENDING' && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
                             진행중
+                          </span>
+                        )}
+                        {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-200 text-amber-800">
+                            수정필요
                           </span>
                         )}
                       </button>

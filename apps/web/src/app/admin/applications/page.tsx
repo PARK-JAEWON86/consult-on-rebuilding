@@ -28,7 +28,7 @@ export default function AdminApplicationsPage() {
   const router = useRouter()
   const [applications, setApplications] = useState<ExpertApplication[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>('PENDING')
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -87,7 +87,7 @@ export default function AdminApplicationsPage() {
         <div className="flex flex-col md:flex-row gap-4">
           {/* 상태 필터 */}
           <div className="flex gap-2 flex-wrap">
-            {['PENDING', 'ADDITIONAL_INFO_REQUESTED', 'APPROVED', 'REJECTED', ''].map((status) => (
+            {['', 'PENDING', 'ADDITIONAL_INFO_REQUESTED', 'APPROVED', 'REJECTED'].map((status) => (
               <button
                 key={status}
                 onClick={() => {
