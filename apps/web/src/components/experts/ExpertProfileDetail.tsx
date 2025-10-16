@@ -358,7 +358,7 @@ export default function ExpertProfileDetail({
                         {category}
                       </Badge>
                     ))}
-                    {(expertData as any).specialties?.slice(0, 3).map((specialty: any, index: number) => (
+                    {(expertData as any).keywords?.slice(0, 3).map((specialty: any, index: number) => (
                       <Badge key={`specialty-${index}`} variant="gray">
                         {specialty}
                       </Badge>

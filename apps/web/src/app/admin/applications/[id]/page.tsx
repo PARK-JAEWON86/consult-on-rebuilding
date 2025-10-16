@@ -242,7 +242,7 @@ export default function ApplicationDetailPage() {
                 {application.phoneNumber && (
                   <InfoRow icon={<Phone className="w-5 h-5" />} label="전화번호" value={application.phoneNumber} />
                 )}
-                <InfoRow icon={<FileText className="w-5 h-5" />} label="전문분야" value={application.specialty.split(' - ')[0] || application.specialty} />
+                <InfoRow icon={<FileText className="w-5 h-5" />} label="전문분야" value={application.specialty} />
 
                 {/* 키워드 */}
                 {application.keywords && Array.isArray(application.keywords) && application.keywords.length > 0 && (

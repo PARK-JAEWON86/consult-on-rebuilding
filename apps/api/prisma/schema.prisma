@@ -86,7 +86,7 @@ model Expert {
   responseTime       String               @default("2시간 내")
   socialLinks        Json
   socialProof        Json
-  specialties        Json
+  keywords           Json
   specialty          String?
   totalSessions      Int                  @default(0)
   userId             Int?                 @unique

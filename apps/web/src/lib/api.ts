@@ -51,6 +51,31 @@ class APIClient {
         let message = 'API Error';
         let shouldShowToast = true;
 
+        // 🔍 상세 에러 로깅 (디버깅용)
+        console.error('[API Error Interceptor] Full error object:', {
+          hasResponse: !!error.response,
+          hasRequest: !!error.request,
+          message: error.message,
+          code: error.code,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            baseURL: error.config?.baseURL,
+            withCredentials: error.config?.withCredentials,
+          },
+          response: error.response ? {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            headers: error.response.headers,
+          } : 'NO RESPONSE',
+          request: error.request ? {
+            readyState: error.request.readyState,
+            status: error.request.status,
+            responseURL: error.request.responseURL,
+          } : 'NO REQUEST'
+        });
+
         // 에러 로깅 개선
         const errorContext = {
           url: error.config?.url,
@@ -159,6 +184,71 @@ class APIClient {
 
   async patch<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     const response = await this.client.patch<ApiResponse<T>>(endpoint, data);
+    return response.data;
+  }
+
+  /**
+   * 파일 업로드 (프로필 이미지, 포트폴리오 등)
+   * @param displayId Expert displayId
+   * @param file File object or Base64 data
+   * @param fileCategory 'profile' | 'portfolio' | 'certification'
+   */
+  async uploadExpertFile(
+    displayId: string,
+    file: File | string,
+    fileCategory: 'profile' | 'portfolio' | 'certification'
+  ): Promise<ApiResponse<{ fileUrl?: string; file?: any }>> {
+    // File 객체인 경우 Base64로 변환
+    let fileData: string;
+    let fileName: string;
+    let fileType: string;
+
+    if (typeof file === 'string') {
+      // 이미 Base64 문자열인 경우
+      fileData = file.replace(/^data:image\/\w+;base64,/, '');
+      fileName = `${fileCategory}-${Date.now()}.jpg`;
+      fileType = 'image/jpeg';
+    } else {
+      // File 객체인 경우
+      fileName = file.name;
+      fileType = file.type;
+
+      // File을 Base64로 변환
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.replace(/^data:.+;base64,/, ''));
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      fileData = base64;
+    }
+
+    const response = await this.client.post<ApiResponse<{ fileUrl?: string; file?: any }>>(
+      `/experts/${displayId}/upload`,
+      {
+        fileName,
+        fileType,
+        fileData,
+        fileCategory,
+      }
+    );
+
+    return response.data;
+  }
+
+  /**
+   * 파일 삭제
+   * @param displayId Expert displayId
+   * @param fileId File ID
+   */
+  async deleteExpertFile(displayId: string, fileId: number): Promise<ApiResponse> {
+    const response = await this.client.delete<ApiResponse>(
+      `/experts/${displayId}/files/${fileId}`
+    );
     return response.data;
   }
 }

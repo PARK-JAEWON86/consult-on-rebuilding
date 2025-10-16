@@ -264,7 +264,7 @@ const ExpertList = ({
                   reviewCount: expert.reviewCount,
                   experience: 0, // API에서 제공하지 않음
                   description: expert.bio || "",
-                  specialties: expert.categories,
+                  keywords: expert.categories,
                   consultationTypes: ["video", "chat"],
                   profileImage: expert.avatarUrl,
                   level: 1, // 기본값, ExpertCard에서 계산됨

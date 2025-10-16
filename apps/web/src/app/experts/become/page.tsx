@@ -631,11 +631,8 @@ export default function BecomeExpertPage() {
     const selectedCategory = categories.find(cat => cat.id === selectedCategoryId)
     const categoryName = selectedCategory ? selectedCategory.nameKo : ''
 
-    // 키워드를 specialty에 포함 (키워드가 있는 경우)
-    const keywordsText = keywords.length > 0 ? keywords.join(', ') : ''
-    const fullSpecialty = keywordsText
-      ? `${categoryName} - ${keywordsText}`
-      : categoryName || specialty
+    // specialty는 카테고리명만 (키워드는 별도로 keywords 필드에 전송)
+    const fullSpecialty = categoryName || specialty
 
     // API로 전송할 데이터 구성
     // availability를 요일별 객체로 변환 (DTO 형식에 맞춤)

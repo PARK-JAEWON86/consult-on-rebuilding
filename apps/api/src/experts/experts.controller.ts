@@ -1,8 +1,10 @@
-import { Controller, Get, Query, Param, NotFoundException, Post, Body, UseGuards, Request, Put } from '@nestjs/common';
+import { Controller, Get, Query, Param, NotFoundException, Post, Body, UseGuards, Request, Put, Delete } from '@nestjs/common';
 import { ExpertsService } from './experts.service';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CreateExpertApplicationDto, CreateExpertApplicationSchema } from './dto/expert-application.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { UploadFileDto } from './dto/upload-file.dto';
+import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
 
 @Controller('experts')
 export class ExpertsController {
@@ -103,7 +105,7 @@ export class ExpertsController {
   @UseGuards(JwtGuard)
   async updateProfile(
     @Param('displayId') displayId: string,
-    @Body() profileData: any,
+    @Body() profileData: UpdateExpertProfileDto,
     @Request() req: any
   ) {
     const userId = req.user.id;
@@ -120,7 +122,8 @@ export class ExpertsController {
       });
     }
 
-    const data = await this.svc.updateExpertProfile(displayId, profileData);
+    // updateProfile 메서드 사용 (expert.id로 호출)
+    const data = await this.svc.updateProfile((expert as any).id, profileData);
 
     return {
       success: true,
@@ -238,6 +241,66 @@ export class ExpertsController {
       success: true,
       data,
       message: '알림 설정이 업데이트되었습니다.'
+    };
+  }
+
+  @Post(':displayId/upload')
+  @UseGuards(JwtGuard)
+  async uploadFile(
+    @Param('displayId') displayId: string,
+    @Body() uploadDto: UploadFileDto,
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+
+    // 권한 검증: 본인의 프로필만 수정 가능
+    const expert = await this.svc.findByDisplayId(displayId);
+    if (!expert || (expert as any).userId !== userId) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'E_UNAUTHORIZED',
+          message: 'You can only upload files to your own profile'
+        }
+      });
+    }
+
+    const data = await this.svc.uploadFile((expert as any).id, uploadDto);
+
+    return {
+      success: true,
+      data,
+      message: data.message
+    };
+  }
+
+  @Delete(':displayId/files/:fileId')
+  @UseGuards(JwtGuard)
+  async deleteFile(
+    @Param('displayId') displayId: string,
+    @Param('fileId') fileId: string,
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+
+    // 권한 검증: 본인의 프로필만 수정 가능
+    const expert = await this.svc.findByDisplayId(displayId);
+    if (!expert || (expert as any).userId !== userId) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'E_UNAUTHORIZED',
+          message: 'You can only delete files from your own profile'
+        }
+      });
+    }
+
+    const data = await this.svc.deleteFile((expert as any).id, parseInt(fileId, 10));
+
+    return {
+      success: true,
+      data,
+      message: data.message
     };
   }
 }

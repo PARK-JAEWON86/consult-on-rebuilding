@@ -72,6 +72,8 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
   const [nextSettlementDate, setNextSettlementDate] = useState<Date>(new Date());
   const [daysUntilSettlement, setDaysUntilSettlement] = useState<number>(0);
   const [settlementAmount, setSettlementAmount] = useState<number>(0);
+  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(false);
 
   // 정산 정보 계산 함수들
   const getNextSettlementDate = (): Date => {
@@ -138,6 +140,106 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
       setSettlementAmount(75000);
     }
   }, [pathname, isAuthenticated, user]);
+
+  // 채팅 기록 초기화 - 백엔드 API에서 세션 로드
+  useEffect(() => {
+    // AbortController로 이전 요청 취소 (race condition 방지)
+    const controller = new AbortController();
+    let isMounted = true;
+
+    const loadChatSessions = async () => {
+      const isOnChatPage = isActivePath("/chat");
+      console.log('[Sidebar] 채팅 세션 로드 체크:', {
+        isAuthenticated,
+        isOnChatPage,
+        pathname
+      });
+
+      if (isAuthenticated && isOnChatPage) {
+        console.log('[Sidebar] AI 채팅 페이지 - 세션 목록 로드 시작');
+        setIsLoadingChatSessions(true);
+
+        try {
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+          const response = await fetch(`${apiBaseUrl}/chat/sessions?limit=20`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+            signal: controller.signal // 요청 취소 가능하도록
+          });
+
+          if (!response.ok) {
+            console.warn('[Sidebar] 채팅 세션 조회 실패:', response.status);
+            if (isMounted) {
+              setChatHistory([]);
+              setIsLoadingChatSessions(false);
+            }
+            return;
+          }
+
+          const result = await response.json();
+
+          // 컴포넌트가 언마운트되었거나 다른 페이지로 이동한 경우 상태 업데이트 안 함
+          if (!isMounted) return;
+
+          if (result.success && result.data) {
+            const sessions = result.data.map((s: any) => ({
+              id: s.id,
+              title: s.title || '새 대화',
+              createdAt: s.timestamp || s.updatedAt,
+              updatedAt: s.updatedAt,
+              messageCount: s.messageCount || 0,
+              creditsUsed: s.creditsUsed || 0
+            }));
+            setChatHistory(sessions);
+            console.log('[Sidebar] 채팅 세션 로드 완료:', sessions.length, '개');
+          } else {
+            setChatHistory([]);
+            console.log('[Sidebar] 채팅 세션 없음');
+          }
+        } catch (error: any) {
+          // AbortError는 정상적인 취소이므로 무시
+          if (error.name === 'AbortError') {
+            console.log('[Sidebar] 채팅 세션 로드 취소됨 (페이지 전환)');
+            return;
+          }
+          console.error('[Sidebar] 채팅 세션 로드 실패:', error);
+          if (isMounted) {
+            setChatHistory([]);
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoadingChatSessions(false);
+          }
+        }
+      }
+      // Note: 채팅 페이지가 아닐 때 chatHistory를 초기화하지 않음
+      // pathname 업데이트 타이밍 이슈로 인해 간헐적으로 데이터가 사라지는 문제 방지
+      // UI는 isActivePath("/chat") 조건으로 렌더링 제어됨
+    };
+
+    loadChatSessions();
+
+    // Cleanup: 컴포넌트 언마운트 또는 pathname 변경 시 진행 중인 요청 취소
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [isAuthenticated, pathname]);
+
+  // 채팅 세션 업데이트 이벤트 리스너
+  useEffect(() => {
+    const handleChatSessionsUpdate = (event: CustomEvent) => {
+      const { sessions } = event.detail;
+      setChatHistory(sessions);
+    };
+
+    window.addEventListener('chatSessionsUpdated', handleChatSessionsUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('chatSessionsUpdated', handleChatSessionsUpdate as EventListener);
+    };
+  }, []);
 
   const effectiveVariant: "user" | "expert" = useMemo(() => {
     console.log('IconOnlySidebar effectiveVariant 계산:', {
@@ -489,6 +591,56 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
               })
             )}
           </nav>
+
+          {/* 채팅 세션 목록 - AI 채팅 페이지에서만 표시 */}
+          {isExpanded && isAuthenticated && isActivePath("/chat") && (
+            <div className="mt-6 flex-1 overflow-y-auto min-h-0">
+              <p className="px-3 text-xs font-semibold text-gray-400 mb-3">
+                최근 대화
+              </p>
+
+              {isLoadingChatSessions ? (
+                // 로딩 중 스켈레톤
+                <div className="space-y-1 px-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="py-2">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                      <div className="h-3 bg-gray-100 rounded animate-pulse w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : chatHistory.length > 0 ? (
+                // 채팅 세션 목록
+                <ul className="space-y-1">
+                  {chatHistory.map((chatItem) => (
+                    <li
+                      key={chatItem.id}
+                      className="px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        // 채팅 세션 선택 이벤트 발송
+                        const event = new CustomEvent('chatSessionSelected', {
+                          detail: { sessionId: chatItem.id }
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                    >
+                      <div className="truncate font-medium">{chatItem.title}</div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {chatItem.messageCount || 0}개 메시지
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                // 세션 없음
+                <div className="px-3 py-4 text-center">
+                  <p className="text-xs text-gray-400">
+                    대화 기록이 없습니다
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
 

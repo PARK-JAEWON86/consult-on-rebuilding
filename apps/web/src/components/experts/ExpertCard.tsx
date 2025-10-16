@@ -13,7 +13,7 @@ interface ExpertProfile {
   reviewCount: number;
   experience: number;
   description: string;
-  specialties: string[];
+  keywords: string[];  // specialties → keywords로 변경
   consultationTypes: string[];
   languages?: string[];
   profileImage?: string | null;
@@ -138,8 +138,8 @@ const getResponseTimeColor = (responseTime: string | number | null | undefined):
 // 전문가 데이터 정규화 함수
 const normalizeExpert = (raw: any) => {
   const reviewCount = raw.reviewCount ?? raw.totalConsultations ?? 0;
-  const specialties: string[] = Array.isArray(raw.specialties)
-    ? raw.specialties
+  const keywords: string[] = Array.isArray(raw.keywords)
+    ? raw.keywords
     : Array.isArray(raw.tags)
       ? raw.tags
       : raw.specialty
@@ -154,12 +154,12 @@ const normalizeExpert = (raw: any) => {
   return {
     id: raw.id,
     name: raw.name,
-    specialty: raw.specialty ?? (specialties[0] || ""),
+    specialty: raw.specialty ?? (keywords[0] || ""),
     rating: raw.rating ?? 0,
     reviewCount,
     experience: raw.experience ?? 0,
     description: raw.description ?? "",
-    specialties,
+    keywords,
     consultationTypes,
     languages: raw.languages ?? [],
     profileImage: raw.profileImage ?? raw.image ?? null,
@@ -334,13 +334,13 @@ export default function ExpertCard({
           {/* 전문 분야 */}
           <div className="mb-3">
             <div className="flex gap-1.5 overflow-hidden">
-              {(expert.specialties || ["전문분야1", "전문분야2"]).map(
-                (specialty: string, index: number) => (
+              {(expert.keywords || ["전문분야1", "전문분야2"]).map(
+                (keyword: string, index: number) => (
                   <span
                     key={index}
                     className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0 whitespace-nowrap"
                   >
-                    {specialty}
+                    {keyword}
                   </span>
                 ),
               )}
@@ -481,17 +481,17 @@ export default function ExpertCard({
 
         {/* 전문 분야 태그 */}
         <div className="flex gap-1.5 overflow-hidden mb-4">
-          {(expert.specialties || []).slice(0, 3).map((specialty, index) => (
+          {(expert.keywords || []).slice(0, 3).map((keyword, index) => (
             <span
               key={index}
               className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100 flex-shrink-0"
             >
-              {specialty}
+              {keyword}
             </span>
           ))}
-          {(expert.specialties || []).length > 3 && (
+          {(expert.keywords || []).length > 3 && (
             <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-100 flex-shrink-0">
-              +{(expert.specialties || []).length - 3}
+              +{(expert.keywords || []).length - 3}
             </span>
           )}
         </div>

@@ -71,7 +71,7 @@ const ExpertContactModal = ({
     experience: "5년",
     rating: 4.8,
     reviewCount: 127,
-    specialties: ["스트레스 관리", "불안감 치료", "직장 적응"],
+    keywords: ["스트레스 관리", "불안감 치료", "직장 적응"],
     credentials: ["임상심리사 1급", "상담심리사 2급"],
     consultationCount: 340,
   };
@@ -264,7 +264,7 @@ const ExpertContactModal = ({
                     <span>상담 {currentExpert.consultationCount}회</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {currentExpert.specialties.map((specialty) => (
+                    {currentExpert.keywords.map((specialty) => (
                       <span
                         key={specialty}
                         className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md"

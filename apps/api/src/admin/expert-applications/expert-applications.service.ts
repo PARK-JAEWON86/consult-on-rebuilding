@@ -55,8 +55,22 @@ export class ExpertApplicationsService {
       this.prisma.expertApplication.count({ where }),
     ])
 
+    // specialty 파싱: "카테고리명 - 키워드" 형식에서 카테고리명만 추출
+    const parseSpecialty = (specialty: string): string => {
+      if (!specialty) return '';
+      // " - " 로 분리되어 있는 경우 첫 번째 부분만 반환
+      const parts = specialty.split(' - ');
+      return parts[0].trim();
+    };
+
+    // 목록의 각 항목에 대해 specialty 파싱
+    const parsedData = data.map(app => ({
+      ...app,
+      specialty: parseSpecialty(app.specialty),
+    }));
+
     return {
-      data,
+      data: parsedData,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -126,9 +140,17 @@ export class ExpertApplicationsService {
       take: 5,
     })
 
+    // specialty 파싱: "카테고리명 - 키워드" 형식에서 카테고리명만 추출
+    const parseSpecialty = (specialty: string): string => {
+      if (!specialty) return '';
+      const parts = specialty.split(' - ');
+      return parts[0].trim();
+    };
+
     return {
       application: {
         ...application,
+        specialty: parseSpecialty(application.specialty),
         keywords: parseJsonField(application.keywords),
         consultationTypes: parseJsonField(application.consultationTypes),
         languages: parseJsonField(application.languages),
@@ -179,32 +201,88 @@ export class ExpertApplicationsService {
         },
       })
 
-      // 2. Expert 레코드 생성
+      // 2. Expert 레코드 생성 (ExpertApplication의 모든 데이터 매핑)
+
+      // specialty 파싱: "카테고리명 - 키워드1, 키워드2" 형식에서 카테고리명만 추출
+      const parseSpecialty = (specialty: string): string => {
+        if (!specialty) return '';
+        // " - " 로 분리되어 있는 경우 첫 번째 부분만 반환
+        const parts = specialty.split(' - ');
+        return parts[0].trim();
+      };
+
+      const cleanSpecialty = parseSpecialty(application.specialty);
+
       const expert = await tx.expert.create({
         data: {
           displayId: `EXP${Date.now()}${application.userId}`,
           userId: application.userId,
           name: application.name,
-          title: application.jobTitle || null,
-          specialty: application.specialty,
+          title: application.jobTitle || cleanSpecialty,
+          specialty: cleanSpecialty,
           bio: application.bio,
+          description: application.bio, // description 필드도 설정
           avatarUrl: application.profileImage,
           experience: application.experienceYears,
-          categories: [], // JSON 배열
-          certifications: application.certifications as any,
-          consultationTypes: application.consultationTypes as any,
-          availability: application.availability as any,
-          contactInfo: {},
-          education: [],
-          languages: [],
-          portfolioFiles: [],
-          portfolioItems: [],
-          socialProof: {},
-          socialLinks: {},
-          specialties: [],
+          experienceYears: application.experienceYears,
+
+          // MBTI 및 상담 스타일
+          mbti: application.mbti || null,
+          consultationStyle: application.consultationStyle || null,
+          workExperience: application.workExperience || [],
+
+          // JSON 배열 필드들 (application에서 그대로 전송)
+          categories: [], // 카테고리는 별도 ExpertCategory 테이블에서 관리
+          keywords: application.keywords || [],
+          certifications: application.certifications || [],
+          consultationTypes: application.consultationTypes || [],
+          languages: application.languages || ['한국어'],
+          education: application.education || [],
+          portfolioFiles: [], // 초기에는 빈 배열
+          portfolioItems: application.workExperience || [],
+
+          // JSON 객체 필드들 - availability에 모든 스케줄 정보 통합
+          availability: (() => {
+            const availabilityData = typeof application.availability === 'object'
+              ? application.availability
+              : {};
+
+            // availability Json 내부에 holidaySettings 포함
+            return {
+              ...availabilityData,
+              holidaySettings: {
+                acceptHolidayConsultations: false,
+                holidayNote: ''
+              }
+            } as any;
+          })(),
+          contactInfo: {
+            phone: '',
+            email: application.email,
+            location: '',
+            website: ''
+          } as any,
+          socialLinks: {
+            linkedin: '',
+            github: '',
+            twitter: '',
+            instagram: '',
+            facebook: '',
+            youtube: ''
+          } as any,
+          socialProof: {} as any,
+
+          // 통계 초기값
+          totalSessions: 0,
+          repeatClients: 0,
+          ratingAvg: 0,
+          reviewCount: 0,
+          responseTime: '2시간 내',
+
+          // 상태 플래그
           isActive: true,
           isProfileComplete: true,
-          isProfilePublic: true,
+          isProfilePublic: false, // 초기에는 비공개로 설정 (전문가가 직접 공개 설정)
         },
       })
 
@@ -231,6 +309,46 @@ export class ExpertApplicationsService {
         where: { id: application.userId },
         data: { roles: JSON.stringify(roles) },
       })
+
+      // 4. ExpertCategory 연결 생성 (categoryId가 있는 경우)
+      const appData = application as any;
+      if (appData.categoryId) {
+        try {
+          await tx.expertCategory.create({
+            data: {
+              expertId: expert.id,
+              categoryId: appData.categoryId,
+            },
+          });
+          console.log(`✅ ExpertCategory 연결 생성: expertId=${expert.id}, categoryId=${appData.categoryId}`);
+        } catch (error) {
+          console.error('⚠️ ExpertCategory 연결 생성 실패:', error);
+          // 카테고리 연결 실패는 치명적이지 않으므로 계속 진행
+        }
+      }
+
+      // 5. ExpertAvailability 슬롯 생성 (availabilitySlots가 있는 경우)
+      if (appData.availabilitySlots && Array.isArray(appData.availabilitySlots)) {
+        try {
+          const slots = appData.availabilitySlots.map((slot: any) => ({
+            expertId: expert.id,
+            dayOfWeek: slot.dayOfWeek,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isActive: slot.isActive !== false, // 기본값 true
+            timeZone: 'Asia/Seoul',
+          }));
+
+          await tx.expertAvailability.createMany({
+            data: slots,
+            skipDuplicates: true, // 중복 방지
+          });
+          console.log(`✅ ExpertAvailability 슬롯 생성: ${slots.length}개`);
+        } catch (error) {
+          console.error('⚠️ ExpertAvailability 슬롯 생성 실패:', error);
+          // 슬롯 생성 실패는 치명적이지 않으므로 계속 진행
+        }
+      }
 
       return { updatedApplication, expert, user }
     })

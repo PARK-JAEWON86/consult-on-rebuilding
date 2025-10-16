@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { fetchExperts, Expert } from '@/lib/experts';
@@ -9,8 +9,6 @@ import { Category } from '@/lib/categories';
 import { useAuth } from '@/components/auth/AuthProvider';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import RatingStars from '@/components/ui/RatingStars';
 import Skeleton from '@/components/ui/Skeleton';
 import UserReviewsSection from './UserReviewsSection';
 import SearchFields from './SearchFields';
@@ -51,7 +49,6 @@ export interface DurationOption {
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
 
   // 검색 상태
@@ -269,7 +266,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className="flex items-center justify-center space-x-3">
-                    <button 
+                    <button
                       onClick={() => {
                         setSearchResults([]);
                         setHasSearched(false);
@@ -291,51 +288,43 @@ export default function HomePage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {searchResults.slice(0, 6).map((expert: Expert) => (
-                      <Card key={expert.id} hover className="text-center p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                        <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center overflow-hidden">
-                          {expert.avatarUrl ? (
-                            <img 
-                              src={expert.avatarUrl} 
-                              alt={expert.name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-2xl text-gray-500 font-bold">
-                              {expert.name.charAt(0)}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">{expert.name}</h3>
-                        {expert.title && (
-                          <p className="text-gray-600 text-sm mb-3">{expert.title}</p>
-                        )}
-                        <div className="flex flex-wrap gap-1 justify-center mb-3">
-                          {expert.categories.slice(0, 2).map((category) => (
-                            <Badge key={category} variant="primary" size="sm">
-                              {mapCategoryToKorean(category)}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="mb-3">
-                          <RatingStars 
-                            rating={expert.ratingAvg} 
-                            count={expert.reviewCount}
-                            size="sm"
-                          />
-                        </div>
-                        <Link href={`/experts/${expert.displayId}`}>
-                          <Button variant="ghost" size="sm" className="w-full py-2 text-sm border-2 hover:bg-blue-50">
-                            상세보기
-                          </Button>
-                        </Link>
-                      </Card>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                    {searchResults.slice(0, 6).map((expert: Expert) => {
+                      // Expert 타입을 ExpertCard가 기대하는 형식으로 변환
+                      const expertCardData = {
+                        id: expert.id,
+                        displayId: expert.displayId,
+                        name: expert.name,
+                        specialty: expert.title || '전문가',
+                        rating: expert.ratingAvg,
+                        reviewCount: expert.reviewCount,
+                        experience: expert.experience || 0,
+                        description: expert.bio || '',
+                        keywords: expert.categories || [],
+                        consultationTypes: ['video', 'chat'],
+                        languages: ['한국어'],
+                        profileImage: expert.avatarUrl,
+                        responseTime: '1시간 이내',
+                        level: expert.calculatedLevel || 1,
+                        consultationCount: expert.totalSessions || 0,
+                        totalSessions: expert.totalSessions || 0,
+                        avgRating: expert.ratingAvg
+                      };
+
+                      return (
+                        <ExpertCard
+                          key={expert.id}
+                          expert={expertCardData}
+                          mode="default"
+                          showFavoriteButton={false}
+                          showProfileButton={true}
+                        />
+                      );
+                    })}
                   </div>
-                  
+
                   {searchResults.length > 6 && (
                     <div className="mt-8 text-center">
                       <Link href={`/experts?category=${searchCategory}&ageGroup=${searchAgeGroup}&date=${searchStartDate}`}>
@@ -416,14 +405,14 @@ export default function HomePage() {
                   specialty: expert.title || '전문가',
                   rating: expert.ratingAvg,
                   reviewCount: expert.reviewCount,
-                  experience: expert.experienceYears || 0,
+                  experience: expert.experience || 0,
                   description: expert.bio || '',
-                  specialties: expert.categories || [],
-                  consultationTypes: expert.consultationTypes || ['video', 'chat'],
-                  languages: expert.languages || ['한국어'],
+                  keywords: expert.categories || [],
+                  consultationTypes: ['video', 'chat'],
+                  languages: ['한국어'],
                   profileImage: expert.avatarUrl,
-                  responseTime: expert.responseTime || '1시간 이내',
-                  level: expert.level || 1,
+                  responseTime: '1시간 이내',
+                  level: expert.calculatedLevel || 1,
                   consultationCount: expert.totalSessions || 0,
                   totalSessions: expert.totalSessions || 0,
                   avgRating: expert.ratingAvg

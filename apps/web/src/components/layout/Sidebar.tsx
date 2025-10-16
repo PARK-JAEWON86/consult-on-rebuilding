@@ -295,31 +295,52 @@ const Sidebar: React.FC<SidebarProps> = ({
 
 
 
-  // 채팅 기록 초기화 - 로컬 스토리지에서 세션 로드
+  // 채팅 기록 초기화 - 백엔드 API에서 세션 로드
   useEffect(() => {
     console.log('사이드바: 채팅 기록 초기화 useEffect 실행', { isAuthenticated, pathname, isActivePath: isActivePath("/chat") });
 
     if (isAuthenticated && isActivePath("/chat")) {
-      console.log('사이드바: AI 채팅 메뉴 활성화, 로컬 스토리지에서 세션 로드');
+      console.log('사이드바: AI 채팅 메뉴 활성화, 백엔드에서 세션 로드');
 
-      // 로컬 스토리지에서 채팅 세션 로드
-      const loadLocalChatSessions = () => {
+      // 백엔드 API에서 채팅 세션 로드
+      const loadChatSessionsFromBackend = async () => {
         try {
-          const stored = localStorage.getItem('chat-sessions');
-          if (stored) {
-            const sessions = JSON.parse(stored);
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+          const response = await fetch(`${apiBaseUrl}/chat/sessions?limit=20`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            }
+          });
+
+          if (!response.ok) {
+            console.warn('사이드바: 채팅 세션 조회 실패:', response.status);
+            setChatHistory([]);
+            return;
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.data) {
+            const sessions = result.data.map((s: any) => ({
+              id: s.id,
+              title: s.title || '새 대화',
+              createdAt: s.timestamp || s.updatedAt,
+              updatedAt: s.updatedAt,
+              messageCount: s.messageCount || 0,
+              creditsUsed: s.creditsUsed || 0
+            }));
             setChatHistory(sessions);
-            console.log('사이드바: 로컬 스토리지에서 채팅 세션 로드 완료:', sessions.length, '개');
+            console.log('사이드바: 백엔드에서 채팅 세션 로드 완료:', sessions.length, '개');
           } else {
             setChatHistory([]);
           }
         } catch (error) {
-          console.error('사이드바: 로컬 스토리지에서 채팅 세션 로드 실패:', error);
+          console.error('사이드바: 백엔드에서 채팅 세션 로드 실패:', error);
           setChatHistory([]);
         }
       };
 
-      loadLocalChatSessions();
+      loadChatSessionsFromBackend();
     } else {
       console.log('사이드바: AI 채팅 메뉴 비활성화 또는 인증되지 않음');
     }

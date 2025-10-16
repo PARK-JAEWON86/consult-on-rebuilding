@@ -100,65 +100,100 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    // 페이지 로드 시 저장된 세션 복원
-    const initializeSessions = () => {
+    // 페이지 로드 시 저장된 세션 복원 또는 새 세션 생성
+    const initializeSessions = async () => {
       try {
-        const savedSessions = localStorage.getItem('chat-sessions');
+        // 1. 로컬스토리지의 잘못된 세션 데이터 정리
         const savedCurrentSessionId = localStorage.getItem('current-session-id');
 
-        if (savedSessions) {
-          const sessions = JSON.parse(savedSessions);
-          setChatSessions(sessions);
+        // 'session-' 형식의 잘못된 세션 ID 제거 (UUID 형식이 아닌 것들)
+        if (savedCurrentSessionId && savedCurrentSessionId.startsWith('session-')) {
+          console.log('[Chat] 잘못된 세션 ID 감지, 삭제:', savedCurrentSessionId);
+          localStorage.removeItem('current-session-id');
+          localStorage.removeItem(`chat-messages-${savedCurrentSessionId}`);
+          localStorage.removeItem('chat-sessions');
+        }
 
-          if (savedCurrentSessionId && sessions.find((s: ChatSession) => s.id === savedCurrentSessionId)) {
-            setCurrentSessionId(savedCurrentSessionId);
-            setSelectedSessionId(savedCurrentSessionId);
+        // 2. 백엔드에서 기존 세션 목록 가져오기
+        try {
+          const sessionsResponse = await api.get('/chat/sessions?limit=20');
 
-            // 기존 세션의 메시지 복원
-            const savedMessages = localStorage.getItem(`chat-messages-${savedCurrentSessionId}`);
-            if (savedMessages) {
-              setMessages(JSON.parse(savedMessages));
-            }
-          } else if (sessions.length > 0) {
-            setCurrentSessionId(sessions[0].id);
-            setSelectedSessionId(sessions[0].id);
+          if (sessionsResponse.success && sessionsResponse.data && sessionsResponse.data.length > 0) {
+            // 백엔드에 세션이 있으면 가장 최근 세션 사용
+            const recentSession = sessionsResponse.data[0];
+            console.log('[Chat] 백엔드에서 기존 세션 로드:', recentSession.id);
+
+            setCurrentSessionId(recentSession.id);
+            setSelectedSessionId(recentSession.id);
+            localStorage.setItem('current-session-id', recentSession.id);
+
+            // 세션 목록 업데이트
+            const sessions: ChatSession[] = sessionsResponse.data.map((s: any) => ({
+              id: s.id,
+              title: s.title,
+              createdAt: new Date(s.timestamp || s.updatedAt),
+              updatedAt: new Date(s.updatedAt),
+              messageCount: s.messageCount || 0,
+              totalTokens: s.creditsUsed || 0
+            }));
+            setChatSessions(sessions);
+
+            return; // 기존 세션을 로드했으므로 종료
           }
+        } catch (error) {
+          console.log('[Chat] 백엔드 세션 조회 실패, 새 세션 생성:', error);
         }
 
-        // 세션이 없으면 새로 생성
-        if (!savedSessions || JSON.parse(savedSessions || '[]').length === 0) {
-          createNewSession();
-        }
+        // 3. 백엔드에 세션이 없으면 새로 생성
+        await createNewSession();
+
       } catch (error) {
-        console.error('세션 복원 실패:', error);
-        createNewSession();
+        console.error('[Chat] 세션 초기화 실패:', error);
+        await createNewSession();
       }
     };
 
-    const createNewSession = () => {
-      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      setCurrentSessionId(newSessionId);
-      setSelectedSessionId(newSessionId);
+    const createNewSession = async () => {
+      try {
+        // 백엔드 API 호출하여 세션 생성
+        console.log('[Chat] 백엔드에 새 세션 생성 요청...');
+        const response = await api.post('/chat/sessions', {});
 
-      const newSession: ChatSession = {
-        id: newSessionId,
-        title: '새 대화',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        messageCount: 0,
-        totalTokens: 0
-      };
-      setChatSessions([newSession]);
+        if (!response.success || !response.data) {
+          throw new Error('세션 생성 실패');
+        }
 
-      // 새 세션 정보 저장
-      localStorage.setItem('chat-sessions', JSON.stringify([newSession]));
-      localStorage.setItem('current-session-id', newSessionId);
+        const newSession: ChatSession = {
+          id: response.data.id,
+          title: response.data.title,
+          createdAt: new Date(response.data.createdAt),
+          updatedAt: new Date(response.data.updatedAt),
+          messageCount: 0,
+          totalTokens: response.data.totalTokens
+        };
+
+        console.log('[Chat] 새 세션 생성 완료:', newSession.id);
+
+        setCurrentSessionId(newSession.id);
+        setSelectedSessionId(newSession.id);
+        setChatSessions([newSession]);
+
+        // 세션 ID만 로컬스토리지에 저장 (데이터는 백엔드에 저장됨)
+        localStorage.setItem('current-session-id', newSession.id);
+
+      } catch (error) {
+        console.error('[Chat] 세션 생성 실패:', error);
+        // 에러 발생 시 fallback: 임시 로컬 세션 ID 생성
+        const fallbackSessionId = `temp-${Date.now()}`;
+        setCurrentSessionId(fallbackSessionId);
+        setSelectedSessionId(fallbackSessionId);
+      }
     };
 
-    if (!currentSessionId) {
+    if (!currentSessionId && isAuthenticated) {
       initializeSessions();
     }
-  }, [currentSessionId]);
+  }, [currentSessionId, isAuthenticated]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -194,14 +229,14 @@ export default function ChatPage() {
       // 디버깅: API 호출 정보 출력
       console.log('[Chat] Sending message to API:', {
         endpoint: '/chat/message',
-        sessionId: currentSessionId !== 'new' ? currentSessionId : undefined,
+        sessionId: currentSessionId,
         messageLength: userMessage.content.length
       });
 
       // 백엔드 API 호출로 실제 GPT 응답 받기
       const data = await api.post('/chat/message', {
         message: userMessage.content,
-        sessionId: currentSessionId !== 'new' ? currentSessionId : undefined
+        sessionId: currentSessionId // 이제 항상 백엔드에서 생성된 유효한 세션 ID
       });
 
       console.log('[Chat] API response received:', {
@@ -225,8 +260,19 @@ export default function ChatPage() {
       const updatedMessages = [...messages, userMessage, assistantMessage];
       setMessages(updatedMessages);
 
+      // 백엔드에서 반환한 세션 정보로 업데이트
+      const returnedSessionId = data.data.session?.id;
+      if (returnedSessionId && returnedSessionId !== currentSessionId) {
+        // 새로운 세션이 생성된 경우 (sessionId가 없이 메시지를 보냈을 때)
+        console.log('[Chat] 새 세션 ID 수신:', returnedSessionId);
+        setCurrentSessionId(returnedSessionId);
+        setSelectedSessionId(returnedSessionId);
+        localStorage.setItem('current-session-id', returnedSessionId);
+      }
+
       // 메시지를 로컬 스토리지에 저장
-      localStorage.setItem(`chat-messages-${currentSessionId}`, JSON.stringify(updatedMessages));
+      const sessionIdToUse = returnedSessionId || currentSessionId;
+      localStorage.setItem(`chat-messages-${sessionIdToUse}`, JSON.stringify(updatedMessages));
 
       // 토큰 사용량 기록
       if (data.data.tokenCount) {
@@ -236,8 +282,12 @@ export default function ChatPage() {
         });
       }
 
-      // 세션 업데이트
-      updateCurrentSession([userMessage, assistantMessage]);
+      // 세션 정보 업데이트
+      if (data.data.session) {
+        updateSessionWithBackendData(data.data.session, [userMessage, assistantMessage]);
+      } else {
+        updateCurrentSession([userMessage, assistantMessage]);
+      }
 
     } catch (error: any) {
       // 상세 에러 로깅
@@ -277,6 +327,34 @@ export default function ChatPage() {
   };
 
 
+  const updateSessionWithBackendData = (sessionData: any, newMessages: ChatMessage[]) => {
+    // 백엔드에서 받은 세션 정보로 업데이트
+    const updatedSession: ChatSession = {
+      id: sessionData.id,
+      title: sessionData.title,
+      createdAt: new Date(sessionData.createdAt || new Date()),
+      updatedAt: new Date(sessionData.updatedAt || new Date()),
+      messageCount: messages.length + newMessages.length,
+      totalTokens: sessionData.totalTokens
+    };
+
+    const existingSessionIndex = chatSessions.findIndex(s => s.id === sessionData.id);
+    let updatedSessions;
+
+    if (existingSessionIndex >= 0) {
+      // 기존 세션 업데이트
+      updatedSessions = chatSessions.map((session, index) =>
+        index === existingSessionIndex ? updatedSession : session
+      );
+    } else {
+      // 새 세션 추가
+      updatedSessions = [updatedSession, ...chatSessions];
+    }
+
+    setChatSessions(updatedSessions);
+    localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
+  };
+
   const updateCurrentSession = (newMessages: ChatMessage[]) => {
     const updatedSessions = chatSessions.map(session =>
       session.id === currentSessionId
@@ -296,32 +374,47 @@ export default function ChatPage() {
     localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
   };
 
-  const startNewChat = () => {
-    // 현재 세션의 메시지 저장
-    if (currentSessionId && messages.length > 0) {
-      localStorage.setItem(`chat-messages-${currentSessionId}`, JSON.stringify(messages));
+  const startNewChat = async () => {
+    try {
+      // 현재 세션의 메시지 저장
+      if (currentSessionId && messages.length > 0) {
+        localStorage.setItem(`chat-messages-${currentSessionId}`, JSON.stringify(messages));
+      }
+
+      // 백엔드 API 호출하여 새 세션 생성
+      console.log('[Chat] 새 대화 시작: 백엔드에 세션 생성 요청...');
+      const response = await api.post('/chat/sessions', {});
+
+      if (!response.success || !response.data) {
+        throw new Error('세션 생성 실패');
+      }
+
+      const newSession: ChatSession = {
+        id: response.data.id,
+        title: response.data.title,
+        createdAt: new Date(response.data.createdAt),
+        updatedAt: new Date(response.data.updatedAt),
+        messageCount: 0,
+        totalTokens: response.data.totalTokens
+      };
+
+      console.log('[Chat] 새 세션 생성 완료:', newSession.id);
+
+      setCurrentSessionId(newSession.id);
+      setSelectedSessionId(newSession.id);
+      setMessages([]);
+
+      const updatedSessions = [newSession, ...chatSessions];
+      setChatSessions(updatedSessions);
+
+      // 세션 ID만 로컬스토리지에 저장
+      localStorage.setItem('current-session-id', newSession.id);
+
+    } catch (error) {
+      console.error('[Chat] 새 세션 생성 실패:', error);
+      // 에러 처리: 사용자에게 알림
+      alert('새 대화를 시작할 수 없습니다. 다시 시도해주세요.');
     }
-
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setCurrentSessionId(newSessionId);
-    setSelectedSessionId(newSessionId);
-    setMessages([]);
-
-    const newSession: ChatSession = {
-      id: newSessionId,
-      title: '새 대화',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      messageCount: 0,
-      totalTokens: 0
-    };
-
-    const updatedSessions = [newSession, ...chatSessions];
-    setChatSessions(updatedSessions);
-
-    // 세션 목록과 현재 세션 ID 저장
-    localStorage.setItem('chat-sessions', JSON.stringify(updatedSessions));
-    localStorage.setItem('current-session-id', newSessionId);
   };
 
   const selectSession = (sessionId: string) => {

@@ -6,7 +6,7 @@ export interface ExpertProfile {
   description: string;
   education: string[];
   certifications: string[];
-  specialties: string[];
+  keywords: string[];  // specialties → keywords로 변경
   specialtyAreas: string[];
   consultationTypes: ConsultationType[];
   languages: string[];

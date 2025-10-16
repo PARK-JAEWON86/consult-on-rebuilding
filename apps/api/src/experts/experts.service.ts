@@ -212,7 +212,7 @@ export class ExpertsService {
       categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
       recentReviews: expert.reviews,
       // JSON 문자열로 저장된 필드들을 실제 배열로 변환
-      specialties: parseJsonField(expert.specialties),
+      keywords: parseJsonField(expert.keywords),
       certifications: parseJsonField(expert.certifications),
       consultationTypes: parseJsonField(expert.consultationTypes),
       languages: parseJsonField(expert.languages),
@@ -327,16 +327,26 @@ export class ExpertsService {
       holidayNote: ''
     };
 
+    // specialty 파싱: "카테고리명 - 키워드" 형식에서 카테고리명만 추출
+    const parseSpecialty = (specialty: string | null): string => {
+      if (!specialty) return '';
+      const parts = specialty.split(' - ');
+      return parts[0].trim();
+    };
+
     return {
       ...expert,
+      // specialty 파싱하여 카테고리명만 반환
+      specialty: parseSpecialty(expert.specialty),
       // 배열 필드들을 실제 배열로 변환
-      specialties: parseJsonField(expert.specialties),
+      keywords: parseJsonField(expert.keywords),
       certifications: parseJsonField(expert.certifications),
       consultationTypes: parseJsonField(expert.consultationTypes),
       languages: parseJsonField(expert.languages),
       education: parseJsonField(expert.education),
       portfolioFiles: parseJsonField(expert.portfolioFiles),
       portfolioItems: parseJsonField(expert.portfolioItems),
+      workExperience: parseJsonField(expert.workExperience),
       // 객체 필드들을 실제 객체로 변환
       availability: availabilityData,
       contactInfo: parseJsonObject(expert.contactInfo),
@@ -773,13 +783,13 @@ export class ExpertsService {
       displayId: expert.displayId,
       name: expert.name,
       title: expert.title,
-      specialty: expert.specialty,
+      specialty: expert.specialty,  // findByDisplayId에서 이미 파싱됨
       bio: expert.bio,
       description: expert.description,
       experience: expert.experience,
       education: expert.education,
       certifications: expert.certifications,
-      specialties: expert.specialties,
+      keywords: expert.keywords,  // specialties → keywords로 변경
       consultationTypes: expert.consultationTypes,
       languages: expert.languages,
       hourlyRate: expert.hourlyRate,
@@ -840,8 +850,8 @@ export class ExpertsService {
     if (profileData.certifications) {
       updateData.certifications = stringifyJsonField(profileData.certifications);
     }
-    if (profileData.specialties) {
-      updateData.specialties = stringifyJsonField(profileData.specialties);
+    if (profileData.keywords) {
+      updateData.keywords = stringifyJsonField(profileData.keywords);
     }
     if (profileData.consultationTypes) {
       updateData.consultationTypes = stringifyJsonField(profileData.consultationTypes);
@@ -1154,5 +1164,217 @@ export class ExpertsService {
 
     // 업데이트된 슬롯 반환
     return this.getAvailabilitySlots(displayId);
+  }
+
+  /**
+   * 전문가 프로필 업데이트
+   * @param id Expert ID
+   * @param updateDto 업데이트할 프로필 데이터
+   */
+  async updateProfile(id: number, updateDto: any) {
+    // JSON 필드 변환 준비
+    const updateData: any = {};
+
+    // 기본 문자열/숫자 필드
+    if (updateDto.name !== undefined) updateData.name = updateDto.name;
+    if (updateDto.specialty !== undefined) updateData.specialty = updateDto.specialty;
+    if (updateDto.bio !== undefined) updateData.bio = updateDto.bio;
+    if (updateDto.description !== undefined) updateData.description = updateDto.description;
+    if (updateDto.experience !== undefined) updateData.experience = updateDto.experience;
+    if (updateDto.experienceYears !== undefined) updateData.experienceYears = updateDto.experienceYears;
+    if (updateDto.mbti !== undefined) updateData.mbti = updateDto.mbti;
+    if (updateDto.consultationStyle !== undefined) updateData.consultationStyle = updateDto.consultationStyle;
+    if (updateDto.responseTime !== undefined) updateData.responseTime = updateDto.responseTime;
+    if (updateDto.cancellationPolicy !== undefined) updateData.cancellationPolicy = updateDto.cancellationPolicy;
+    if (updateDto.holidayPolicy !== undefined) updateData.holidayPolicy = updateDto.holidayPolicy;
+    if (updateDto.isProfilePublic !== undefined) updateData.isProfilePublic = updateDto.isProfilePublic;
+
+    // 프로필 이미지
+    if (updateDto.profileImage !== undefined) {
+      updateData.avatarUrl = updateDto.profileImage;
+    }
+
+    // JSON 배열 필드들 - 직접 저장 (Prisma가 자동으로 JSON으로 변환)
+    if (updateDto.education !== undefined) {
+      updateData.education = updateDto.education;
+    }
+    if (updateDto.certifications !== undefined) {
+      updateData.certifications = updateDto.certifications;
+    }
+    // keywords 처리
+    if (updateDto.keywords !== undefined) {
+      updateData.keywords = updateDto.keywords;
+    }
+    if (updateDto.consultationTypes !== undefined) {
+      updateData.consultationTypes = updateDto.consultationTypes;
+    }
+    if (updateDto.languages !== undefined) {
+      updateData.languages = updateDto.languages;
+    }
+    if (updateDto.portfolioFiles !== undefined) {
+      updateData.portfolioFiles = updateDto.portfolioFiles;
+    }
+    if (updateDto.portfolioItems !== undefined) {
+      updateData.portfolioItems = updateDto.portfolioItems;
+    }
+    if (updateDto.workExperience !== undefined) {
+      updateData.workExperience = updateDto.workExperience;
+    }
+
+    // JSON 객체 필드들 - 직접 저장
+    if (updateDto.availability !== undefined) {
+      updateData.availability = updateDto.availability;
+    }
+    if (updateDto.contactInfo !== undefined) {
+      updateData.contactInfo = updateDto.contactInfo;
+    }
+    if (updateDto.socialLinks !== undefined) {
+      updateData.socialLinks = updateDto.socialLinks;
+    }
+
+    // 프로필 완성도 자동 체크
+    const currentExpert = await this.prisma.expert.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        specialty: true,
+        bio: true,
+        experienceYears: true,
+        education: true,
+        keywords: true,
+        consultationTypes: true,
+      }
+    });
+
+    if (currentExpert) {
+      const updatedName = updateDto.name ?? currentExpert.name;
+      const updatedSpecialty = updateDto.specialty ?? currentExpert.specialty;
+      const updatedBio = updateDto.bio ?? currentExpert.bio;
+      const updatedExperienceYears = updateDto.experienceYears ?? currentExpert.experienceYears;
+      const updatedEducation = updateDto.education ?? currentExpert.education;
+      // keywords 처리
+      const updatedKeywords = updateDto.keywords ?? currentExpert.keywords;
+      const updatedConsultationTypes = updateDto.consultationTypes ?? currentExpert.consultationTypes;
+
+      const isComplete = Boolean(
+        updatedName?.trim() &&
+        updatedSpecialty?.trim() &&
+        updatedBio?.trim() &&
+        Number(updatedExperienceYears) > 0 &&
+        Array.isArray(updatedEducation) && updatedEducation.length > 0 &&
+        Array.isArray(updatedKeywords) && updatedKeywords.length > 0 &&
+        Array.isArray(updatedConsultationTypes) && updatedConsultationTypes.length > 0
+      );
+
+      updateData.isProfileComplete = isComplete;
+    }
+
+    // 데이터베이스 업데이트
+    const updated = await this.prisma.expert.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // 업데이트된 전문가 정보 전체 조회
+    return this.findByDisplayId(updated.displayId);
+  }
+
+  /**
+   * 파일 업로드 처리 (프로필 이미지, 포트폴리오 등)
+   * @param expertId Expert ID
+   * @param uploadDto 업로드할 파일 정보
+   */
+  async uploadFile(expertId: number, uploadDto: any) {
+    const { fileName, fileType, fileData, fileCategory } = uploadDto;
+
+    // 파일 저장 경로 생성 (실제 환경에서는 S3, CloudStorage 등 사용)
+    // 현재는 Base64 데이터를 그대로 저장
+    const fileUrl = `data:${fileType};base64,${fileData}`;
+
+    const expert = await this.prisma.expert.findUnique({
+      where: { id: expertId },
+      select: { portfolioFiles: true, avatarUrl: true }
+    });
+
+    if (!expert) {
+      throw new Error('Expert not found');
+    }
+
+    // 파일 카테고리에 따라 처리
+    if (fileCategory === 'profile') {
+      // 프로필 이미지 업데이트
+      await this.prisma.expert.update({
+        where: { id: expertId },
+        data: { avatarUrl: fileUrl }
+      });
+
+      return {
+        success: true,
+        fileUrl,
+        message: '프로필 이미지가 업로드되었습니다.'
+      };
+    } else if (fileCategory === 'portfolio' || fileCategory === 'certification') {
+      // 포트폴리오/자격증 파일 추가
+      const currentFiles = Array.isArray(expert.portfolioFiles)
+        ? expert.portfolioFiles
+        : [];
+
+      const newFile = {
+        id: Date.now(),
+        name: fileName,
+        type: fileType,
+        size: Math.floor(fileData.length * 0.75), // Base64 데이터 크기 추정
+        data: fileUrl,
+        category: fileCategory,
+        uploadedAt: new Date().toISOString()
+      };
+
+      const updatedFiles = [...currentFiles, newFile];
+
+      await this.prisma.expert.update({
+        where: { id: expertId },
+        data: { portfolioFiles: updatedFiles as any }
+      });
+
+      return {
+        success: true,
+        file: newFile,
+        message: '파일이 업로드되었습니다.'
+      };
+    }
+
+    throw new Error('Invalid file category');
+  }
+
+  /**
+   * 파일 삭제
+   * @param expertId Expert ID
+   * @param fileId 삭제할 파일 ID
+   */
+  async deleteFile(expertId: number, fileId: number) {
+    const expert = await this.prisma.expert.findUnique({
+      where: { id: expertId },
+      select: { portfolioFiles: true }
+    });
+
+    if (!expert) {
+      throw new Error('Expert not found');
+    }
+
+    const currentFiles = Array.isArray(expert.portfolioFiles)
+      ? expert.portfolioFiles
+      : [];
+
+    const updatedFiles = currentFiles.filter((file: any) => file.id !== fileId);
+
+    await this.prisma.expert.update({
+      where: { id: expertId },
+      data: { portfolioFiles: updatedFiles as any }
+    });
+
+    return {
+      success: true,
+      message: '파일이 삭제되었습니다.'
+    };
   }
 }

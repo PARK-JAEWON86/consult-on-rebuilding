@@ -65,7 +65,7 @@ type ExpertProfileData = {
     name: string;
     issuer: string;
   }>;
-  specialties: string[];
+  keywords: string[];
   consultationTypes: ConsultationType[];
   languages: string[];
   hourlyRate: number | string;
@@ -121,7 +121,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
     description: "",
     education: [""],
     certifications: [{ name: "", issuer: "" }],
-    specialties: [""],
+    keywords: [""],
     consultationTypes: [],
     languages: ["한국어"],
     hourlyRate: 0,
@@ -205,7 +205,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
       formData.description.trim() &&
       Number(formData.experience) > 0 &&
       formData.education.some(edu => edu.trim()) &&
-      formData.specialties.some(spec => spec.trim()) &&
+      formData.keywords.some(spec => spec.trim()) &&
       formData.consultationTypes.length > 0
     );
 
@@ -362,7 +362,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {formData.specialties.filter(spec => spec.trim()).map((specialty, index) => (
+                {formData.keywords.filter(spec => spec.trim()).map((specialty, index) => (
                   <span
                     key={index}
                     className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-100"
@@ -717,7 +717,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">전문 영역</h3>
           <button
-            onClick={() => handleArrayAdd('specialties', '')}
+            onClick={() => handleArrayAdd('keywords', '')}
             className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -726,18 +726,18 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
         </div>
 
         <div className="space-y-3">
-          {formData.specialties.map((specialty, index) => (
+          {formData.keywords.map((specialty, index) => (
             <div key={index} className="flex items-center space-x-3">
               <input
                 type="text"
                 value={specialty}
-                onChange={(e) => handleArrayUpdate('specialties', index, e.target.value)}
+                onChange={(e) => handleArrayUpdate('keywords', index, e.target.value)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="전문 영역을 입력하세요"
               />
-              {formData.specialties.length > 1 && (
+              {formData.keywords.length > 1 && (
                 <button
-                  onClick={() => handleArrayRemove('specialties', index)}
+                  onClick={() => handleArrayRemove('keywords', index)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                 >
                   <Trash2 className="h-4 w-4" />

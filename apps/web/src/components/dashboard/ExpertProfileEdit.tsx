@@ -628,12 +628,13 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                     <label className="block text-base font-semibold text-gray-900 mb-3 flex items-center">
                       <User className="w-4 h-4 mr-2" /> 상담분야
                       <span className="text-red-500 ml-1">*</span>
+                      <span className="text-xs text-gray-500 ml-2 font-normal">(승인 후 변경 불가)</span>
                     </label>
                     <input
                       type="text"
                       value={formData.specialty}
-                      onChange={(e) => handleInputChange('specialty', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      readOnly
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed text-sm"
                       placeholder="예: 심리상담, 법률상담"
                     />
                   </div>
@@ -683,22 +684,29 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                     type="text"
                     value={keywordsInput}
                     onChange={(e) => handleKeywordsChange(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="예: 우울증, 불안장애, 대인관계"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="예: 스트레스, 우울, 불안, 계약법, 이직, 커리어"
                   />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-500">
+                      {formData.keywords.length > 0 && `입력된 키워드: ${formData.keywords.length}개`}
+                    </p>
+                    {formData.keywords.length >= 10 && (
+                      <p className="text-xs text-red-500">최대 10개까지만 입력 가능합니다</p>
+                    )}
+                  </div>
+
+                  {/* 입력된 키워드 태그 표시 */}
                   {formData.keywords.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {formData.keywords.map((keyword, index) => (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {formData.keywords.map((keyword, idx) => (
                         <span
-                          key={index}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-100"
+                          key={idx}
+                          className="inline-flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full border border-blue-200"
                         >
                           {keyword}
                         </span>
                       ))}
-                      <span className="px-3 py-1.5 text-xs text-gray-500">
-                        {formData.keywords.length}/10
-                      </span>
                     </div>
                   )}
                 </div>

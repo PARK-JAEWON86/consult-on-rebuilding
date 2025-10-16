@@ -20,9 +20,24 @@ async function deleteUsers(userIds: number[]) {
 
         console.log(`Deleting user ${userId} (${user.email})...`);
 
-        // Delete expert-related records
+        // Delete expert-related records first
         if (user.expert) {
           const expertId = user.expert.id;
+          console.log(`  Expert ID: ${expertId}`);
+
+          // Get all expert reservations to delete related data
+          const expertReservations = await tx.reservation.findMany({
+            where: { expertId },
+            select: { id: true },
+          });
+
+          // Delete reservation history for expert's reservations
+          for (const reservation of expertReservations) {
+            await tx.reservationHistory.deleteMany({
+              where: { reservationId: reservation.id },
+            });
+          }
+
           await tx.expertAvailability.deleteMany({ where: { expertId } });
           await tx.expertCategory.deleteMany({ where: { expertId } });
           await tx.review.deleteMany({ where: { expertId } });
@@ -30,7 +45,21 @@ async function deleteUsers(userIds: number[]) {
           await tx.expert.delete({ where: { id: expertId } });
         }
 
-        // Delete user records
+        // Get all user reservations to delete related data
+        const userReservations = await tx.reservation.findMany({
+          where: { userId },
+          select: { id: true },
+        });
+
+        // Delete reservation history for user's reservations
+        for (const reservation of userReservations) {
+          await tx.reservationHistory.deleteMany({
+            where: { reservationId: reservation.id },
+          });
+        }
+
+        // Delete user records in correct order
+        await tx.userNotificationSetting.deleteMany({ where: { userId } });
         await tx.review.deleteMany({ where: { userId } });
         await tx.reservation.deleteMany({ where: { userId } });
         await tx.communityLike.deleteMany({ where: { userId } });
@@ -60,13 +89,16 @@ async function deleteUsers(userIds: number[]) {
   }
 }
 
-deleteUsers([112, 113])
-  .then(() => {
+async function main() {
+  try {
+    await deleteUsers([121, 122]);
     console.log('✅ All users deleted successfully');
-    process.exit(0);
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error('❌ Deletion failed:', error);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

@@ -42,7 +42,7 @@ type ExpertProfileData = {
     name: string;
     issuer: string;
   }>;
-  specialties: string[];
+  keywords: string[];  // specialties → keywords로 변경
   consultationTypes: ConsultationType[];
   languages: string[];
   hourlyRate: number | string;
@@ -74,6 +74,10 @@ type ExpertProfileData = {
   };
   profileImage: string | null;
   portfolioFiles: PortfolioFile[];
+  // 추가 필드들 (백엔드에서 전송되는 필드)
+  portfolioItems?: any[];
+  mbti?: string;
+  consultationStyle?: string;
 };
 
 export default function ExpertProfileEditPage() {
@@ -285,49 +289,113 @@ export default function ExpertProfileEditPage() {
           return;
         }
 
-        // 기존 데이터 변환
+        // 기존 데이터 변환 (백엔드 API 필드명 → 프론트엔드 필드명)
         const convertedData = {
           id: expertId,
           name: user.name || expertProfile.fullName || expertProfile.name || "",
           specialty: expertProfile.specialty || "",
           experience: expertProfile.experienceYears || expertProfile.experience || 0,
           description: expertProfile.bio || expertProfile.description || "",
-          education: expertProfile.education || [""],
-          certifications: expertProfile.certifications || [{ name: "", issuer: "" }],
-          specialties: expertProfile.specialties || [expertProfile.specialty || ""],
-          consultationTypes: expertProfile.consultationTypes || [],
-          languages: expertProfile.languages || ["한국어"],
+
+          // 배열 필드들 - 백엔드에서 가져온 데이터 우선
+          education: expertProfile.education && Array.isArray(expertProfile.education) && expertProfile.education.length > 0
+            ? expertProfile.education
+            : [""],
+          certifications: expertProfile.certifications && Array.isArray(expertProfile.certifications) && expertProfile.certifications.length > 0
+            ? expertProfile.certifications
+            : [{ name: "", issuer: "" }],
+          // keywords 필드 (백엔드에서 keywords로 반환)
+          keywords: expertProfile.keywords && Array.isArray(expertProfile.keywords)
+            ? expertProfile.keywords
+            : [],
+          consultationTypes: expertProfile.consultationTypes && Array.isArray(expertProfile.consultationTypes)
+            ? expertProfile.consultationTypes
+            : [],
+          languages: expertProfile.languages && Array.isArray(expertProfile.languages) && expertProfile.languages.length > 0
+            ? expertProfile.languages
+            : ["한국어"],
+
+          // 가격 정보
           hourlyRate: expertProfile.hourlyRate || (expertProfile.pricePerMinute ? expertProfile.pricePerMinute * 60 : ""),
           pricePerMinute: expertProfile.pricePerMinute || 0,
+
+          // 통계 정보
           totalSessions: expertProfile.totalSessions || 0,
-          avgRating: expertProfile.avgRating || expertProfile.rating || 0,
+          avgRating: expertProfile.ratingAvg || expertProfile.avgRating || expertProfile.rating || 0,
           level: expertProfile.level || "Tier 1 (Lv.1-99)",
           completionRate: expertProfile.completionRate || 85,
           repeatClients: expertProfile.repeatClients || Math.floor((expertProfile.totalSessions || 0) * 0.3),
           responseTime: expertProfile.responseTime || '2시간 내',
           averageSessionDuration: expertProfile.averageSessionDuration || 60,
           reviewCount: expertProfile.reviewCount || Math.floor((expertProfile.totalSessions || 0) * 0.7),
+
+          // 정책 정보
           cancellationPolicy: expertProfile.cancellationPolicy || '24시간 전 취소 가능',
-          availability: expertProfile.availability || {
-            monday: { available: false, hours: "09:00-18:00" },
-            tuesday: { available: false, hours: "09:00-18:00" },
-            wednesday: { available: false, hours: "09:00-18:00" },
-            thursday: { available: false, hours: "09:00-18:00" },
-            friday: { available: false, hours: "09:00-18:00" },
-            saturday: { available: false, hours: "09:00-18:00" },
-            sunday: { available: false, hours: "09:00-18:00" },
-          },
-          holidayPolicy: expertProfile.holidayPolicy || "",
+
+          // 예약 가능 시간 - 백엔드 availability JSON 객체
+          availability: expertProfile.availability && typeof expertProfile.availability === 'object'
+            ? expertProfile.availability
+            : {
+                monday: { available: false, hours: "09:00-18:00" },
+                tuesday: { available: false, hours: "09:00-18:00" },
+                wednesday: { available: false, hours: "09:00-18:00" },
+                thursday: { available: false, hours: "09:00-18:00" },
+                friday: { available: false, hours: "09:00-18:00" },
+                saturday: { available: false, hours: "09:00-18:00" },
+                sunday: { available: false, hours: "09:00-18:00" },
+              },
+
+          holidayPolicy: expertProfile.holidayPolicy ||
+            (expertProfile.availability?.holidaySettings?.holidayNote) || "",
+
+          // 연락처 정보
           contactInfo: expertProfile.contactInfo || {
             phone: "",
             email: user.email || "",
             location: expertProfile.location || "",
             website: ""
           },
-          profileImage: expertProfile.profileImage || null,
-          portfolioFiles: expertProfile.portfolioFiles || [],
+
+          // 소셜 링크 - 백엔드 socialLinks 객체
+          socialLinks: expertProfile.socialLinks || {
+            linkedin: "",
+            github: "",
+            twitter: "",
+            instagram: "",
+            facebook: "",
+            youtube: ""
+          },
+
+          // 프로필 이미지 - avatarUrl을 profileImage로 매핑
+          profileImage: expertProfile.avatarUrl || expertProfile.profileImage || null,
+
+          // 포트폴리오 파일
+          portfolioFiles: expertProfile.portfolioFiles && Array.isArray(expertProfile.portfolioFiles)
+            ? expertProfile.portfolioFiles
+            : [],
+
+          // 경력사항 - workExperience를 portfolioItems로 매핑
+          portfolioItems: expertProfile.workExperience && Array.isArray(expertProfile.workExperience)
+            ? expertProfile.workExperience
+            : (expertProfile.portfolioItems || []),
+
+          // MBTI 및 상담 스타일
+          mbti: expertProfile.mbti || "",
+          consultationStyle: expertProfile.consultationStyle || "",
+
+          // 프로필 완성도
           isProfileComplete: expertProfile?.isProfileComplete === true,
         };
+
+        console.log('🔄 데이터 변환 완료:', {
+          원본_필드명: Object.keys(expertProfile),
+          변환된_데이터: convertedData,
+          MBTI: expertProfile.mbti,
+          상담스타일: expertProfile.consultationStyle,
+          경력사항: expertProfile.workExperience,
+          키워드: expertProfile.keywords || expertProfile.specialties,
+          프로필이미지: expertProfile.avatarUrl,
+        });
 
         setInitialData(convertedData);
         console.log('💾 프로필 페이지에서 ExpertProfilePreview로 전달되는 데이터:', {
@@ -354,13 +422,15 @@ export default function ExpertProfileEditPage() {
     }
 
     try {
-      console.log(`🔄 전문가 프로필 API 저장: ID=${currentExpertId}`);
+      console.log(`🔄 전문가 프로필 API 저장: ID=${currentExpertId}, displayId=${currentDisplayId}`);
 
-      // displayId 생성 (임시로 expert_ prefix 사용)
-      const displayId = `expert_${currentExpertId}`;
+      // displayId 사용 (실제 API 엔드포인트에서 요구하는 displayId)
+      if (!currentDisplayId) {
+        throw new Error('전문가 displayId를 찾을 수 없습니다.');
+      }
 
       // 실제 데이터베이스 API 호출
-      const response = await api.put(`/experts/${displayId}/profile`, {
+      const response = await api.put(`/experts/${currentDisplayId}/profile`, {
         ...updated,
         id: currentExpertId,
       });
@@ -383,8 +453,7 @@ export default function ExpertProfileEditPage() {
           description: updated.description,
           education: updated.education,
           certifications: updated.certifications,
-          keywords: updated.specialties,
-          specialties: updated.specialties,
+          keywords: updated.keywords,  // keywords 필드 사용
           consultationTypes: updated.consultationTypes,
           languages: updated.languages,
           hourlyRate: updated.hourlyRate,
@@ -414,7 +483,7 @@ export default function ExpertProfileEditPage() {
         // React Query 캐시 무효화 (미리보기 실시간 업데이트)
         queryClient.invalidateQueries({ queryKey: ['expert-profile-live', currentExpertId] });
         queryClient.invalidateQueries({ queryKey: ['expert-rankings', currentExpertId] });
-        queryClient.invalidateQueries({ queryKey: ['expert', displayId] });
+        queryClient.invalidateQueries({ queryKey: ['expert', currentDisplayId] });
 
         // 저장 성공 후 편집 모드 종료
         setIsEditing(false);
@@ -612,29 +681,65 @@ export default function ExpertProfileEditPage() {
                 experience: typeof initialData?.experience === 'number' ? initialData.experience : parseInt(String(initialData?.experience || 0)),
                 bio: initialData?.description || '',
                 profileImage: initialData?.profileImage || null,
+
+                // 키워드 - specialties를 keywords로 매핑
                 keywords: initialData?.specialties || [],
-                workExperience: [{ company: '', position: '', period: '' }],
-                education: Array.isArray(initialData?.education) ?
-                  (initialData.education as string[]).map(edu => ({ school: edu, major: '', degree: '' })) :
-                  [{ school: '', major: '', degree: '' }],
+
+                // 경력사항 - portfolioItems를 workExperience로 매핑
+                workExperience: (initialData as any)?.portfolioItems && Array.isArray((initialData as any).portfolioItems)
+                  ? (initialData as any).portfolioItems.map((item: any) => ({
+                      company: item.company || '',
+                      position: item.position || '',
+                      period: item.period || ''
+                    }))
+                  : [{ company: '', position: '', period: '' }],
+
+                // 학력 - 문자열 배열 또는 객체 배열로 변환
+                education: Array.isArray(initialData?.education)
+                  ? (initialData.education as any[]).map(edu => {
+                      if (typeof edu === 'string') {
+                        return { school: edu, major: '', degree: '' };
+                      } else {
+                        return {
+                          school: edu.school || '',
+                          major: edu.major || '',
+                          degree: edu.degree || ''
+                        };
+                      }
+                    })
+                  : [{ school: '', major: '', degree: '' }],
+
+                // 자격증
                 certifications: initialData?.certifications?.map(cert => ({
                   name: cert.name,
                   issuer: cert.issuer,
                   year: (cert as any).year || ''
                 })) || [{ name: '', issuer: '', year: '' }],
-                mbti: '',
-                consultationStyle: '',
+
+                // MBTI & 상담 스타일 - initialData에서 가져오기
+                mbti: (initialData as any)?.mbti || '',
+                consultationStyle: (initialData as any)?.consultationStyle || '',
+
+                // 상담 유형
                 consultationTypes: initialData?.consultationTypes || [],
+
+                // 예약 가능 시간 - 향후 구현
                 availabilitySlots: [],
                 holidaySettings: { acceptHolidayConsultations: false, holidayNote: '' },
+
+                // 포트폴리오 미리보기
                 portfolioPreviews: [],
+
+                // 소셜 링크 - socialLinks 객체에서 가져오기
                 socialLinks: {
                   website: initialData?.socialLinks?.linkedin || initialData?.contactInfo?.website || '',
-                  instagram: (initialData?.socialLinks as any)?.instagram || '',
-                  youtube: (initialData?.socialLinks as any)?.youtube || '',
+                  instagram: initialData?.socialLinks?.instagram || '',
+                  youtube: initialData?.socialLinks?.youtube || '',
                   linkedin: initialData?.socialLinks?.linkedin || '',
                   blog: (initialData?.socialLinks as any)?.blog || ''
                 },
+
+                // 통계 정보
                 totalSessions: initialData?.totalSessions || 0,
                 avgRating: initialData?.avgRating || 0,
                 completionRate: initialData?.completionRate || 0,
