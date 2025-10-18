@@ -44,6 +44,16 @@ interface ApplicationDetail {
     mbti?: string
     consultationStyle?: string
     profileImage: string | null
+    socialLinks?: {
+      linkedin?: string
+      github?: string
+      twitter?: string
+      instagram?: string
+      facebook?: string
+      youtube?: string
+      blog?: string
+      website?: string
+    } | null
     status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
     reviewedAt: string | null
     reviewNotes: string | null
@@ -472,6 +482,119 @@ export default function ApplicationDetailPage() {
               )}
             </div>
           )}
+
+          {/* 소셜 링크 */}
+          {application.socialLinks && Object.values(application.socialLinks).some(link => link) && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">소셜 링크</h2>
+              <div className="space-y-3">
+                {application.socialLinks.website && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">웹사이트</span>
+                    <a
+                      href={application.socialLinks.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.website}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.blog && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">블로그</span>
+                    <a
+                      href={application.socialLinks.blog}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.blog}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.linkedin && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">LinkedIn</span>
+                    <a
+                      href={application.socialLinks.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.linkedin}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.instagram && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">Instagram</span>
+                    <a
+                      href={application.socialLinks.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.instagram}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.youtube && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">YouTube</span>
+                    <a
+                      href={application.socialLinks.youtube}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.youtube}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.github && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">GitHub</span>
+                    <a
+                      href={application.socialLinks.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.github}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.twitter && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">Twitter</span>
+                    <a
+                      href={application.socialLinks.twitter}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.twitter}
+                    </a>
+                  </div>
+                )}
+                {application.socialLinks.facebook && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700 w-24">Facebook</span>
+                    <a
+                      href={application.socialLinks.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {application.socialLinks.facebook}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 사이드바 */}
@@ -610,7 +733,7 @@ export default function ApplicationDetailPage() {
                     value={reviewNotes}
                     onChange={(e) => setReviewNotes(e.target.value)}
                     placeholder="선택한 항목 외 추가로 요청할 사항이 있다면 입력해주세요."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-400"
                     rows={3}
                   />
                 </div>
@@ -652,7 +775,7 @@ export default function ApplicationDetailPage() {
                     value={reviewNotes}
                     onChange={(e) => setReviewNotes(e.target.value)}
                     placeholder="선택한 사유 외 추가 설명이 있다면 입력해주세요."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-400"
                     rows={3}
                   />
                 </div>

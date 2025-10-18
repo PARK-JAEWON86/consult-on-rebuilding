@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function checkUsers() {
-  const userIds = [121, 122];
+  const userIds = [124, 125, 126, 127];
 
   console.log('🔍 Checking users in database...\n');
 

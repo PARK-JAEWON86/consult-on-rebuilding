@@ -35,7 +35,6 @@ import Step31BasicProfile from '@/components/experts/become-steps/Step3-1BasicPr
 import Step32ScheduleSettings from '@/components/experts/become-steps/Step3-2ScheduleSettings'
 import Step4Terms from '@/components/experts/become-steps/Step4Terms'
 import Step5Review from '@/components/experts/become-steps/Step5Review'
-import Step6Complete from '@/components/experts/become-steps/Step6Complete'
 import { AvailabilitySlot, HolidaySettings } from '@/components/experts/AvailabilityScheduleEditor'
 
 type Step = 1 | 2 | 2.5 | 3 | 4 | 5
@@ -44,7 +43,7 @@ type ConsultationType = 'video' | 'chat' | 'voice'
 
 export default function BecomeExpertPage() {
   const router = useRouter()
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isLoading, refreshUser } = useAuth()
   const [step, setStep] = useState<Step>(1)
 
   // 카테고리 데이터 로드
@@ -100,15 +99,17 @@ export default function BecomeExpertPage() {
   // 1단계: 기본 정보 + 휴대폰 인증
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
-  // 사용자 정보 로드 시 이름과 이메일 자동 설정
+  // 사용자 정보 로드 시 이름, 이메일, 전화번호 자동 설정
   useEffect(() => {
     if (user && !isLoading) {
       console.log('🔍 AuthProvider에서 사용자 정보 로드됨:', user)
       setFullName(user.name || '')
       setEmail(user.email)
+      setPhoneNumber((user as any).phoneNumber || '')
     } else {
       console.log('⚠️ 사용자 정보가 없습니다. isLoading:', isLoading)
     }
@@ -174,6 +175,16 @@ export default function BecomeExpertPage() {
     blog: '',
   })
 
+  // 소셜링크 상태 변화 추적
+  useEffect(() => {
+    console.log('🔗 socialLinks 상태 변경됨:', socialLinks)
+  }, [socialLinks])
+
+  // 스텝 변화 추적
+  useEffect(() => {
+    console.log('📍 스텝 변경됨:', step, '| socialLinks:', socialLinks)
+  }, [step])
+
   // ADDITIONAL_INFO_REQUESTED 상태일 때 기존 지원 정보로 폼 자동 채우기
   useEffect(() => {
     if (!user || isLoading) return
@@ -215,13 +226,52 @@ export default function BecomeExpertPage() {
       setEducation(appData.education || [{ school: '', major: '', degree: '' }])
       setWorkExperience(appData.workExperience || [{ company: '', position: '', period: '' }])
 
-      // 스케줄
+      // 스케줄 복원
       if (appData.availability) {
-        setAvailabilitySlots(appData.availability.slots || [])
-        setHolidaySettings(appData.availability.holidays || {
+        // 요일별 객체를 슬롯 배열로 변환
+        const slots: AvailabilitySlot[] = []
+        const dayKeys = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+
+        dayKeys.forEach(dayKey => {
+          const dayData = appData.availability[dayKey]
+          if (dayData && dayData.available && dayData.hours) {
+            // "09:00-18:00, 19:00-21:00" 형식을 슬롯으로 분리
+            const timeRanges = dayData.hours.split(',').map((range: string) => range.trim())
+            timeRanges.forEach((range: string) => {
+              const [startTime, endTime] = range.split('-').map((t: string) => t.trim())
+              if (startTime && endTime) {
+                slots.push({
+                  dayOfWeek: dayKey as any,
+                  startTime,
+                  endTime,
+                  isActive: true
+                })
+              }
+            })
+          }
+        })
+
+        setAvailabilitySlots(slots)
+        setHolidaySettings(appData.availability.holidaySettings || {
           acceptHolidayConsultations: false,
           holidayNote: ''
         })
+      }
+
+      // 소셜 링크
+      if (appData.socialLinks) {
+        setSocialLinks({
+          website: appData.socialLinks.website || '',
+          instagram: appData.socialLinks.instagram || '',
+          youtube: appData.socialLinks.youtube || '',
+          linkedin: appData.socialLinks.linkedin || '',
+          blog: appData.socialLinks.blog || ''
+        })
+      }
+
+      // 포트폴리오 이미지
+      if (appData.portfolioImages && Array.isArray(appData.portfolioImages)) {
+        setPortfolioPreviews(appData.portfolioImages)
       }
 
       console.log('✅ 폼 자동 채우기 완료')
@@ -383,7 +433,6 @@ export default function BecomeExpertPage() {
 
   const canGoNextStep3 =
     selectedCategoryId !== null &&
-    profileImage !== null &&
     keywords.length > 0 &&
     bio.trim().length >= 30 &&
     consultationTypes.length > 0 &&
@@ -392,7 +441,6 @@ export default function BecomeExpertPage() {
   // Validation message for Step 3
   const validationMessage = [
     !selectedCategoryId && '상담분야',
-    !profileImage && '프로필 사진',
     keywords.length === 0 && '키워드',
     bio.trim().length < 30 && '자기소개(30자 이상)',
     consultationTypes.length === 0 && '상담유형',
@@ -622,6 +670,12 @@ export default function BecomeExpertPage() {
   }
 
   const handleSubmit = async () => {
+    console.log('========================================')
+    console.log('🚀 handleSubmit 시작')
+    console.log('📍 현재 스텝:', step)
+    console.log('🔗 socialLinks 상태:', socialLinks)
+    console.log('========================================')
+
     if (!agree) {
       alert('약관 동의가 필요합니다.')
       return
@@ -653,6 +707,7 @@ export default function BecomeExpertPage() {
     const applicationData = {
       name: fullName,
       email: email,
+      phoneNumber: phoneNumber || undefined, // 전화번호 추가 (입력값 사용)
       jobTitle: '', // 필요시 추가
       specialty: fullSpecialty,
       experienceYears: experienceYears,
@@ -669,7 +724,8 @@ export default function BecomeExpertPage() {
         .filter((c) => c.name.trim())
         .map((c) => ({
           name: c.name,
-          issuer: c.issuer || ''
+          issuer: c.issuer || '',
+          year: c.year || ''
         })),
       education: education
         .filter((e) => e.school.trim())
@@ -688,19 +744,53 @@ export default function BecomeExpertPage() {
       profileImage: profileImage,
       mbti: mbti || undefined,
       consultationStyle: consultationStyle || undefined,
+      socialLinks: (() => {
+        // 소셜링크가 하나라도 있으면 객체로 전송
+        const hasAnySocialLink = socialLinks.website || socialLinks.instagram || socialLinks.youtube || socialLinks.linkedin || socialLinks.blog
+        console.log('🔗 소셜링크 체크:', {
+          hasAnySocialLink,
+          website: socialLinks.website,
+          instagram: socialLinks.instagram,
+          youtube: socialLinks.youtube,
+          linkedin: socialLinks.linkedin,
+          blog: socialLinks.blog
+        })
+
+        if (!hasAnySocialLink) return undefined
+
+        return {
+          website: socialLinks.website || undefined,
+          instagram: socialLinks.instagram || undefined,
+          youtube: socialLinks.youtube || undefined,
+          linkedin: socialLinks.linkedin || undefined,
+          blog: socialLinks.blog || undefined
+        }
+      })(),
+      portfolioImages: portfolioPreviews.length > 0 ? portfolioPreviews : undefined,
     }
+
+    // 소셜링크 디버깅
+    console.log('🔗 소셜링크 원본 데이터:', socialLinks)
+    console.log('🔗 소셜링크 전송 데이터:', applicationData.socialLinks)
+
+    // 디버깅: 전송 데이터 로깅
+    console.log('📤 전송할 데이터:', {
+      ...applicationData,
+      profileImage: profileImage ? `${profileImage.substring(0, 50)}... (${profileImage.length} chars)` : null
+    })
 
     try {
       const result = await api.post('/experts/apply', applicationData)
 
       if (result.success) {
-        // 성공 시 로컬스토리지 정리 (선택사항)
+        // 성공 시 로컬스토리지 정리
         localStorage.removeItem('pendingExpertApplication')
 
-        alert('전문가 신청이 성공적으로 접수되었습니다!')
+        // 사용자 정보 갱신 (expertApplicationData 포함하여 최신 정보 가져오기)
+        await refreshUser()
 
-        // 사용자 정보 새로고침 후 진행현황 페이지로 이동
-        window.location.href = '/experts/application-status'
+        // 진행 상황 페이지로 리다이렉트
+        router.push('/experts/application-status')
       } else {
         throw new Error(result.error?.message || '신청 제출 실패')
       }
@@ -844,7 +934,7 @@ export default function BecomeExpertPage() {
           <li
             className={`px-3 py-1 rounded-full border ${step >= 4 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
           >
-            4. 검수 및 통보
+            4. 최종 검토 및 제출
           </li>
         </ol>
       </nav>
@@ -855,8 +945,10 @@ export default function BecomeExpertPage() {
           <Step1BasicInfo
             fullName={fullName}
             email={email}
+            phoneNumber={phoneNumber}
             onFullNameChange={setFullName}
             onEmailChange={setEmail}
+            onPhoneNumberChange={setPhoneNumber}
             onNext={() => setStep(2)}
             canGoNext={canGoNextStep1}
           />
@@ -949,11 +1041,6 @@ export default function BecomeExpertPage() {
             onPrevious={() => setStep(3)}
             onSubmit={handleSubmit}
           />
-        )}
-
-        {/* Step 5: 완료 화면 */}
-        {step === 5 && (
-          <Step6Complete email={email} />
         )}
       </div>
     </div>

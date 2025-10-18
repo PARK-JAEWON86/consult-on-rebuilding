@@ -266,6 +266,8 @@ model ExpertApplication {
   profileImage         String?                 @db.Text
   mbti                 String?
   consultationStyle    String?
+  socialLinks          Json?
+  portfolioImages      Json?
   status               ExpertApplicationStatus @default(PENDING)
   reviewedAt           DateTime?
   reviewedBy           Int?

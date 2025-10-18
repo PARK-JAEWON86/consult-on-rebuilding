@@ -75,15 +75,15 @@ export default function ApplicationTimeline({
   ]
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">진행 상황</h2>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 h-full">
+      <h2 className="text-xl font-bold text-gray-900 mb-5">진행 상황</h2>
       <div className="relative">
         {/* 타임라인 라인 */}
-        <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-gray-200" />
+        <div className="absolute left-6 top-6 bottom-6 w-0.5 bg-gray-200" />
 
         {/* 각 단계 */}
         {steps.map((step, index) => (
-          <div key={step.stage} className="relative flex gap-4 mb-8 last:mb-0">
+          <div key={step.stage} className="relative flex gap-4 mb-6 last:mb-0">
             {/* 아이콘 */}
             <div
               className={`
@@ -113,7 +113,7 @@ export default function ApplicationTimeline({
               >
                 {step.label}
               </h3>
-              <p className="text-sm text-gray-600 mb-2">{step.description}</p>
+              <p className="text-sm text-gray-600 mb-1.5">{step.description}</p>
               {step.status === 'current' && (
                 <p className="text-xs text-blue-600 font-medium">
                   예상 소요: {step.estimatedDays}영업일

@@ -147,6 +147,18 @@ export class ExpertApplicationsService {
       return parts[0].trim();
     };
 
+    // 승인된 전문가의 경우 Expert 테이블에서 socialLinks 조회
+    let socialLinks = null;
+    if (application.status === 'APPROVED') {
+      const expert = await this.prisma.expert.findFirst({
+        where: { userId: application.userId },
+        select: { socialLinks: true },
+      });
+      if (expert) {
+        socialLinks = expert.socialLinks;
+      }
+    }
+
     return {
       application: {
         ...application,
@@ -160,6 +172,7 @@ export class ExpertApplicationsService {
         availability: typeof application.availability === 'string'
           ? JSON.parse(application.availability)
           : application.availability,
+        socialLinks: socialLinks,
       },
       user,
       previousApplications,

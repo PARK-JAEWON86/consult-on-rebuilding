@@ -91,7 +91,7 @@ async function deleteUsers(userIds: number[]) {
 
 async function main() {
   try {
-    await deleteUsers([121, 122]);
+    await deleteUsers([124, 125, 126, 127]);
     console.log('✅ All users deleted successfully');
   } catch (error) {
     console.error('❌ Deletion failed:', error);

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { FileCheck2, ShieldCheck } from 'lucide-react'
 
 interface Step4TermsProps {

@@ -10,16 +10,23 @@ import { api } from '@/lib/api'
 
 export default function ApplicationStatusPage() {
   const router = useRouter()
-  const { user, isLoading } = useAuth()
-  const [applicationData, setApplicationData] = useState<any>(null)
+  const { user, isLoading, refreshUser } = useAuth()
   const [emailNotification, setEmailNotification] = useState(true)
   const [smsNotification, setSmsNotification] = useState(false)
   const [isSavingNotification, setIsSavingNotification] = useState(false)
+
+  // 페이지 마운트 시 사용자 정보 갱신 (최신 expertApplicationData 가져오기)
+  useEffect(() => {
+    if (!isLoading && user) {
+      refreshUser()
+    }
+  }, []) // 빈 배열로 마운트 시 1회만 실행
 
   // 사용자 정보 로드 시 알림 설정 초기화
   useEffect(() => {
     if (user && (user as any).expertApplicationData) {
       const appData = (user as any).expertApplicationData
+      console.log('📋 진행상황 페이지 - 전문가 신청 데이터:', appData)
       setEmailNotification(appData.emailNotification ?? true)
       setSmsNotification(appData.smsNotification ?? false)
     }
@@ -107,45 +114,17 @@ export default function ApplicationStatusPage() {
           </p>
         </div>
 
-        {/* 진행 상황 타임라인 */}
-        <div className="mb-6">
-          <ApplicationTimeline
-            currentStage={(user as any)?.expertApplicationData?.currentStage || 'SUBMITTED'}
-            submittedAt={new Date((user as any)?.expertApplicationData?.submittedAt || Date.now())}
-          />
-        </div>
-
-        {/* 신청 정보 및 알림 설정 */}
+        {/* 진행 상황 타임라인 + 우측 사이드바 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* 신청 정보 요약 (좌측, 2/3 너비) */}
+          {/* 진행 상황 타임라인 (좌측, 2/3 너비) */}
           <div className="lg:col-span-2">
-            <ApplicationSummaryCard
-              applicationData={{
-                id: (user as any)?.expertApplicationData?.id || 0,
-                displayId: (user as any)?.expertApplicationData?.displayId,
-                categoryName: (user as any)?.expertApplicationData?.category || '전문 분야',
-                specialty: (user as any)?.expertApplicationData?.specialty || '세부 전문',
-                submittedAt: new Date((user as any)?.expertApplicationData?.submittedAt || Date.now()),
-                name: (user as any)?.expertApplicationData?.name,
-                email: (user as any)?.expertApplicationData?.email,
-                phoneNumber: (user as any)?.expertApplicationData?.phoneNumber,
-                experienceYears: (user as any)?.expertApplicationData?.experienceYears,
-                languages: (user as any)?.expertApplicationData?.languages,
-                bio: (user as any)?.expertApplicationData?.bio,
-                keywords: (user as any)?.expertApplicationData?.keywords,
-                consultationTypes: (user as any)?.expertApplicationData?.consultationTypes,
-                certifications: (user as any)?.expertApplicationData?.certifications,
-                education: (user as any)?.expertApplicationData?.education,
-                workExperience: (user as any)?.expertApplicationData?.workExperience,
-                profileImage: (user as any)?.expertApplicationData?.profileImage,
-                mbti: (user as any)?.expertApplicationData?.mbti,
-                consultationStyle: (user as any)?.expertApplicationData?.consultationStyle,
-                availability: (user as any)?.expertApplicationData?.availability,
-              }}
+            <ApplicationTimeline
+              currentStage={(user as any)?.expertApplicationData?.currentStage || 'SUBMITTED'}
+              submittedAt={new Date((user as any)?.expertApplicationData?.submittedAt || Date.now())}
             />
           </div>
 
-          {/* 우측 컬럼: 알림 설정 + 상태 정보 */}
+          {/* 우측 사이드바: 알림 설정 + 예상 검수 기간 */}
           <div className="lg:col-span-1 space-y-6">
             {/* 알림 설정 카드 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -183,7 +162,7 @@ export default function ApplicationStatusPage() {
               </p>
             </div>
 
-            {/* 상태 정보 카드 */}
+            {/* 예상 검수 기간 카드 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="space-y-4">
                 {/* 검수 기간 */}
@@ -226,26 +205,80 @@ export default function ApplicationStatusPage() {
                 </div>
               </div>
             </div>
-
-            {/* 안내 사항 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
-              <h3 className="font-semibold text-blue-900 mb-2 text-sm">안내 사항</h3>
-              <ul className="space-y-2 text-xs text-blue-800">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span>검수 과정에서 제출하신 정보의 정확성을 확인합니다</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span>영업일 기준으로 처리되며, 주말 및 공휴일은 제외됩니다</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                  <span>승인 완료 시 바로 전문가 활동을 시작하실 수 있습니다</span>
-                </li>
-              </ul>
-            </div>
           </div>
+        </div>
+
+        {/* 신청 정보 요약 (전체 너비) */}
+        <div className="mb-6">
+          <ApplicationSummaryCard
+            applicationData={{
+              id: (user as any)?.expertApplicationData?.id || 0,
+              displayId: (user as any)?.expertApplicationData?.displayId,
+              categoryName: (user as any)?.expertApplicationData?.category || '전문 분야',
+              specialty: (user as any)?.expertApplicationData?.specialty || '세부 전문',
+              submittedAt: new Date((user as any)?.expertApplicationData?.submittedAt || Date.now()),
+              name: (user as any)?.expertApplicationData?.name,
+              email: (user as any)?.expertApplicationData?.email,
+              phoneNumber: (user as any)?.expertApplicationData?.phoneNumber,
+              experienceYears: (user as any)?.expertApplicationData?.experienceYears,
+              languages: (user as any)?.expertApplicationData?.languages,
+              bio: (user as any)?.expertApplicationData?.bio,
+              keywords: (user as any)?.expertApplicationData?.keywords,
+              consultationTypes: (user as any)?.expertApplicationData?.consultationTypes,
+              certifications: (() => {
+                const certData = (user as any)?.expertApplicationData?.certifications;
+                console.log('🔍 자격증 데이터:', certData);
+                console.log('🔍 자격증 타입:', typeof certData);
+                console.log('🔍 자격증 배열 여부:', Array.isArray(certData));
+                if (certData && certData.length > 0) {
+                  console.log('🔍 첫번째 자격증:', certData[0]);
+                }
+                return certData;
+              })(),
+              education: (user as any)?.expertApplicationData?.education,
+              workExperience: (user as any)?.expertApplicationData?.workExperience,
+              profileImage: (user as any)?.expertApplicationData?.profileImage,
+              mbti: (user as any)?.expertApplicationData?.mbti,
+              consultationStyle: (user as any)?.expertApplicationData?.consultationStyle,
+              availability: (user as any)?.expertApplicationData?.availability,
+              socialLinks: (() => {
+                const socialData = (user as any)?.expertApplicationData?.socialLinks;
+                console.log('🔍 소셜링크 데이터:', socialData);
+                console.log('🔍 소셜링크 타입:', typeof socialData);
+                console.log('🔍 소셜링크 객체 여부:', socialData && typeof socialData === 'object');
+                return socialData;
+              })(),
+              portfolioImages: (() => {
+                const portfolioData = (user as any)?.expertApplicationData?.portfolioImages;
+                console.log('🔍 포트폴리오 이미지 데이터:', portfolioData);
+                console.log('🔍 포트폴리오 타입:', typeof portfolioData);
+                console.log('🔍 포트폴리오 배열 여부:', Array.isArray(portfolioData));
+                if (portfolioData && portfolioData.length > 0) {
+                  console.log('🔍 첫번째 포트폴리오:', portfolioData[0]);
+                }
+                return portfolioData;
+              })(),
+            }}
+          />
+        </div>
+
+        {/* 안내 사항 (전체 너비) */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6">
+          <h3 className="font-semibold text-blue-900 mb-2 text-sm">안내 사항</h3>
+          <ul className="space-y-2 text-xs text-blue-800">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>검수 과정에서 제출하신 정보의 정확성을 확인합니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>영업일 기준으로 처리되며, 주말 및 공휴일은 제외됩니다</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>승인 완료 시 바로 전문가 활동을 시작하실 수 있습니다</span>
+            </li>
+          </ul>
         </div>
 
         {/* 액션 버튼 */}

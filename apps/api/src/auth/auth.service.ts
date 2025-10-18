@@ -304,7 +304,7 @@ export class AuthService {
 
     // ExpertApplication 상세 정보 추가 (PENDING 또는 ADDITIONAL_INFO_REQUESTED 상태인 경우)
     if (expertApplication && (expertApplication.status === 'PENDING' || expertApplication.status === 'ADDITIONAL_INFO_REQUESTED')) {
-      // JSON 필드 파싱 헬퍼
+      // JSON 필드 파싱 헬퍼 (배열용)
       const parseJsonField = (field: any): any => {
         if (!field) return [];
         if (typeof field === 'string') {
@@ -316,6 +316,20 @@ export class AuthService {
           }
         }
         return Array.isArray(field) ? field : [];
+      };
+
+      // JSON 객체 파싱 헬퍼 (객체용)
+      const parseJsonObject = (field: any): any => {
+        if (!field) return undefined;
+        if (typeof field === 'string') {
+          try {
+            return JSON.parse(field);
+          } catch (e) {
+            console.warn('Failed to parse JSON object:', field);
+            return undefined;
+          }
+        }
+        return typeof field === 'object' ? field : undefined;
       };
 
       result.expertApplicationData = {
@@ -340,7 +354,9 @@ export class AuthService {
         profileImage: expertApplication.profileImage,
         mbti: expertApplication.mbti,
         consultationStyle: expertApplication.consultationStyle,
-        availability: parseJsonField(expertApplication.availability),
+        availability: parseJsonObject(expertApplication.availability),
+        socialLinks: parseJsonObject(expertApplication.socialLinks),
+        portfolioImages: parseJsonField(expertApplication.portfolioImages),
         emailNotification: expertApplication.emailNotification,
         smsNotification: expertApplication.smsNotification,
         reviewNotes: expertApplication.reviewNotes || null

@@ -6,8 +6,10 @@ import { Info } from 'lucide-react'
 interface Step1BasicInfoProps {
   fullName: string
   email: string
+  phoneNumber: string
   onFullNameChange: (value: string) => void
   onEmailChange: (value: string) => void
+  onPhoneNumberChange: (value: string) => void
   onNext: () => void
   canGoNext: boolean
 }
@@ -15,8 +17,10 @@ interface Step1BasicInfoProps {
 export default function Step1BasicInfo({
   fullName,
   email,
+  phoneNumber,
   onFullNameChange,
   onEmailChange,
+  onPhoneNumberChange,
   onNext,
   canGoNext,
 }: Step1BasicInfoProps) {
@@ -31,15 +35,15 @@ export default function Step1BasicInfo({
               기본 정보 안내
             </h4>
             <p className="text-sm text-blue-800">
-              이름과 이메일은 로그인한 계정 정보가 자동으로 입력되며, 수정 가능합니다.
+              이름, 이메일, 전화번호는 로그인한 계정 정보가 자동으로 입력되며, 수정 가능합니다.
             </p>
           </div>
         </div>
       </div>
 
-      {/* 기본 정보: 이름, 이메일 */}
+      {/* 기본 정보: 이름, 이메일, 전화번호 */}
       <div className="max-w-full">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               이름 <span className="text-gray-500 text-xs">(본명)</span>
@@ -64,6 +68,20 @@ export default function Step1BasicInfo({
               value={email}
               onChange={(e) => onEmailChange(e.target.value)}
               placeholder="이메일을 입력하세요"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              전화번호
+              <span className="text-gray-400 ml-1 text-xs">(선택)</span>
+            </label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => onPhoneNumberChange(e.target.value)}
+              placeholder="010-1234-5678"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

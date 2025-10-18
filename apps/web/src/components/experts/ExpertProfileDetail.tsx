@@ -509,9 +509,25 @@ export default function ExpertProfileDetail({
                               <h4 className="font-semibold text-blue-900">실무 경력</h4>
                             </div>
                             <div className="space-y-1 ml-7">
-                              {(expertData as any).portfolioItems.map((career: any, index: number) => (
-                                <p key={index} className="text-gray-700 text-sm">{career}</p>
-                              ))}
+                              {(expertData as any).portfolioItems.map((career: any, index: number) => {
+                                // career가 객체인 경우 (workExperience 형태)
+                                if (typeof career === 'object' && career !== null) {
+                                  const company = career.company || '';
+                                  const position = career.position || '';
+                                  const period = career.period || '';
+                                  return (
+                                    <p key={index} className="text-gray-700 text-sm">
+                                      {company && position && period
+                                        ? `${company} - ${position} (${period})`
+                                        : company || position || period || '경력 정보'}
+                                    </p>
+                                  );
+                                }
+                                // career가 문자열인 경우
+                                return (
+                                  <p key={index} className="text-gray-700 text-sm">{String(career)}</p>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

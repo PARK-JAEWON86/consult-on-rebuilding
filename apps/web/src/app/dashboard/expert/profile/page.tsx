@@ -509,8 +509,7 @@ export default function ExpertProfileEditPage() {
           description: updated.description,
           education: updated.education,
           certifications: updated.certifications,
-          keywords: updated.specialties,
-          specialties: updated.specialties,
+          keywords: updated.keywords,
           consultationTypes: updated.consultationTypes,
           languages: updated.languages,
           hourlyRate: updated.hourlyRate,
@@ -682,39 +681,43 @@ export default function ExpertProfileEditPage() {
                 bio: initialData?.description || '',
                 profileImage: initialData?.profileImage || null,
 
-                // 키워드 - specialties를 keywords로 매핑
-                keywords: initialData?.specialties || [],
+                // 키워드 - keywords 필드 사용
+                keywords: initialData?.keywords || [],
 
                 // 경력사항 - portfolioItems를 workExperience로 매핑
-                workExperience: (initialData as any)?.portfolioItems && Array.isArray((initialData as any).portfolioItems)
+                workExperience: (initialData as any)?.portfolioItems && Array.isArray((initialData as any).portfolioItems) && (initialData as any).portfolioItems.length > 0
                   ? (initialData as any).portfolioItems.map((item: any) => ({
-                      company: item.company || '',
-                      position: item.position || '',
-                      period: item.period || ''
+                      company: String(item?.company || ''),
+                      position: String(item?.position || ''),
+                      period: String(item?.period || '')
                     }))
                   : [{ company: '', position: '', period: '' }],
 
                 // 학력 - 문자열 배열 또는 객체 배열로 변환
-                education: Array.isArray(initialData?.education)
+                education: Array.isArray(initialData?.education) && initialData.education.length > 0
                   ? (initialData.education as any[]).map(edu => {
                       if (typeof edu === 'string') {
-                        return { school: edu, major: '', degree: '' };
-                      } else {
+                        return { school: String(edu), major: '', degree: '' };
+                      } else if (typeof edu === 'object' && edu !== null) {
                         return {
-                          school: edu.school || '',
-                          major: edu.major || '',
-                          degree: edu.degree || ''
+                          school: String(edu?.school || ''),
+                          major: String(edu?.major || ''),
+                          degree: String(edu?.degree || '')
                         };
+                      } else {
+                        return { school: '', major: '', degree: '' };
                       }
                     })
                   : [{ school: '', major: '', degree: '' }],
 
-                // 자격증
-                certifications: initialData?.certifications?.map(cert => ({
-                  name: cert.name,
-                  issuer: cert.issuer,
-                  year: (cert as any).year || ''
-                })) || [{ name: '', issuer: '', year: '' }],
+                // 자격증 - year 필드 포함
+                certifications: initialData?.certifications && Array.isArray(initialData.certifications) && initialData.certifications.length > 0
+                  ? initialData.certifications.map(cert => ({
+                      name: String(cert?.name || ''),
+                      issuer: String(cert?.issuer || ''),
+                      year: String((cert as any)?.year || '')
+                    }))
+                  : [{ name: '', issuer: '', year: '' }],
 
                 // MBTI & 상담 스타일 - initialData에서 가져오기
                 mbti: (initialData as any)?.mbti || '',
@@ -723,20 +726,25 @@ export default function ExpertProfileEditPage() {
                 // 상담 유형
                 consultationTypes: initialData?.consultationTypes || [],
 
-                // 예약 가능 시간 - 향후 구현
-                availabilitySlots: [],
-                holidaySettings: { acceptHolidayConsultations: false, holidayNote: '' },
+                // 예약 가능 시간 - 백엔드에서 availabilitySlots 가져오기
+                availabilitySlots: (initialData as any)?.availabilitySlots && Array.isArray((initialData as any).availabilitySlots)
+                  ? (initialData as any).availabilitySlots
+                  : [],
+                holidaySettings: {
+                  acceptHolidayConsultations: (initialData as any)?.holidaySettings?.acceptHolidayConsultations || false,
+                  holidayNote: (initialData as any)?.holidaySettings?.holidayNote || initialData?.holidayPolicy || ''
+                },
 
                 // 포트폴리오 미리보기
                 portfolioPreviews: [],
 
-                // 소셜 링크 - socialLinks 객체에서 가져오기
+                // 소셜 링크 - socialLinks 객체에서 모든 필드 가져오기
                 socialLinks: {
                   website: initialData?.socialLinks?.linkedin || initialData?.contactInfo?.website || '',
                   instagram: initialData?.socialLinks?.instagram || '',
                   youtube: initialData?.socialLinks?.youtube || '',
                   linkedin: initialData?.socialLinks?.linkedin || '',
-                  blog: (initialData?.socialLinks as any)?.blog || ''
+                  blog: (initialData?.socialLinks as any)?.blog || (initialData?.contactInfo as any)?.website || ''
                 },
 
                 // 통계 정보
@@ -750,6 +758,7 @@ export default function ExpertProfileEditPage() {
                   ...data,
                   description: data.bio,
                   specialties: data.keywords,
+                  keywords: data.keywords,
                   languages: ['한국어'],
                   hourlyRate: 0,
                   creditsPerMinute: 0,
@@ -757,6 +766,7 @@ export default function ExpertProfileEditPage() {
                   responseTime: '2시간 내',
                   averageSessionDuration: 60,
                   cancellationPolicy: '24시간 전 취소 가능',
+                  // availability 필드에 holidaySettings 포함
                   availability: {
                     monday: { available: false, hours: '09:00-18:00' },
                     tuesday: { available: false, hours: '09:00-18:00' },
@@ -764,15 +774,22 @@ export default function ExpertProfileEditPage() {
                     thursday: { available: false, hours: '09:00-18:00' },
                     friday: { available: false, hours: '09:00-18:00' },
                     saturday: { available: false, hours: '09:00-18:00' },
-                    sunday: { available: false, hours: '09:00-18:00' }
+                    sunday: { available: false, hours: '09:00-18:00' },
+                    holidaySettings: data.holidaySettings
                   },
                   holidayPolicy: data.holidaySettings.holidayNote,
+                  // availabilitySlots 저장
+                  availabilitySlots: data.availabilitySlots,
+                  holidaySettings: data.holidaySettings,
+                  // contactInfo에 socialLinks 포함
                   contactInfo: {
-                    phone: '',
-                    email: '',
+                    phone: data.phoneNumber || '',
+                    email: data.email || '',
                     location: '',
-                    website: data.socialLinks.website
+                    website: data.socialLinks?.website || ''
                   },
+                  // socialLinks 저장
+                  socialLinks: data.socialLinks,
                   portfolioFiles: [],
                   isProfileComplete: true
                 };

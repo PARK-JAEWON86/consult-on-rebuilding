@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, Phone, MessageCircle, Video, Award, Image as ImageIcon, Upload, X, Globe, Instagram, Youtube, Linkedin, FileText } from 'lucide-react'
 import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings } from '../AvailabilityScheduleEditor'
 
@@ -76,6 +76,19 @@ export default function Step32ScheduleSettings({
 }: Step32ScheduleSettingsProps) {
   const [isDragging, setIsDragging] = useState(false)
 
+  // 페이지 로드 시 상단으로 스크롤 (자격증 섹션이 보이도록)
+  useEffect(() => {
+    // 즉시 상단으로 이동 (instant)
+    window.scrollTo(0, 0)
+
+    // DOM 렌더링 후 부드럽게 스크롤 (확실하게 상단 고정)
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [])
+
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -122,21 +135,21 @@ export default function Step32ScheduleSettings({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                 <input
                   type="text"
-                  value={cert.name}
+                  value={cert.name || ''}
                   onChange={(e) => onCertificationChange(index, 'name', e.target.value)}
                   placeholder="자격증명"
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <input
                   type="text"
-                  value={cert.issuer}
+                  value={cert.issuer || ''}
                   onChange={(e) => onCertificationChange(index, 'issuer', e.target.value)}
                   placeholder="발급기관"
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <input
                   type="text"
-                  value={cert.year}
+                  value={cert.year || ''}
                   onChange={(e) => onCertificationChange(index, 'year', e.target.value)}
                   placeholder="취득년도"
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -299,13 +312,20 @@ export default function Step32ScheduleSettings({
           <Globe className="w-4 h-4 mr-2" /> 소셜 링크
           <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
         </h3>
+        {/* 디버깅: 현재 소셜링크 값 표시 */}
+        <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+          <strong>디버깅:</strong> {JSON.stringify(socialLinks)}
+        </div>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Globe className="w-5 h-5 text-gray-500 flex-shrink-0" />
             <input
               type="url"
-              value={socialLinks.website}
-              onChange={(e) => onSocialLinkChange('website', e.target.value)}
+              value={socialLinks.website || ''}
+              onChange={(e) => {
+                console.log('🔗 Website 입력:', e.target.value);
+                onSocialLinkChange('website', e.target.value);
+              }}
               placeholder="웹사이트 주소 (예: https://example.com)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -314,7 +334,7 @@ export default function Step32ScheduleSettings({
             <Instagram className="w-5 h-5 text-pink-500 flex-shrink-0" />
             <input
               type="text"
-              value={socialLinks.instagram}
+              value={socialLinks.instagram || ''}
               onChange={(e) => onSocialLinkChange('instagram', e.target.value)}
               placeholder="Instagram 사용자명 (예: @username)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -324,7 +344,7 @@ export default function Step32ScheduleSettings({
             <Youtube className="w-5 h-5 text-red-500 flex-shrink-0" />
             <input
               type="url"
-              value={socialLinks.youtube}
+              value={socialLinks.youtube || ''}
               onChange={(e) => onSocialLinkChange('youtube', e.target.value)}
               placeholder="YouTube 채널 URL"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -334,7 +354,7 @@ export default function Step32ScheduleSettings({
             <Linkedin className="w-5 h-5 text-blue-600 flex-shrink-0" />
             <input
               type="url"
-              value={socialLinks.linkedin}
+              value={socialLinks.linkedin || ''}
               onChange={(e) => onSocialLinkChange('linkedin', e.target.value)}
               placeholder="LinkedIn 프로필 URL"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -344,7 +364,7 @@ export default function Step32ScheduleSettings({
             <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
             <input
               type="url"
-              value={socialLinks.blog}
+              value={socialLinks.blog || ''}
               onChange={(e) => onSocialLinkChange('blog', e.target.value)}
               placeholder="블로그 URL"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

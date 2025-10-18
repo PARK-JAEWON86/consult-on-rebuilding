@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { ImageIcon, Sparkles, Clock, Tag, FileText, Upload, Briefcase, GraduationCap, Plus, Trash2, Users, MessageCircle, Globe } from 'lucide-react'
 
 interface Category {
@@ -111,36 +111,45 @@ export default function Step31BasicProfile({
 }: Step31BasicProfileProps) {
   const [showValidation, setShowValidation] = useState(false)
 
-  // 필수 항목 검증
-  const validateStep = () => {
-    const missingFields: string[] = []
+  // 페이지 로드 시 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
-    if (!profileImage) missingFields.push('프로필 사진')
-    if (!selectedCategoryId) missingFields.push('상담분야')
-    if (keywords.length === 0) missingFields.push('키워드')
-    if (bio.trim().length < 30) missingFields.push('자기소개(30자 이상)')
+  // 필수 항목 검증 - 유효성 검사 로직 (재사용 가능한 함수)
+  const validateStep = useCallback((): string[] => {
+    const missing: string[] = []
+
+    if (!profileImage) missing.push('프로필 사진')
+    if (!selectedCategoryId) missing.push('상담분야')
+    if (keywords.length === 0) missing.push('키워드')
+    if (bio.trim().length < 30) missing.push('자기소개(30자 이상)')
 
     // 경력사항 필수 검증: 최소 1개 이상의 유효한 경력 필요
     const hasValidWorkExperience = workExperience.some(exp =>
       exp.company.trim() && exp.position.trim() && exp.period.trim()
     )
-    if (!hasValidWorkExperience) missingFields.push('경력사항(최소 1개)')
+    if (!hasValidWorkExperience) missing.push('경력사항(최소 1개)')
 
-    return missingFields
-  }
+    return missing
+  }, [profileImage, selectedCategoryId, keywords, bio, workExperience])
+
+  // Memoize validation results for display to prevent unnecessary recalculations
+  const missingFields = useMemo(() => {
+    if (!showValidation) return []
+    return validateStep()
+  }, [showValidation, validateStep])
 
   const handleNext = () => {
-    const missingFields = validateStep()
+    const missing = validateStep()
 
-    if (missingFields.length > 0) {
+    if (missing.length > 0) {
       setShowValidation(true)
     } else {
       setShowValidation(false)
       onNext()
     }
   }
-
-  const missingFields = validateStep()
 
   return (
     <div className="space-y-6">
@@ -501,7 +510,7 @@ export default function Step31BasicProfile({
         <div className="flex items-center gap-3">
           {showValidation && missingFields.length > 0 && (
             <p className="text-sm text-red-600 font-medium">
-              {missingFields.join(', ')}
+              필수 항목을 입력해주세요: {missingFields.filter(f => typeof f === 'string').join(', ')}
             </p>
           )}
           <button

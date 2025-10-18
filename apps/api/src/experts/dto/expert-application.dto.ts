@@ -23,18 +23,19 @@ export const CreateExpertApplicationSchema = z.object({
     isActive: z.boolean().optional()
   })).optional(), // 예약 가능 시간대 (옵션)
   certifications: z.array(z.object({
-    name: z.string(),
-    issuer: z.string()
-  })),
+    name: z.string().min(1, '자격증명은 필수입니다'),
+    issuer: z.string().optional(),
+    year: z.string().optional()
+  })).optional(),
   education: z.array(z.object({
-    school: z.string(),
-    major: z.string(),
-    degree: z.string()
+    school: z.string().min(1, '학교명은 필수입니다'),
+    major: z.string().optional(),
+    degree: z.string().optional()
   })).optional(),
   workExperience: z.array(z.object({
-    company: z.string(),
-    position: z.string(),
-    period: z.string()
+    company: z.string().min(1, '회사명은 필수입니다'),
+    position: z.string().optional(),
+    period: z.string().optional()
   })).optional(),
   profileImage: z.string().optional(),
   mbti: z.string().optional(),
@@ -43,6 +44,14 @@ export const CreateExpertApplicationSchema = z.object({
     acceptHolidayConsultations: z.boolean(),
     holidayNote: z.string().optional()
   }).optional(),
+  socialLinks: z.object({
+    website: z.string().optional(),
+    instagram: z.string().optional(),
+    youtube: z.string().optional(),
+    linkedin: z.string().optional(),
+    blog: z.string().optional()
+  }).optional(),
+  portfolioImages: z.array(z.string()).optional(),
 });
 
 export type CreateExpertApplicationDto = z.infer<typeof CreateExpertApplicationSchema>;

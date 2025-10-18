@@ -498,48 +498,38 @@ export class ExpertsService {
         availabilityKeys: Object.keys(dto.availability || {}),
       });
 
-      // ExpertApplication 생성 및 User의 roles 업데이트를 트랜잭션으로 처리
-      const [application] = await this.prisma.$transaction([
-        // ExpertApplication 생성
-        this.prisma.expertApplication.create({
-          data: {
-            displayId,
-            userId,
-            name: dto.name,
-            email: dto.email,
-            phoneNumber: dto.phoneNumber,
-            jobTitle: dto.jobTitle || '',
-            specialty: dto.specialty,
-            experienceYears: dto.experienceYears,
-            bio: dto.bio,
-            keywords: JSON.stringify(dto.keywords),
-            consultationTypes: JSON.stringify(dto.consultationTypes),
-            languages: JSON.stringify(dto.languages || ['한국어']),
-            availability: JSON.stringify({
-              ...dto.availability,
-              holidaySettings: dto.holidaySettings
-            }),
-            certifications: JSON.stringify(dto.certifications),
-            education: JSON.stringify(dto.education || []),
-            workExperience: JSON.stringify(dto.workExperience || []),
-            mbti: dto.mbti || null,
-            consultationStyle: dto.consultationStyle || null,
-            profileImage: dto.profileImage || null,
-            status: 'PENDING',
-            currentStage: 'SUBMITTED',
-          },
-        }),
-        // User의 roles에 expertApplicationStatus 추가 (JSON 필드 업데이트)
-        this.prisma.$executeRaw`
-          UPDATE User
-          SET roles = JSON_SET(
-            roles,
-            '$.expertApplicationStatus',
-            'PENDING'
-          )
-          WHERE id = ${userId}
-        `,
-      ]);
+      // ExpertApplication 생성 (User.roles는 변경하지 않음)
+      // expertApplicationStatus는 ExpertApplication.status로 관리
+      const application = await this.prisma.expertApplication.create({
+        data: {
+          displayId,
+          userId,
+          name: dto.name,
+          email: dto.email,
+          phoneNumber: dto.phoneNumber,
+          jobTitle: dto.jobTitle || '',
+          specialty: dto.specialty,
+          experienceYears: dto.experienceYears,
+          bio: dto.bio,
+          keywords: JSON.stringify(dto.keywords),
+          consultationTypes: JSON.stringify(dto.consultationTypes),
+          languages: JSON.stringify(dto.languages || ['한국어']),
+          availability: JSON.stringify({
+            ...dto.availability,
+            holidaySettings: dto.holidaySettings
+          }),
+          certifications: JSON.stringify(dto.certifications || []),
+          education: JSON.stringify(dto.education || []),
+          workExperience: JSON.stringify(dto.workExperience || []),
+          mbti: dto.mbti || null,
+          consultationStyle: dto.consultationStyle || null,
+          profileImage: dto.profileImage || null,
+          socialLinks: dto.socialLinks ? JSON.stringify(dto.socialLinks) : null,
+          portfolioImages: dto.portfolioImages ? JSON.stringify(dto.portfolioImages) : null,
+          status: 'PENDING',
+          currentStage: 'SUBMITTED',
+        },
+      });
 
       console.log('Application created successfully:', application.id);
       return application;
@@ -883,6 +873,15 @@ export class ExpertsService {
       where: { displayId },
       data: updateData,
     });
+
+    // availabilitySlots와 holidaySettings가 있으면 별도로 업데이트
+    if (profileData.availabilitySlots || profileData.holidaySettings) {
+      await this.updateAvailabilitySlots(
+        displayId,
+        profileData.availabilitySlots || [],
+        profileData.holidaySettings
+      );
+    }
 
     // 업데이트된 프로필 반환 (변환된 형태로)
     return this.getExpertProfile(displayId);
