@@ -7,7 +7,7 @@ import CreditsClient from './CreditsClient';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function CreditsPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   // 인증 확인
@@ -20,7 +20,7 @@ export default function CreditsPage() {
   }, [isAuthenticated, isLoading, router]);
 
   // 로딩 중이거나 인증되지 않은 경우
-  if (isLoading || !isAuthenticated || !user) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -35,7 +35,7 @@ export default function CreditsPage() {
 
   return (
     <DashboardLayout variant="user">
-      <CreditsClient user={user} />
+      <CreditsClient />
     </DashboardLayout>
   );
 }

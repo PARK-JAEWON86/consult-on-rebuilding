@@ -54,6 +54,43 @@ export default function ChatPage() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
 
+  // Sidebar width tracking
+  const [sidebarWidth, setSidebarWidth] = useState(256); // 기본값: 펼쳐진 상태
+
+  // 사이드바 너비 감지
+  useEffect(() => {
+    const detectSidebarWidth = () => {
+      const width = window.innerWidth;
+      if (width >= 1024) {
+        // 큰 화면: CSS 변수에서 실제 사이드바 너비 읽기
+        const sidebarWidthVar = getComputedStyle(document.documentElement)
+          .getPropertyValue('--sidebar-width') || '256px';
+        setSidebarWidth(parseInt(sidebarWidthVar));
+      } else if (width >= 768) {
+        // 중간 화면: 아이콘 모드 고정
+        setSidebarWidth(64);
+      } else {
+        // 작은 화면: 여백 없음
+        setSidebarWidth(0);
+      }
+    };
+
+    detectSidebarWidth();
+    window.addEventListener('resize', detectSidebarWidth);
+
+    // CSS 변수 변경 감지 (사이드바 토글 시)
+    const observer = new MutationObserver(detectSidebarWidth);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style']
+    });
+
+    return () => {
+      window.removeEventListener('resize', detectSidebarWidth);
+      observer.disconnect();
+    };
+  }, []);
+
   // Sync chat sessions with sidebar (for displaying in the existing sidebar)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -704,7 +741,12 @@ export default function ChatPage() {
       </div>
 
       {/* 입력 영역 - 윈도우 하단 고정 (사이드바 영역 제외) */}
-      <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-gray-50 border-t border-gray-200 p-6 z-40">
+      <div
+        className="fixed bottom-0 right-0 bg-gray-50 border-t border-gray-200 p-6 z-40 transition-all duration-300"
+        style={{
+          left: `${sidebarWidth}px`
+        }}
+      >
         <div className="max-w-4xl mx-auto px-12">
           {!canAffordChat && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">

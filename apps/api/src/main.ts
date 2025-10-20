@@ -19,8 +19,12 @@ async function bootstrap() {
   app.setGlobalPrefix('v1')
 
   // CORS configuration
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []) // 프로덕션: 환경변수에서 명시된 URL만
+    : [/^http:\/\/localhost:\d+$/] // 개발: localhost의 모든 포트 허용
+
   app.enableCors({
-    origin: [/^http:\/\/localhost:\d+$/],
+    origin: allowedOrigins as any,
     credentials: true,
   })
 

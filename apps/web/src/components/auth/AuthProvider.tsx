@@ -78,10 +78,11 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     try {
       const response = await api.post('/auth/login', credentials)
       if (response.success) {
-        // 로그인 성공 후 사용자 정보 새로고침
+        // 로그인 성공 후 사용자 정보 새로고침 (한 번만 호출)
         await refreshUser()
 
-        // 사용자 정보 가져오기
+        // refreshUser()에서 이미 user state가 업데이트되었으므로,
+        // 최신 user 정보를 직접 가져오기 위해 /auth/me 한 번 더 호출
         const meResponse = await api.get('/auth/me')
         const loggedInUser = meResponse.success ? meResponse.data?.user : null
 
@@ -102,7 +103,18 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
           if (roles.includes('ADMIN')) {
             router.push('/admin')
           } else {
-            router.push('/dashboard')
+            // 전문가 신청 상태 확인 후 리다이렉트
+            const expertApplicationStatus = (loggedInUser as any)?.expertApplicationStatus
+
+            if (expertApplicationStatus === 'PENDING' || expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED') {
+              console.log('✅ [Login] 전문가 신청 상태:', expertApplicationStatus, '→ 신청 상태 페이지로 이동')
+              router.push('/experts/application-status')
+            } else if (expertApplicationStatus === 'APPROVED' || (loggedInUser as any)?.expert) {
+              console.log('✅ [Login] 전문가 승인됨 → 전문가 대시보드로 이동')
+              router.push('/dashboard/expert')
+            } else {
+              router.push('/dashboard')
+            }
           }
         }
       }
@@ -184,10 +196,21 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     }
   }
 
-  // 페이지 로드 시 인증 상태 확인
+  // 페이지 로드 시 인증 상태 확인 및 Google 로그인 후 리다이렉트 처리
   useEffect(() => {
-    // OAuth success는 HomePage에서 처리됨
-    if (!initialUser) {
+    const urlParams = new URLSearchParams(window.location.search)
+
+    if (urlParams.get('auth') === 'success') {
+      // Google 로그인 성공 후 상태 확인
+      console.log('[AuthProvider] OAuth success detected, refreshing user')
+      setTimeout(() => {
+        refreshUser()
+        // URL에서 auth 파라미터 제거
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('auth')
+        window.history.replaceState({}, '', newUrl.toString())
+      }, 500)
+    } else if (!initialUser) {
       // initialUser가 없으면 (서버에서 인증 정보를 받지 못한 경우) 클라이언트에서 확인
       refreshUser()
     }

@@ -12,15 +12,6 @@ interface ChatMessage {
   creditsUsed?: number;
 }
 
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-  totalTokens: number;
-  totalCredits: number;
-}
 
 @Injectable()
 export class ChatService {
@@ -104,7 +95,7 @@ export class ChatService {
     const session = await this.prisma.chatSession.create({
       data: {
         userId,
-        title: '새로운 상담',
+        title: '새 대화',
         totalTokens: 0,
         totalCredits: 0,
       },
@@ -192,29 +183,27 @@ export class ChatService {
       tokenCount = this.estimateTokenCount(aiResponse);
     }
 
-    const creditsUsed = this.calculateCreditsUsed(tokenCount);
-
-    // AI 메시지 저장
+    // AI 메시지 저장 (토큰만 기록)
     const aiMessage = await this.prisma.chatMessage.create({
       data: {
         sessionId,
         type: 'ai',
         content: aiResponse,
         tokenCount,
-        creditsUsed,
+        creditsUsed: 0, // AI 채팅은 크레딧을 사용하지 않음
       },
     });
 
-    // AI 사용량 기록
+    // AI 사용량 기록 (토큰만 차감)
     await this.aiUsageService.addTurnUsage(userId, tokenCount, false);
 
-    // 세션 업데이트 (제목, 토큰/크레딧 합계)
+    // 세션 업데이트 (제목, 토큰만 업데이트)
     const updatedSession = await this.prisma.chatSession.update({
       where: { id: sessionId },
       data: {
-        title: session.title === '새로운 상담' ? this.generateSessionTitle(message) : session.title,
+        title: session.title === '새 대화' ? this.generateSessionTitle(message) : session.title,
         totalTokens: { increment: tokenCount },
-        totalCredits: { increment: creditsUsed },
+        totalCredits: 0, // AI 채팅은 크레딧을 사용하지 않음
         updatedAt: new Date(),
       },
     });
@@ -223,7 +212,7 @@ export class ChatService {
       messageId: aiMessage.id,
       content: aiResponse,
       tokenCount,
-      creditsUsed,
+      creditsUsed: 0, // AI 채팅은 크레딧을 사용하지 않음
       session: {
         id: updatedSession.id,
         title: updatedSession.title,
@@ -267,18 +256,6 @@ export class ChatService {
     // 간단한 토큰 수 추정 (실제로는 tokenizer 사용)
     // 한국어 평균: 1 토큰 ≈ 2-3 글자
     return Math.ceil(text.length / 2.5);
-  }
-
-  private calculateCreditsUsed(tokenCount: number): number {
-    // 토큰 수에 따른 크레딧 계산
-    // 기본 3크레딧 + 토큰 수에 따른 추가 크레딧
-    let credits = 3;
-
-    if (tokenCount > 400) credits += 1.5;
-    if (tokenCount > 800) credits += 3;
-    if (tokenCount > 1200) credits += 6;
-
-    return Math.round(credits * 10) / 10; // 소수점 첫째자리까지
   }
 
   private generateSessionTitle(firstMessage: string): string {

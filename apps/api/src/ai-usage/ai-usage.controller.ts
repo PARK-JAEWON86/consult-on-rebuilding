@@ -57,7 +57,7 @@ export class AIUsageController {
               summary,
             },
             estimatedRemainingTurns,
-            message: `턴 사용량이 추가되었습니다. 소모된 토큰: ${result.spentTokens} (${preciseMode ? '정밀 모드' : '일반 모드'}), 소모된 크레딧: ${result.spentCredits}`,
+            message: `턴 사용량이 추가되었습니다. 소모된 토큰: ${result.spentTokens} (${preciseMode ? '정밀 모드' : '일반 모드'})`,
           },
         };
       }

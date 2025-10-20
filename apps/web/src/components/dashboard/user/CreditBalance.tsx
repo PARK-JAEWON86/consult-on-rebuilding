@@ -86,7 +86,7 @@ const CreditBalance = ({
           )}
         </div>
         <p className="text-sm text-gray-500">사용 가능한 크레딧</p>
-        
+
         {balance.expiresAt && (
           <div className="mt-2">
             <Badge variant="gray" className="text-xs">

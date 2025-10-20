@@ -189,7 +189,7 @@ export default function Step32ScheduleSettings({
                 <img
                   src={preview}
                   alt={`포트폴리오 ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                  className="w-full h-auto object-contain rounded-lg border border-gray-200"
                 />
                 <button
                   type="button"
@@ -312,20 +312,13 @@ export default function Step32ScheduleSettings({
           <Globe className="w-4 h-4 mr-2" /> 소셜 링크
           <span className="ml-2 text-xs text-gray-500 font-normal">(선택사항)</span>
         </h3>
-        {/* 디버깅: 현재 소셜링크 값 표시 */}
-        <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-          <strong>디버깅:</strong> {JSON.stringify(socialLinks)}
-        </div>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Globe className="w-5 h-5 text-gray-500 flex-shrink-0" />
             <input
               type="url"
               value={socialLinks.website || ''}
-              onChange={(e) => {
-                console.log('🔗 Website 입력:', e.target.value);
-                onSocialLinkChange('website', e.target.value);
-              }}
+              onChange={(e) => onSocialLinkChange('website', e.target.value)}
               placeholder="웹사이트 주소 (예: https://example.com)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />

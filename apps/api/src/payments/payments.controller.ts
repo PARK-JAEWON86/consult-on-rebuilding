@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Param, Body } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, Request } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
+import { JwtGuard } from '../auth/jwt.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { z } from 'zod';
 
@@ -15,20 +16,32 @@ export class PaymentsController {
   constructor(private readonly svc: PaymentsService) {}
 
   @Post('intents')
-  async createIntent(@Body(new ZodValidationPipe(CreateIntentSchema)) body: any) {
-    const userId = 1; // TODO: Auth 연동 후 교체
+  @UseGuards(JwtGuard)
+  async createIntent(
+    @Request() req: any,
+    @Body(new ZodValidationPipe(CreateIntentSchema)) body: any
+  ) {
+    const userId = req.user.id;
     const data = await this.svc.createIntent(userId, body.amount);
     return { success: true, data };
   }
 
   @Get('intents/:displayId')
-  async getIntent(@Param('displayId') displayId: string) {
+  @UseGuards(JwtGuard)
+  async getIntent(
+    @Request() req: any,
+    @Param('displayId') displayId: string
+  ) {
     const data = await this.svc.getIntent(displayId);
     return { success: true, data };
   }
 
   @Post('confirm')
-  async confirm(@Body(new ZodValidationPipe(ConfirmSchema)) body: any) {
+  @UseGuards(JwtGuard)
+  async confirm(
+    @Request() req: any,
+    @Body(new ZodValidationPipe(ConfirmSchema)) body: any
+  ) {
     const data = await this.svc.confirmWithToss(body);
     return { success: true, data };
   }

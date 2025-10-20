@@ -783,11 +783,19 @@ export default function BecomeExpertPage() {
       const result = await api.post('/experts/apply', applicationData)
 
       if (result.success) {
+        console.log('✅ 신청 제출 성공 - 사용자 정보 갱신 중...')
+
         // 성공 시 로컬스토리지 정리
         localStorage.removeItem('pendingExpertApplication')
 
-        // 사용자 정보 갱신 (expertApplicationData 포함하여 최신 정보 가져오기)
+        // ✅ 수정: 리다이렉트 전에 사용자 정보 갱신
+        // 이렇게 하면 expertApplicationStatus가 'PENDING'으로 업데이트됨
         await refreshUser()
+
+        console.log('✅ 사용자 정보 갱신 완료 - 상태 확인 페이지로 이동')
+
+        // 짧은 대기 후 리다이렉트 (상태 전파 보장)
+        await new Promise(resolve => setTimeout(resolve, 100))
 
         // 진행 상황 페이지로 리다이렉트
         router.push('/experts/application-status')
@@ -797,9 +805,11 @@ export default function BecomeExpertPage() {
     } catch (error: any) {
       console.error('Application submission error:', error)
 
-      // API 클라이언트가 이미 Toast와 리다이렉션을 처리하지만
-      // 추가적인 사용자 피드백이 필요한 경우에만 alert 표시
-      if (error.status !== 401) {
+      // 401 에러는 인증 문제 - 로그인 페이지로 리다이렉트
+      if (error.status === 401) {
+        alert('로그인이 필요합니다. 다시 로그인해주세요.')
+        router.push('/auth/login?redirect=/experts/become')
+      } else {
         alert(error.message || '신청 제출 중 오류가 발생했습니다. 다시 시도해주세요.')
       }
     }

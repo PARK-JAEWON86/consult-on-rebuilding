@@ -1,0 +1,228 @@
+/* 토스페이먼츠 결제 위젯 스타일 */
+
+/* 기본 폰트 및 색상 변수 */
+:root {
+  --grey50: #f9fafb;
+  --grey100: #f2f4f6;
+  --grey200: #e5e8eb;
+  --grey300: #d1d6db;
+  --grey400: #b0b8c1;
+  --grey500: #8b95a1;
+  --grey600: #6b7684;
+  --grey700: #4e5968;
+  --grey800: #333d4b;
+  --grey900: #191f28;
+  --blue50: #e8f3ff;
+  --blue500: #3182f6;
+  --blue700: #1b64da;
+  --white: #fff;
+}
+
+/* 결제 위젯 컨테이너 - Card 컴포넌트 스타일 매칭 */
+#payment-method,
+#agreement {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Card 컴포넌트와 동일한 스타일 */
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 1.5rem; /* p-6 */
+}
+
+/* 결제 수단 내부 요소들이 컨테이너를 넘지 않도록 */
+#payment-method * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* 카드 선택 및 할부 선택 필드 - 적절한 가로 사이즈 설정 */
+#payment-method select,
+#payment-method input[type="number"] {
+  max-width: 250px !important;
+  width: 100% !important;
+  min-width: 150px !important;
+  box-sizing: border-box !important;
+}
+
+/* 할부 선택 필드 특정 타겟팅 */
+#payment-method .installment-select,
+#payment-method [class*="installment"],
+#payment-method [class*="Installment"],
+#payment-method [class*="select"] {
+  max-width: 250px !important;
+  width: auto !important;
+  min-width: 150px !important;
+}
+
+/* 카드 번호 입력 필드는 더 넓게 */
+#payment-method input[type="text"],
+#payment-method input[placeholder*="카드"],
+#payment-method input[placeholder*="card"] {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* 할부 필드를 포함한 모든 입력 필드 기본 설정 */
+#payment-method input,
+#payment-method textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 토스페이먼츠 위젯 내부 컨테이너 */
+#payment-method > div,
+#payment-method iframe {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* 필드 컨테이너 래퍼 - 가로 배치 최적화 */
+#payment-method [class*="field"],
+#payment-method [class*="Field"],
+#payment-method [class*="input-wrapper"] {
+  display: inline-flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+/* 카드사 선택 및 할부 선택 필드 간격 조정 */
+#payment-method [class*="card-select"] + [class*="installment"],
+#payment-method select + select {
+  margin-left: 12px !important;
+}
+
+/* 체크박스 스타일 (이용약관용) */
+.checkable {
+  position: relative;
+  display: flex;
+  margin-top: 12px;
+}
+
+.checkable__label {
+  display: inline-block;
+  max-width: 100%;
+  min-height: 24px;
+  line-height: 1.6;
+  padding-left: 32px;
+  margin-bottom: 0;
+  color: var(--grey700);
+  cursor: pointer;
+}
+
+.checkable__input {
+  position: absolute;
+  margin: 0 0 0 -24px;
+  top: 4px;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+}
+
+.checkable__input::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--grey300);
+  background-color: var(--white);
+  border-radius: 6px;
+  transition: border-color 0.1s ease, background-color 0.1s ease;
+}
+
+.checkable__input::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  top: 3px;
+  left: 5px;
+  width: 14px;
+  height: 10px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.343 4.574l4.243 4.243 7.07-7.071' fill='transparent' stroke-width='2' stroke='%23FFF' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+}
+
+.checkable__input:checked::before {
+  border-color: var(--blue500);
+  background-color: var(--blue500);
+}
+
+.checkable__input:checked::after {
+  opacity: 1;
+}
+
+.checkable__input:focus::before,
+.checkable__input:hover::before {
+  background-color: var(--blue50);
+  border-color: var(--blue500);
+}
+
+.checkable__label-text {
+  display: inline-block;
+  padding-left: 8px;
+}
+
+/* 타이포그래피 */
+.typography--p {
+  line-height: 1.6;
+  font-size: 15px;
+  margin: 0;
+  padding: 0;
+}
+
+/* 그리드 시스템 */
+.p-grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -24px;
+}
+
+.p-grid-col {
+  flex-grow: 1;
+  padding-right: 24px;
+}
+
+.text--left {
+  text-align: left;
+}
+
+.text--right {
+  text-align: right;
+}
+
+/* 색상 유틸리티 */
+.color--grey700 {
+  color: var(--grey700);
+}
+
+.color--grey800 {
+  color: var(--grey800);
+}
+
+.color--blue500 {
+  color: var(--blue500);
+}
+
+.color--blue700 {
+  color: var(--blue700);
+}
+
+/* 배경색 유틸리티 */
+.bg--white {
+  background-color: var(--white);
+}
+
+.bg--grey100 {
+  background-color: var(--grey100);
+}
+
+.bg--blue50 {
+  background-color: var(--blue50);
+}

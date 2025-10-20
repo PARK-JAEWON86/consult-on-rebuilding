@@ -6,9 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAIUsage,
   addPurchasedCredits,
-  formatKRW,
   formatTokens,
-  simulateUsage,
   AIUsageResponse
 } from '@/lib/ai-usage';
 import {
@@ -16,7 +14,6 @@ import {
   TrendingUp,
   RefreshCw,
   Plus,
-  Calculator,
   Clock,
   AlertTriangle
 } from 'lucide-react';
@@ -24,10 +21,6 @@ import {
 export function AIUsageCard() {
   const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
-  const [simulationMode, setSimulationMode] = useState(false);
-  const [simulationTurns, setSimulationTurns] = useState(10);
-  const [simulationTokens, setSimulationTokens] = useState(900);
-  const [preciseMode, setPreciseMode] = useState(false);
   const queryClient = useQueryClient();
 
   // AI 사용량 데이터 로드
@@ -43,13 +36,6 @@ export function AIUsageCard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['aiUsage'] });
     },
-  });
-
-  // 사용량 시뮬레이션
-  const { data: simulationResult } = useQuery({
-    queryKey: ['aiUsageSimulation', simulationTurns, simulationTokens, preciseMode],
-    queryFn: () => simulateUsage(simulationTurns, simulationTokens, preciseMode),
-    enabled: simulationMode,
   });
 
   const aiUsage = aiUsageData?.data;
@@ -182,7 +168,28 @@ export function AIUsageCard() {
         </div>
       </div>
 
-      {/* 상세 정보 */}
+      {/* 메인 액션 버튼 - 항상 하단에 고정 */}
+      <div className="mt-4 space-y-2">
+        <button
+          onClick={() => router.push('/chat')}
+          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
+        >
+          <Brain className="w-4 h-4 mr-2" />
+          AI 채팅 시작
+        </button>
+
+        {usagePercent >= 80 && (
+          <button
+            onClick={() => router.push('/credits')}
+            className="w-full px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors flex items-center justify-center text-sm"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            토큰 추가 구매
+          </button>
+        )}
+      </div>
+
+      {/* 상세 정보 - 버튼 하단에 펼쳐짐 */}
       {showDetails && (
         <div className="mt-4 pt-4 border-t space-y-3">
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -202,63 +209,6 @@ export function AIUsageCard() {
               <p className="text-gray-600">평균 토큰/턴</p>
               <p className="font-medium">{aiUsage.averageTokensPerTurn}</p>
             </div>
-          </div>
-
-          {/* 시뮬레이션 모드 */}
-          <div className="mt-4">
-            <button
-              onClick={() => setSimulationMode(!simulationMode)}
-              className="flex items-center text-sm text-blue-600 hover:text-blue-700 mb-2"
-            >
-              <Calculator className="w-4 h-4 mr-1" />
-              사용량 시뮬레이션 {simulationMode ? '숨기기' : '보기'}
-            </button>
-
-            {simulationMode && (
-              <div className="bg-blue-50 rounded-lg p-3 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">턴 수</label>
-                    <input
-                      type="number"
-                      value={simulationTurns}
-                      onChange={(e) => setSimulationTurns(Number(e.target.value))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                      min="1"
-                      max="1000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">토큰/턴</label>
-                    <input
-                      type="number"
-                      value={simulationTokens}
-                      onChange={(e) => setSimulationTokens(Number(e.target.value))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                      min="100"
-                      max="5000"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="preciseMode"
-                    checked={preciseMode}
-                    onChange={(e) => setPreciseMode(e.target.checked)}
-                    className="mr-2"
-                  />
-                  <label htmlFor="preciseMode" className="text-xs text-gray-600">정밀 모드 (1.2배)</label>
-                </div>
-                {simulationResult?.data && (
-                  <div className="text-xs text-gray-700">
-                    <p>총 토큰: {simulationResult.data.simulation.totalTokens.toLocaleString()}</p>
-                    <p>사용 가능 턴: {simulationResult.data.simulation.canAffordTurns}턴</p>
-                    <p>예상 비용: {formatKRW(Math.round(simulationResult.data.simulation.costEstimateKRW))}</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* 토큰 구매 빠른 버튼 */}
@@ -287,27 +237,6 @@ export function AIUsageCard() {
           </div>
         </div>
       )}
-
-      {/* 메인 액션 버튼 */}
-      <div className="mt-4 space-y-2">
-        <button
-          onClick={() => router.push('/chat')}
-          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
-        >
-          <Brain className="w-4 h-4 mr-2" />
-          AI 채팅 시작
-        </button>
-
-        {usagePercent >= 80 && (
-          <button
-            onClick={() => router.push('/credits')}
-            className="w-full px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors flex items-center justify-center text-sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            토큰 추가 구매
-          </button>
-        )}
-      </div>
     </div>
   );
 }

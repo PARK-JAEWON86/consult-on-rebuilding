@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  Trash2,
 } from "lucide-react";
 
 interface User {
@@ -74,6 +75,7 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
   const [settlementAmount, setSettlementAmount] = useState<number>(0);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   // 정산 정보 계산 함수들
   const getNextSettlementDate = (): Date => {
@@ -171,7 +173,7 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
           if (!response.ok) {
             console.warn('[Sidebar] 채팅 세션 조회 실패:', response.status);
             if (isMounted) {
-              setChatHistory([]);
+              // API 실패 시에도 기존 데이터는 유지
               setIsLoadingChatSessions(false);
             }
             return;
@@ -183,16 +185,19 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
           if (!isMounted) return;
 
           if (result.success && result.data) {
-            const sessions = result.data.map((s: any) => ({
-              id: s.id,
-              title: s.title || '새 대화',
-              createdAt: s.timestamp || s.updatedAt,
-              updatedAt: s.updatedAt,
-              messageCount: s.messageCount || 0,
-              creditsUsed: s.creditsUsed || 0
-            }));
+            // 메시지가 1개 이상인 세션만 표시
+            const sessions = result.data
+              .filter((s: any) => (s.messageCount || 0) > 0)
+              .map((s: any) => ({
+                id: s.id,
+                title: s.title || '새 대화',
+                createdAt: s.timestamp || s.updatedAt,
+                updatedAt: s.updatedAt,
+                messageCount: s.messageCount || 0,
+                creditsUsed: s.creditsUsed || 0
+              }));
             setChatHistory(sessions);
-            console.log('[Sidebar] 채팅 세션 로드 완료:', sessions.length, '개');
+            console.log('[Sidebar] 채팅 세션 로드 완료:', sessions.length, '개 (메시지 있는 세션만)');
           } else {
             setChatHistory([]);
             console.log('[Sidebar] 채팅 세션 없음');
@@ -204,9 +209,7 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
             return;
           }
           console.error('[Sidebar] 채팅 세션 로드 실패:', error);
-          if (isMounted) {
-            setChatHistory([]);
-          }
+          // 에러 발생 시에도 기존 데이터는 유지
         } finally {
           if (isMounted) {
             setIsLoadingChatSessions(false);
@@ -231,7 +234,9 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
   useEffect(() => {
     const handleChatSessionsUpdate = (event: CustomEvent) => {
       const { sessions } = event.detail;
-      setChatHistory(sessions);
+      // 메시지가 1개 이상인 세션만 표시
+      const filteredSessions = sessions.filter((s: any) => (s.messageCount || 0) > 0);
+      setChatHistory(filteredSessions);
     };
 
     window.addEventListener('chatSessionsUpdated', handleChatSessionsUpdate as EventListener);
@@ -442,15 +447,59 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
     if (onClose) onClose();
   };
 
+  const handleDeleteSession = async (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // 세션 선택 이벤트 방지
+
+    if (!confirm('이 대화를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    setDeletingSessionId(sessionId);
+
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+      const response = await fetch(`${apiBaseUrl}/chat/sessions/${sessionId}/delete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 로컬 상태에서 세션 제거
+        const updatedSessions = chatHistory.filter(s => s.id !== sessionId);
+        setChatHistory(updatedSessions);
+
+        // 삭제 이벤트 발송 (chat/page.tsx에서 처리)
+        const event = new CustomEvent('chatSessionDeleted', {
+          detail: { sessionId, sessions: updatedSessions }
+        });
+        window.dispatchEvent(event);
+
+        console.log('[Sidebar] 채팅 세션 삭제 완료:', sessionId);
+      } else {
+        alert('세션 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[Sidebar] 세션 삭제 실패:', error);
+      alert('세션 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
   return (
       <aside
         className={`fixed top-0 left-0 bottom-0 z-50 ${
           effectiveVariant === "expert"
             ? "bg-gradient-to-b from-blue-50 to-indigo-50 border-r border-blue-100"
             : "bg-white border-r border-gray-200"
-        } transform transition-all duration-300 lg:translate-x-0 ${
+        } transform transition-all duration-300 md:translate-x-0 ${
           isExpanded ? "w-64" : "w-16"
-        } ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        } ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
       <div className="flex flex-col h-full">
         {/* 네비게이션 바 높이만큼 상단 여백 */}
@@ -595,12 +644,18 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
           {/* 채팅 세션 목록 - AI 채팅 페이지에서만 표시 */}
           {isExpanded && isAuthenticated && isActivePath("/chat") && (
             <div className="mt-6 flex-1 overflow-y-auto min-h-0">
-              <p className="px-3 text-xs font-semibold text-gray-400 mb-3">
-                최근 대화
-              </p>
+              <div className="flex items-center justify-between px-3 mb-3">
+                <p className="text-xs font-semibold text-gray-400">
+                  최근 대화
+                </p>
+                {/* 백그라운드 새로고침 인디케이터 */}
+                {isLoadingChatSessions && chatHistory.length > 0 && (
+                  <div className="w-3 h-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                )}
+              </div>
 
-              {isLoadingChatSessions ? (
-                // 로딩 중 스켈레톤
+              {isLoadingChatSessions && chatHistory.length === 0 ? (
+                // 첫 로딩 시에만 스켈레톤 표시
                 <div className="space-y-1 px-3">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div key={index} className="py-2">
@@ -615,7 +670,7 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
                   {chatHistory.map((chatItem) => (
                     <li
                       key={chatItem.id}
-                      className="px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="group relative px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => {
                         // 채팅 세션 선택 이벤트 발송
                         const event = new CustomEvent('chatSessionSelected', {
@@ -624,9 +679,26 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
                         window.dispatchEvent(event);
                       }}
                     >
-                      <div className="truncate font-medium">{chatItem.title}</div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {chatItem.messageCount || 0}개 메시지
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate font-medium">{chatItem.title}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {chatItem.messageCount || 0}개 메시지
+                          </div>
+                        </div>
+                        {/* 삭제 버튼 - hover 시에만 표시 */}
+                        <button
+                          onClick={(e) => handleDeleteSession(chatItem.id, e)}
+                          disabled={deletingSessionId === chatItem.id}
+                          className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1.5 hover:bg-red-50 rounded transition-opacity"
+                          title="대화 삭제"
+                        >
+                          {deletingSessionId === chatItem.id ? (
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-600" />
+                          )}
+                        </button>
                       </div>
                     </li>
                   ))}
@@ -685,22 +757,22 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
               </div>
             ) : (
               // 사용자 모드: 기존 크레딧 표시
-              <div className={`bg-gray-50 rounded-md ${isExpanded ? 'px-3 py-2' : 'px-0 py-2'}`}>
+              <div className={`bg-blue-50 rounded-md ${isExpanded ? 'px-3 py-2' : 'px-0 py-2'}`}>
                 {isExpanded ? (
                   <div className="flex items-center gap-3 px-3">
-                    <CreditCard className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                    <CreditCard className="h-5 w-5 text-blue-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-blue-900">
                         보유 크레딧
                       </div>
-                      <div className="text-lg font-bold text-gray-900">
+                      <div className="text-lg font-bold text-blue-700">
                         {user.credits?.toLocaleString() || 0}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="flex justify-center">
-                    <CreditCard className="h-5 w-5 text-gray-600" />
+                    <CreditCard className="h-5 w-5 text-blue-600" />
                   </div>
                 )}
               </div>

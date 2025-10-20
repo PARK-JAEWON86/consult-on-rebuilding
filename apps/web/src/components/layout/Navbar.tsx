@@ -27,7 +27,13 @@ export default function Navbar() {
 
   // 디버깅: 인증 상태 변경 감지
   useEffect(() => {
-    console.log('[Navbar] Auth state changed:', { user: user?.email, isAuthenticated, isLoading });
+    console.log('[Navbar] Auth state changed:', {
+      userEmail: user?.email,
+      userName: user?.name,
+      isAuthenticated,
+      isLoading,
+      timestamp: new Date().toISOString()
+    });
   }, [user, isAuthenticated, isLoading]);
 
   const toggleMobileMenu = () => {

@@ -1,19 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
-import { createPaymentIntent } from '@/lib/payments';
-import { useToast } from '@/hooks/useToast';
-import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import PackCard from '@/components/dashboard/PackCard';
-import { User } from '@/lib/auth';
-import { LogIn, CreditCard, Star } from 'lucide-react';
-
-interface CreditsClientProps {
-  user: User;
-}
+import { Star } from 'lucide-react';
 
 interface Pack {
   id: number;
@@ -29,36 +18,9 @@ interface Pack {
   features: string[];
 }
 
-export default function CreditsClient({ user }: CreditsClientProps) {
-  const router = useRouter();
-  const [amount, setAmount] = useState<number>(0);
-  const [showCustomAmount, setShowCustomAmount] = useState(false);
-  const { error, warning } = useToast();
-
+export default function CreditsClient() {
   // 평균 요금 (분당 크레딧 - 실제 전문가 데이터 기반 평균값)
   const averageRate = 150; // 분당 평균 150크레딧 (1,500원)
-
-  const createPaymentMutation = useMutation({
-    mutationFn: createPaymentIntent,
-    onSuccess: (data: any) => {
-      router.push(`/credits/checkout?orderId=${data.displayId}&amount=${data.amount}`);
-    },
-    onError: () => {
-      error('결제 요청 생성에 실패했습니다. 다시 시도해주세요.');
-    },
-  });
-
-  const handlePayment = () => {
-    if (amount < 1000) {
-      warning('최소 충전 금액은 1,000원입니다.');
-      return;
-    }
-    if (amount > 1000000) {
-      warning('최대 충전 금액은 1,000,000원입니다.');
-      return;
-    }
-    createPaymentMutation.mutate(amount as any);
-  };
 
 
   // 크레딧 패키지 데이터
@@ -155,110 +117,7 @@ export default function CreditsClient({ user }: CreditsClientProps) {
           </Card>
         </div>
 
-        {/* 상단: 현재 잔액, 최근 내역, 직접 충전 - 가로 배치 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {/* 현재 잔액 */}
-          <Card>
-            <div className="py-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">현재 잔액</h2>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 mb-2">
-                  {user.credits?.toLocaleString() || 0} <span className="text-lg text-gray-500">크레딧</span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  1 크레딧 = 10원 | 평균 {averageRate}크레딧/분
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* 최근 내역 */}
-          <Card>
-            <div className="py-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">최근 내역</h3>
-              <div className="text-center py-4">
-                <CreditCard className="w-8 h-8 mx-auto mb-1 text-gray-400" />
-                <p className="text-sm text-gray-500">아직 거래 내역이 없습니다</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* 직접 충전 */}
-          <Card>
-            <div className="py-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">직접 충전</h3>
-
-              {!showCustomAmount ? (
-                <div className="text-center py-4">
-                  <Button
-                    onClick={() => setShowCustomAmount(true)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    직접 입력하기
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      충전할 금액
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={amount || ''}
-                        onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
-                        placeholder="충전할 금액을 입력하세요"
-                        min="1000"
-                        max="1000000"
-                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <span className="text-gray-500">원</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      최소 1,000원 ~ 최대 1,000,000원
-                    </p>
-                  </div>
-
-                  {amount > 0 && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-gray-600">충전 금액</span>
-                        <span className="font-semibold">{amount.toLocaleString()}원</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">받을 크레딧</span>
-                        <span className="font-semibold text-blue-600">{amount.toLocaleString()} 크레딧</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={handlePayment}
-                      loading={createPaymentMutation.isPending}
-                      disabled={amount < 1000}
-                      className="flex-1"
-                    >
-                      {amount < 1000 ? '금액을 입력하세요' : `${amount.toLocaleString()}원 결제하기`}
-                    </Button>
-                    <Button
-                      onClick={() => setShowCustomAmount(false)}
-                      variant="outline"
-                    >
-                      취소
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* 하단: 패키지 카드들 */}
+        {/* 패키지 카드들 */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">크레딧 충전 패키지</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

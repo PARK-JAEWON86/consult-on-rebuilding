@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { fetchExperts, Expert } from '@/lib/experts';
 import { useCategoriesPublic } from '@/hooks/useCategories';
 import { Category } from '@/lib/categories';
-import { useAuth } from '@/components/auth/AuthProvider';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Skeleton from '@/components/ui/Skeleton';
@@ -49,7 +48,6 @@ export interface DurationOption {
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { refreshUser } = useAuth();
 
   // 검색 상태
   const [searchCategory, setSearchCategory] = useState('');
@@ -95,64 +93,63 @@ export default function HomePage() {
 
   const topExperts = expertsData?.data?.items || [];
 
-  // 영어 카테고리를 한글로 매핑하는 함수
-  const mapCategoryToKorean = (englishCategory: string): string => {
-    const categoryMap: { [key: string]: string } = {
-      'career': '커리어 상담',
-      'psychology': '심리 상담', 
-      'finance': '금융 상담',
-      'health': '건강 상담',
-      'education': '교육 상담',
-      'relationship': '인간관계',
-      'business': '사업/창업',
-      'tech': 'IT/기술',
-      'design': '디자인',
-      'language': '언어 학습',
-      'music': '음악',
-      'travel': '여행',
-      'beauty': '뷰티',
-      'sports': '스포츠',
-      'pets': '반려동물',
-      'gardening': '원예',
-      'cooking': '요리',
-      'real-estate': '부동산',
-      'study': '학습법',
-      'law': '법무',
-      'contract': '계약',
-      'tax': '세무',
-      'accounting': '회계',
-      'startup': '창업'
-    };
-    return categoryMap[englishCategory] || englishCategory;
-  };
-
   // 카테고리 ID를 이름으로 변환하는 함수
   const getCategoryName = (categoryId: string): string => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.name : categoryId;
   };
 
-  // Handle OAuth success and onboarding completion redirect
+  // Handle OAuth success and onboarding completion redirect - URL 파라미터만 정리
   useEffect(() => {
     const authParam = searchParams.get('auth');
+    const tempToken = searchParams.get('tempToken');
     const onboardingParam = searchParams.get('onboarding');
 
-    // OAuth 직접 완료 또는 온보딩 완료 후 처리
+    // OAuth 성공 시 tempToken으로 실제 토큰 교환
+    if (authParam === 'success' && tempToken) {
+      console.log('[HomePage] OAuth success with tempToken, exchanging for real tokens...');
+
+      const exchangeToken = async () => {
+        try {
+          const response = await fetch('/api/auth/exchange-temp-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tempToken }),
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            console.log('[HomePage] Token exchange successful, refreshing user...');
+            // AuthProvider의 refreshUser 호출은 AuthProvider에서 자동으로 처리됨
+          } else {
+            console.error('[HomePage] Token exchange failed:', await response.text());
+          }
+        } catch (error) {
+          console.error('[HomePage] Token exchange error:', error);
+        } finally {
+          // URL 파라미터 제거
+          const newUrl = window.location.pathname;
+          router.replace(newUrl as any);
+        }
+      };
+
+      exchangeToken();
+      return;
+    }
+
+    // OAuth 또는 온보딩 완료 후 URL 파라미터 제거
+    // (실제 인증 상태 갱신은 AuthProvider에서 처리)
     if (authParam === 'success' || onboardingParam === 'complete') {
       const source = authParam === 'success' ? 'OAuth' : 'Onboarding';
-      console.log(`${source} completion detected in HomePage, refreshing user state...`);
+      console.log(`[HomePage] ${source} completion detected, cleaning up URL...`);
 
-      // 사용자 정보 새로고침
-      refreshUser().then(() => {
-        console.log(`User state refreshed successfully in HomePage after ${source}`);
-        // URL에서 파라미터 제거
+      // URL에서 파라미터 제거 (약간의 지연을 두어 AuthProvider가 먼저 처리하도록)
+      setTimeout(() => {
         const newUrl = window.location.pathname;
         router.replace(newUrl as any);
-      }).catch((error) => {
-        console.error(`Failed to refresh user in HomePage after ${source}:`, error);
-      });
+      }, 500);
     }
-  }, [searchParams, router, refreshUser]);
+  }, [searchParams, router]);
 
   // 검색 함수
   const handleSearch = async () => {

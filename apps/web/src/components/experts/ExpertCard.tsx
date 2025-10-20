@@ -6,7 +6,7 @@ import { Users, Star, Award, Clock, MessageCircle, Video, Heart, Calendar } from
 // ExpertProfile 타입 정의
 interface ExpertProfile {
   id: number;
-  displayId?: string;
+  displayId: string; // displayId를 필수 필드로 변경
   name: string;
   specialty: string;
   rating: number;
@@ -153,6 +153,7 @@ const normalizeExpert = (raw: any) => {
 
   return {
     id: raw.id,
+    displayId: raw.displayId ?? raw.id, // displayId가 없으면 id를 사용 (하위 호환성)
     name: raw.name,
     specialty: raw.specialty ?? (keywords[0] || ""),
     rating: raw.rating ?? 0,
@@ -257,9 +258,12 @@ export default function ExpertCard({
     // 프로필 보기는 로그인 없이도 가능하도록 수정
     if (onProfileView) {
       onProfileView(expert);
-    } else if (expert.id) {
+    } else if (expert.displayId || expert.id) {
+      // displayId 우선 사용, 없으면 id 사용 (하위 호환성)
+      const identifier = expert.displayId || expert.id;
+
       // 검색 컨텍스트가 있으면 URL 파라미터로 전달
-      let url = `/experts/${expert.id}`;
+      let url = `/experts/${identifier}`;
       if (searchContext) {
         const params = new URLSearchParams();
         if (searchContext.category) params.set('fromCategory', searchContext.category);

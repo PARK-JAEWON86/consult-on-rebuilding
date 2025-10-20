@@ -14,12 +14,23 @@ export default function ApplicationStatusPage() {
   const [emailNotification, setEmailNotification] = useState(true)
   const [smsNotification, setSmsNotification] = useState(false)
   const [isSavingNotification, setIsSavingNotification] = useState(false)
+  const [isInitialRefreshComplete, setIsInitialRefreshComplete] = useState(false)
 
   // 페이지 마운트 시 사용자 정보 갱신 (최신 expertApplicationData 가져오기)
   useEffect(() => {
-    if (!isLoading && user) {
-      refreshUser()
+    const initializePage = async () => {
+      if (!isLoading && user) {
+        console.log('📋 [Application Status] 초기 로딩 - 사용자 정보 갱신 시작...')
+        await refreshUser()
+        console.log('✅ [Application Status] 사용자 정보 갱신 완료')
+        setIsInitialRefreshComplete(true)
+      } else if (!isLoading && !user) {
+        // 로그인되지 않은 경우 즉시 처리
+        setIsInitialRefreshComplete(true)
+      }
     }
+
+    initializePage()
   }, []) // 빈 배열로 마운트 시 1회만 실행
 
   // 사용자 정보 로드 시 알림 설정 초기화
@@ -32,8 +43,22 @@ export default function ApplicationStatusPage() {
     }
   }, [user])
 
+  // ✅ 수정: 초기 갱신이 완료된 후에만 리다이렉트 로직 실행
   useEffect(() => {
+    // 초기 갱신이 완료되지 않았으면 대기
+    if (!isInitialRefreshComplete) {
+      console.log('⏳ [Application Status] 초기 갱신 대기 중...')
+      return
+    }
+
+    console.log('🔍 [Application Status] 리다이렉트 검사 시작', {
+      isLoading,
+      hasUser: !!user,
+      status: (user as any)?.expertApplicationStatus,
+    })
+
     if (!isLoading && !user) {
+      console.log('❌ [Application Status] 사용자 없음 → 로그인 페이지로 이동')
       router.push('/auth/login')
       return
     }
@@ -41,16 +66,37 @@ export default function ApplicationStatusPage() {
     if (user) {
       const status = (user as any).expertApplicationStatus
 
-      // PENDING과 ADDITIONAL_INFO_REQUESTED가 아니면 리다이렉트
-      if (status !== 'PENDING' && status !== 'ADDITIONAL_INFO_REQUESTED') {
-        if (status === 'APPROVED' || user.expert) {
-          router.push('/dashboard/expert')
-        } else {
-          router.push('/experts/become')
-        }
+      // PENDING과 ADDITIONAL_INFO_REQUESTED면 페이지 유지
+      if (status === 'PENDING' || status === 'ADDITIONAL_INFO_REQUESTED') {
+        console.log('✅ [Application Status] 정상 상태 - 페이지 유지', { status })
+        return
+      }
+
+      // APPROVED 상태면 전문가 대시보드로
+      if (status === 'APPROVED' || user.expert) {
+        console.log('✅ [Application Status] 승인됨 → 전문가 대시보드로 이동')
+        router.push('/dashboard/expert')
+        return
+      }
+
+      // REJECTED 상태면 신청 페이지로 (재지원 가능)
+      if (status === 'REJECTED') {
+        console.log('⚠️ [Application Status] 거절됨 → 신청 페이지로 이동')
+        router.push('/experts/become')
+        return
+      }
+
+      // status가 null/undefined인 경우는 아직 신청하지 않은 것이므로 신청 페이지로
+      // 단, 페이지에 막 진입한 직후 (become에서 온 경우)는 제외
+      // 이를 위해 추가 안전장치: expertApplicationData가 있으면 페이지 유지
+      if (!status && !(user as any)?.expertApplicationData) {
+        console.log('⚠️ [Application Status] 신청 상태 없음 → 신청 페이지로 이동')
+        router.push('/experts/become')
+      } else if (!status && (user as any)?.expertApplicationData) {
+        console.log('✅ [Application Status] 신청 데이터 존재 - 페이지 유지 (상태 갱신 대기 중)')
       }
     }
-  }, [user, isLoading, router])
+  }, [user, isLoading, router, isInitialRefreshComplete])
 
   // 알림 설정 업데이트 함수
   const handleNotificationChange = async (type: 'email' | 'sms', value: boolean) => {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 import { MailService } from '../../mail/mail.service'
 
@@ -30,7 +34,6 @@ export class ExpertApplicationsService {
     // 쿼리 파라미터는 문자열로 전달되므로 숫자로 변환
     const page = Number(query.page) || 1
     const limit = Number(query.limit) || 20
-
     const where: any = {}
 
     if (status) {
@@ -48,6 +51,21 @@ export class ExpertApplicationsService {
     const [data, total] = await Promise.all([
       this.prisma.expertApplication.findMany({
         where,
+        select: {
+          id: true,
+          displayId: true,
+          userId: true,
+          name: true,
+          email: true,
+          specialty: true,
+          status: true,
+          createdAt: true,
+          viewedByAdmin: true,
+          reviewedAt: true,
+          reviewedBy: true,
+          experienceYears: true,
+          jobTitle: true,
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -57,17 +75,17 @@ export class ExpertApplicationsService {
 
     // specialty 파싱: "카테고리명 - 키워드" 형식에서 카테고리명만 추출
     const parseSpecialty = (specialty: string): string => {
-      if (!specialty) return '';
+      if (!specialty) return ''
       // " - " 로 분리되어 있는 경우 첫 번째 부분만 반환
-      const parts = specialty.split(' - ');
-      return parts[0].trim();
-    };
+      const parts = specialty.split(' - ')
+      return parts[0].trim()
+    }
 
     // 목록의 각 항목에 대해 specialty 파싱
-    const parsedData = data.map(app => ({
+    const parsedData = data.map((app) => ({
       ...app,
       specialty: parseSpecialty(app.specialty),
-    }));
+    }))
 
     return {
       data: parsedData,
@@ -88,7 +106,10 @@ export class ExpertApplicationsService {
     if (!application) {
       throw new NotFoundException({
         success: false,
-        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+        error: {
+          code: 'E_APPLICATION_NOT_FOUND',
+          message: 'Application not found',
+        },
       })
     }
 
@@ -127,7 +148,7 @@ export class ExpertApplicationsService {
         createdAt: true,
         avatarUrl: true,
         phoneNumber: true,
-      }
+      },
     })
 
     // 이전 지원 이력
@@ -142,20 +163,21 @@ export class ExpertApplicationsService {
 
     // specialty 파싱: "카테고리명 - 키워드" 형식에서 카테고리명만 추출
     const parseSpecialty = (specialty: string): string => {
-      if (!specialty) return '';
-      const parts = specialty.split(' - ');
-      return parts[0].trim();
-    };
+      if (!specialty) return ''
+      const parts = specialty.split(' - ')
+      return parts[0].trim()
+    }
 
-    // 승인된 전문가의 경우 Expert 테이블에서 socialLinks 조회
-    let socialLinks = null;
+    // socialLinks 조회: APPROVED 상태면 Expert 테이블에서, 아니면 ExpertApplication에서
+    let socialLinks = application.socialLinks
     if (application.status === 'APPROVED') {
       const expert = await this.prisma.expert.findFirst({
         where: { userId: application.userId },
         select: { socialLinks: true },
-      });
+      })
       if (expert) {
-        socialLinks = expert.socialLinks;
+        // Expert 테이블에 socialLinks가 있으면 사용, 없으면 application에서 사용
+        socialLinks = expert.socialLinks || application.socialLinks
       }
     }
 
@@ -169,9 +191,10 @@ export class ExpertApplicationsService {
         certifications: parseJsonField(application.certifications),
         education: parseJsonField(application.education),
         workExperience: parseJsonField(application.workExperience),
-        availability: typeof application.availability === 'string'
-          ? JSON.parse(application.availability)
-          : application.availability,
+        availability:
+          typeof application.availability === 'string'
+            ? JSON.parse(application.availability)
+            : application.availability,
         socialLinks: socialLinks,
       },
       user,
@@ -190,14 +213,20 @@ export class ExpertApplicationsService {
     if (!application) {
       throw new NotFoundException({
         success: false,
-        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+        error: {
+          code: 'E_APPLICATION_NOT_FOUND',
+          message: 'Application not found',
+        },
       })
     }
 
     if (application.status !== 'PENDING') {
       throw new BadRequestException({
         success: false,
-        error: { code: 'E_ALREADY_REVIEWED', message: 'Application already reviewed' }
+        error: {
+          code: 'E_ALREADY_REVIEWED',
+          message: 'Application already reviewed',
+        },
       })
     }
 
@@ -218,13 +247,13 @@ export class ExpertApplicationsService {
 
       // specialty 파싱: "카테고리명 - 키워드1, 키워드2" 형식에서 카테고리명만 추출
       const parseSpecialty = (specialty: string): string => {
-        if (!specialty) return '';
+        if (!specialty) return ''
         // " - " 로 분리되어 있는 경우 첫 번째 부분만 반환
-        const parts = specialty.split(' - ');
-        return parts[0].trim();
-      };
+        const parts = specialty.split(' - ')
+        return parts[0].trim()
+      }
 
-      const cleanSpecialty = parseSpecialty(application.specialty);
+      const cleanSpecialty = parseSpecialty(application.specialty)
 
       const expert = await tx.expert.create({
         data: {
@@ -256,33 +285,44 @@ export class ExpertApplicationsService {
 
           // JSON 객체 필드들 - availability에 모든 스케줄 정보 통합
           availability: (() => {
-            const availabilityData = typeof application.availability === 'object'
-              ? application.availability
-              : {};
+            const availabilityData =
+              typeof application.availability === 'object'
+                ? application.availability
+                : {}
 
             // availability Json 내부에 holidaySettings 포함
             return {
               ...availabilityData,
               holidaySettings: {
                 acceptHolidayConsultations: false,
-                holidayNote: ''
-              }
-            } as any;
+                holidayNote: '',
+              },
+            } as any
           })(),
           contactInfo: {
             phone: '',
             email: application.email,
             location: '',
-            website: ''
+            website: '',
           } as any,
-          socialLinks: {
-            linkedin: '',
-            github: '',
-            twitter: '',
-            instagram: '',
-            facebook: '',
-            youtube: ''
-          } as any,
+          socialLinks: (() => {
+            // ExpertApplication의 socialLinks 데이터를 Expert 테이블로 매핑
+            const appSocialLinks =
+              typeof application.socialLinks === 'object'
+                ? (application.socialLinks as any)
+                : {}
+
+            return {
+              website: appSocialLinks?.website || '',
+              instagram: appSocialLinks?.instagram || '',
+              youtube: appSocialLinks?.youtube || '',
+              linkedin: appSocialLinks?.linkedin || '',
+              blog: appSocialLinks?.blog || '',
+              github: '',
+              twitter: '',
+              facebook: '',
+            }
+          })() as any,
           socialProof: {} as any,
 
           // 통계 초기값
@@ -311,20 +351,26 @@ export class ExpertApplicationsService {
       const roles = Array.isArray(user.roles)
         ? user.roles
         : typeof user.roles === 'string'
-        ? JSON.parse(user.roles)
-        : ['USER']
+          ? JSON.parse(user.roles)
+          : ['USER']
 
-      if (!roles.includes('EXPERT')) {
-        roles.push('EXPERT')
+      // EXPERT_APPLICANT 역할 제거 (신청 상태 → 승인 상태)
+      const updatedRoles = roles.filter(
+        (role: string) => role !== 'EXPERT_APPLICANT'
+      )
+
+      // EXPERT 역할 추가
+      if (!updatedRoles.includes('EXPERT')) {
+        updatedRoles.push('EXPERT')
       }
 
       await tx.user.update({
         where: { id: application.userId },
-        data: { roles: JSON.stringify(roles) },
+        data: { roles: JSON.stringify(updatedRoles) },
       })
 
       // 4. ExpertCategory 연결 생성 (categoryId가 있는 경우)
-      const appData = application as any;
+      const appData = application as any
       if (appData.categoryId) {
         try {
           await tx.expertCategory.create({
@@ -332,16 +378,21 @@ export class ExpertApplicationsService {
               expertId: expert.id,
               categoryId: appData.categoryId,
             },
-          });
-          console.log(`✅ ExpertCategory 연결 생성: expertId=${expert.id}, categoryId=${appData.categoryId}`);
+          })
+          console.log(
+            `✅ ExpertCategory 연결 생성: expertId=${expert.id}, categoryId=${appData.categoryId}`
+          )
         } catch (error) {
-          console.error('⚠️ ExpertCategory 연결 생성 실패:', error);
+          console.error('⚠️ ExpertCategory 연결 생성 실패:', error)
           // 카테고리 연결 실패는 치명적이지 않으므로 계속 진행
         }
       }
 
       // 5. ExpertAvailability 슬롯 생성 (availabilitySlots가 있는 경우)
-      if (appData.availabilitySlots && Array.isArray(appData.availabilitySlots)) {
+      if (
+        appData.availabilitySlots &&
+        Array.isArray(appData.availabilitySlots)
+      ) {
         try {
           const slots = appData.availabilitySlots.map((slot: any) => ({
             expertId: expert.id,
@@ -350,15 +401,15 @@ export class ExpertApplicationsService {
             endTime: slot.endTime,
             isActive: slot.isActive !== false, // 기본값 true
             timeZone: 'Asia/Seoul',
-          }));
+          }))
 
           await tx.expertAvailability.createMany({
             data: slots,
             skipDuplicates: true, // 중복 방지
-          });
-          console.log(`✅ ExpertAvailability 슬롯 생성: ${slots.length}개`);
+          })
+          console.log(`✅ ExpertAvailability 슬롯 생성: ${slots.length}개`)
         } catch (error) {
-          console.error('⚠️ ExpertAvailability 슬롯 생성 실패:', error);
+          console.error('⚠️ ExpertAvailability 슬롯 생성 실패:', error)
           // 슬롯 생성 실패는 치명적이지 않으므로 계속 진행
         }
       }
@@ -380,7 +431,9 @@ export class ExpertApplicationsService {
         console.error('Failed to send approval email:', error)
       }
     } else {
-      console.log(`ℹ️ Email notification disabled for application ${application.displayId}`)
+      console.log(
+        `ℹ️ Email notification disabled for application ${application.displayId}`
+      )
     }
 
     return {
@@ -400,14 +453,20 @@ export class ExpertApplicationsService {
     if (!application) {
       throw new NotFoundException({
         success: false,
-        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+        error: {
+          code: 'E_APPLICATION_NOT_FOUND',
+          message: 'Application not found',
+        },
       })
     }
 
     if (application.status !== 'PENDING') {
       throw new BadRequestException({
         success: false,
-        error: { code: 'E_ALREADY_REVIEWED', message: 'Application already reviewed' }
+        error: {
+          code: 'E_ALREADY_REVIEWED',
+          message: 'Application already reviewed',
+        },
       })
     }
 
@@ -437,7 +496,9 @@ export class ExpertApplicationsService {
         console.error('Failed to send rejection email:', error)
       }
     } else {
-      console.log(`ℹ️ Email notification disabled for application ${application.displayId}`)
+      console.log(
+        `ℹ️ Email notification disabled for application ${application.displayId}`
+      )
     }
 
     return {
@@ -449,7 +510,10 @@ export class ExpertApplicationsService {
   /**
    * 추가 정보 요청
    */
-  async requestAdditionalInfo(id: number, dto: { reviewNotes: string; reviewedBy: number }) {
+  async requestAdditionalInfo(
+    id: number,
+    dto: { reviewNotes: string; reviewedBy: number }
+  ) {
     const application = await this.prisma.expertApplication.findUnique({
       where: { id },
     })
@@ -457,14 +521,20 @@ export class ExpertApplicationsService {
     if (!application) {
       throw new NotFoundException({
         success: false,
-        error: { code: 'E_APPLICATION_NOT_FOUND', message: 'Application not found' }
+        error: {
+          code: 'E_APPLICATION_NOT_FOUND',
+          message: 'Application not found',
+        },
       })
     }
 
     if (application.status !== 'PENDING') {
       throw new BadRequestException({
         success: false,
-        error: { code: 'E_ALREADY_REVIEWED', message: 'Application already reviewed' }
+        error: {
+          code: 'E_ALREADY_REVIEWED',
+          message: 'Application already reviewed',
+        },
       })
     }
 
@@ -487,7 +557,9 @@ export class ExpertApplicationsService {
         application.displayId,
         dto.reviewNotes
       )
-      console.log(`✅ Additional info request email sent to ${application.email}`)
+      console.log(
+        `✅ Additional info request email sent to ${application.email}`
+      )
     } catch (error) {
       console.error('Failed to send additional info request email:', error)
     }
@@ -502,13 +574,16 @@ export class ExpertApplicationsService {
    * 통계 조회
    */
   async getStatistics() {
-    const [total, pending, approved, rejected, infoRequested] = await Promise.all([
-      this.prisma.expertApplication.count(),
-      this.prisma.expertApplication.count({ where: { status: 'PENDING' } }),
-      this.prisma.expertApplication.count({ where: { status: 'APPROVED' } }),
-      this.prisma.expertApplication.count({ where: { status: 'REJECTED' } }),
-      this.prisma.expertApplication.count({ where: { status: 'ADDITIONAL_INFO_REQUESTED' } }),
-    ])
+    const [total, pending, approved, rejected, infoRequested] =
+      await Promise.all([
+        this.prisma.expertApplication.count(),
+        this.prisma.expertApplication.count({ where: { status: 'PENDING' } }),
+        this.prisma.expertApplication.count({ where: { status: 'APPROVED' } }),
+        this.prisma.expertApplication.count({ where: { status: 'REJECTED' } }),
+        this.prisma.expertApplication.count({
+          where: { status: 'ADDITIONAL_INFO_REQUESTED' },
+        }),
+      ])
 
     return {
       total,

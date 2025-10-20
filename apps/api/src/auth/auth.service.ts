@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt'
 import { PrismaService } from '../prisma/prisma.service'
 import { RedisService } from '../redis/redis.service'
 import { MailService } from '../mail/mail.service'
+import { CreditsService } from '../credits/credits.service'
 import * as argon2 from 'argon2'
 import { signAccess, signRefresh } from './jwt.util'
 import { randomUrlToken, sha256Hex, randomVerificationCode } from '../common/crypto.util'
@@ -13,7 +14,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly redis: RedisService,
-    private readonly mail: MailService
+    private readonly mail: MailService,
+    private readonly creditsService: CreditsService
   ) {}
 
   private expireMinutes() {
@@ -239,41 +241,55 @@ export class AuthService {
   }
 
   async getUserById(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        expert: {
-          select: {
-            id: true,
-            displayId: true,
-            hourlyRate: true,
-            name: true,
-            title: true,
-            specialty: true,
-            bio: true,
-            avatarUrl: true,
-            ratingAvg: true,
-            reviewCount: true,
-            isActive: true,
-            level: true,
-            responseTime: true
+    try {
+      console.log('[getUserById] Starting user fetch:', { userId })
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          expert: {
+            select: {
+              id: true,
+              displayId: true,
+              hourlyRate: true,
+              name: true,
+              title: true,
+              specialty: true,
+              bio: true,
+              avatarUrl: true,
+              ratingAvg: true,
+              reviewCount: true,
+              isActive: true,
+              level: true,
+              responseTime: true
+            }
           }
         }
-      }
-    })
-
-    // 전문가 지원 상태 확인
-    const expertApplication = await this.prisma.expertApplication.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    if (!user) {
-      throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_AUTH_USER_NOT_FOUND', message: 'User not found' }
       })
-    }
+
+      if (!user) {
+        console.error('[getUserById] User not found:', { userId })
+        throw new UnauthorizedException({
+          success: false,
+          error: { code: 'E_AUTH_USER_NOT_FOUND', message: 'User not found' }
+        })
+      }
+
+      console.log('[getUserById] User found:', { userId, email: user.email, hasExpert: !!user.expert })
+
+      // 전문가 지원 상태 확인
+      const expertApplication = await this.prisma.expertApplication.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      console.log('[getUserById] ExpertApplication lookup:', {
+        userId,
+        found: !!expertApplication,
+        status: expertApplication?.status,
+        hasKeywords: !!expertApplication?.keywords,
+        hasConsultationTypes: !!expertApplication?.consultationTypes
+      })
 
     // roles가 JSON 문자열인 경우 파싱
     let roles = user.roles
@@ -286,6 +302,9 @@ export class AuthService {
       }
     }
 
+    // 크레딧 잔액 계산
+    const credits = await this.creditsService.getBalance(userId)
+
     const result: any = {
       id: user.id,
       email: user.email,
@@ -293,6 +312,7 @@ export class AuthService {
       roles,
       avatarUrl: user.avatarUrl,
       emailVerifiedAt: user.emailVerifiedAt,
+      credits,
       expertApplicationStatus: expertApplication?.status || null,
       expertApplicationId: expertApplication?.id || null
     }
@@ -363,7 +383,53 @@ export class AuthService {
       }
     }
 
-    return result
+      console.log('[getUserById] Successfully prepared user data:', {
+        userId,
+        hasExpertApplicationData: !!result.expertApplicationData
+      })
+
+      return result
+    } catch (error: any) {
+      console.error('[getUserById] Error:', {
+        userId,
+        errorName: error?.name,
+        errorMessage: error?.message,
+        errorCode: error?.code,
+        isPrismaError: error?.code?.startsWith('P'),
+        isUnauthorized: error instanceof UnauthorizedException
+      })
+
+      // UnauthorizedException은 그대로 throw (이미 적절한 에러 형식)
+      if (error instanceof UnauthorizedException) {
+        throw error
+      }
+
+      // Prisma 에러 처리
+      if (error?.code?.startsWith('P')) {
+        console.error('[getUserById] Prisma database error:', {
+          code: error.code,
+          meta: error.meta,
+          userId
+        })
+        throw new UnauthorizedException({
+          success: false,
+          error: {
+            code: 'E_AUTH_DB_ERROR',
+            message: 'Database error while fetching user information'
+          }
+        })
+      }
+
+      // 기타 예상치 못한 에러
+      console.error('[getUserById] Unexpected error:', error)
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          code: 'E_AUTH_FETCH_FAILED',
+          message: 'Failed to fetch user information'
+        }
+      })
+    }
   }
 
   async validateOAuthUser(profile: {

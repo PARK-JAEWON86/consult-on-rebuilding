@@ -7,9 +7,7 @@ import {
   CREDIT_TO_TOKENS,
   CREDIT_TO_KRW,
   AIUsageState,
-  createAIUsageSummary,
   calcRemainingPercent,
-  estimateCreditsForTurn,
 } from '../config/ai-usage.config';
 
 @Injectable()
@@ -71,15 +69,12 @@ export class AIUsageService {
     };
   }
 
-  // 턴 사용량 추가
+  // 턴 사용량 추가 (토큰만 차감, 크레딧은 차감하지 않음)
   async addTurnUsage(userId: number, totalTokens: number, preciseMode: boolean = false) {
     // 정밀 모드일 경우 1.2배 토큰 소모
     const actualTokensUsed = preciseMode ? Math.round(totalTokens * 1.2) : totalTokens;
 
-    // 크레딧 계산
-    const creditsUsed = estimateCreditsForTurn(totalTokens, preciseMode);
-
-    // AI 사용량 업데이트
+    // AI 사용량 업데이트 (토큰만 차감)
     const updatedUsage = await this.prisma.aIUsage.upsert({
       where: { userId },
       update: {
@@ -97,20 +92,11 @@ export class AIUsageService {
       },
     });
 
-    // 크레딧 차감
-    await this.creditsService.record(
-      userId,
-      -creditsUsed,
-      `AI 상담 턴 사용 (${actualTokensUsed} 토큰, ${preciseMode ? '정밀 모드' : '일반 모드'})`,
-      `ai-turn-${Date.now()}`
-    );
-
     const averageTokensPerTurn = Math.round(updatedUsage.totalTokens / updatedUsage.totalTurns);
     const remainingPercent = calcRemainingPercent(updatedUsage.usedTokens, updatedUsage.purchasedTokens);
 
     return {
       spentTokens: actualTokensUsed,
-      spentCredits: creditsUsed,
       newState: {
         usedTokens: updatedUsage.usedTokens,
         purchasedTokens: updatedUsage.purchasedTokens,

@@ -4,6 +4,7 @@ import { CreateExpertApplicationDto } from './dto/expert-application.dto';
 import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ulid } from 'ulid';
 import { JsonValue } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 type ListParams = {
   page: number;
@@ -439,6 +440,31 @@ export class ExpertsService {
     return categories.filter(cat => cat.id); // null 값 제거
   }
 
+  // JSON 안전 변환 헬퍼 함수
+  private safeJsonStringify(data: any, fieldName: string): string {
+    try {
+      if (data === null || data === undefined) {
+        return '[]';
+      }
+      // undefined 값 제거
+      const cleanData = JSON.parse(JSON.stringify(data));
+      const result = JSON.stringify(cleanData);
+
+      // 검증: 다시 파싱 가능한지 확인
+      JSON.parse(result);
+
+      return result;
+    } catch (error: any) {
+      console.error(`[safeJsonStringify] Failed to stringify ${fieldName}:`, {
+        error: error?.message || 'Unknown error',
+        data: typeof data,
+        isArray: Array.isArray(data)
+      });
+      // 안전한 기본값 반환
+      return Array.isArray(data) || data === null || data === undefined ? '[]' : '{}';
+    }
+  }
+
   async createApplication(userId: number, dto: CreateExpertApplicationDto) {
     try {
       // 신청번호 형식: CO + YYMMDD + 상담분야번호(2자리) + 접수순서번호(4자리)
@@ -500,6 +526,8 @@ export class ExpertsService {
 
       // ExpertApplication 생성 (User.roles는 변경하지 않음)
       // expertApplicationStatus는 ExpertApplication.status로 관리
+      console.log('[createApplication] Creating application with safe JSON stringify')
+
       const application = await this.prisma.expertApplication.create({
         data: {
           displayId,
@@ -511,25 +539,53 @@ export class ExpertsService {
           specialty: dto.specialty,
           experienceYears: dto.experienceYears,
           bio: dto.bio,
-          keywords: JSON.stringify(dto.keywords),
-          consultationTypes: JSON.stringify(dto.consultationTypes),
-          languages: JSON.stringify(dto.languages || ['한국어']),
-          availability: JSON.stringify({
+          keywords: this.safeJsonStringify(dto.keywords, 'keywords'),
+          consultationTypes: this.safeJsonStringify(dto.consultationTypes, 'consultationTypes'),
+          languages: this.safeJsonStringify(dto.languages || ['한국어'], 'languages'),
+          availability: this.safeJsonStringify({
             ...dto.availability,
             holidaySettings: dto.holidaySettings
-          }),
-          certifications: JSON.stringify(dto.certifications || []),
-          education: JSON.stringify(dto.education || []),
-          workExperience: JSON.stringify(dto.workExperience || []),
+          }, 'availability'),
+          certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
+          education: this.safeJsonStringify(dto.education || [], 'education'),
+          workExperience: this.safeJsonStringify(dto.workExperience || [], 'workExperience'),
           mbti: dto.mbti || null,
           consultationStyle: dto.consultationStyle || null,
           profileImage: dto.profileImage || null,
-          socialLinks: dto.socialLinks ? JSON.stringify(dto.socialLinks) : null,
-          portfolioImages: dto.portfolioImages ? JSON.stringify(dto.portfolioImages) : null,
+          socialLinks: dto.socialLinks ? this.safeJsonStringify(dto.socialLinks, 'socialLinks') : Prisma.JsonNull,
+          portfolioImages: dto.portfolioImages ? this.safeJsonStringify(dto.portfolioImages, 'portfolioImages') : Prisma.JsonNull,
           status: 'PENDING',
           currentStage: 'SUBMITTED',
         },
       });
+
+      console.log('[createApplication] Application created successfully:', {
+        id: application.id,
+        displayId: application.displayId,
+        userId
+      });
+
+      // User roles에 EXPERT_APPLICANT 추가 (신청 상태 표시용)
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (user) {
+        const roles = Array.isArray(user.roles)
+          ? user.roles
+          : typeof user.roles === 'string'
+          ? JSON.parse(user.roles)
+          : ['USER'];
+
+        if (!roles.includes('EXPERT_APPLICANT')) {
+          roles.push('EXPERT_APPLICANT');
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { roles: JSON.stringify(roles) },
+          });
+          console.log(`✅ User ${userId} roles updated to:`, roles);
+        }
+      }
 
       console.log('Application created successfully:', application.id);
       return application;
