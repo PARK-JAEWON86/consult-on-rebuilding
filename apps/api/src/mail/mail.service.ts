@@ -201,8 +201,8 @@ export class MailService {
           <div style="display: flex; align-items: stretch;">
 
             <!-- Left Side: Header -->
-            <div style="background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
-              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+            <div style="background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; width: 280px;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.5px; white-space: nowrap;">Consult-On</h1>
               <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">이메일 인증을 완료하고<br/>모든 서비스를 이용하세요</p>
             </div>
 
@@ -421,8 +421,8 @@ Consult-On 서비스에 회원가입해 주셔서 감사합니다.
           <div style="display: flex; align-items: stretch;">
 
             <!-- Left Side: Header -->
-            <div style="background: ${isApproved ? 'linear-gradient(180deg, #10b981 0%, #059669 100%)' : 'linear-gradient(180deg, #ef4444 0%, #dc2626 100%)'}; padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
-              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+            <div style="background: ${isApproved ? 'linear-gradient(180deg, #10b981 0%, #059669 100%)' : 'linear-gradient(180deg, #ef4444 0%, #dc2626 100%)'}; padding: 40px 30px; width: 280px;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.5px; white-space: nowrap;">Consult-On</h1>
               <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">${isApproved ? '전문가 신청이<br/>승인되었습니다' : '전문가 신청 검토<br/>결과를 안내드립니다'}</p>
             </div>
 
@@ -572,8 +572,8 @@ ${rejectionReason ? `검토 의견: ${rejectionReason}\n` : ''}
           <div style="display: flex; align-items: stretch;">
 
             <!-- Left Side: Header -->
-            <div style="background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); padding: 40px 30px; width: 280px; display: flex; flex-direction: column; justify-content: center;">
-              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; letter-spacing: -0.5px;">Consult-On</h1>
+            <div style="background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); padding: 40px 30px; width: 280px;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.5px; white-space: nowrap;">Consult-On</h1>
               <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">전문가 등록<br/>추가 정보 요청</p>
             </div>
 

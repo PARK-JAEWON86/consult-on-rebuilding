@@ -32,6 +32,7 @@ interface ReservationModalImprovedProps {
   onClose: () => void;
   expert: Expert;
   creditsPerMinute: number;
+  userCredits?: number; // 부모 컴포넌트에서 전달받은 크레딧 (선택적)
 }
 
 interface ReservationData {
@@ -48,7 +49,8 @@ export default function ReservationModalImproved({
   isOpen,
   onClose,
   expert,
-  creditsPerMinute
+  creditsPerMinute,
+  userCredits: propUserCredits
 }: ReservationModalImprovedProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -61,14 +63,14 @@ export default function ReservationModalImproved({
   const [note, setNote] = useState('');
   const [alternativeTimes, setAlternativeTimes] = useState<Array<{ startAt: string; endAt: string }>>([]);
 
-  // 사용자 크레딧 잔액 조회
+  // 사용자 크레딧 잔액 조회 (props로 전달받지 못한 경우에만 조회)
   const { data: creditsData } = useQuery({
     queryKey: ['user-credits', user?.id],
     queryFn: async () => {
       const response = await api.get(`http://localhost:4000/v1/credits/balance?userId=${user?.id}`);
       return response.data;
     },
-    enabled: !!user?.id && isOpen
+    enabled: !!user?.id && isOpen && propUserCredits === undefined
   });
 
   // 전문가 공휴일 설정 조회
@@ -81,7 +83,8 @@ export default function ReservationModalImproved({
     enabled: isOpen
   });
 
-  const userCredits = creditsData?.data || 0;
+  // props로 받은 크레딧을 우선 사용하고, 없으면 조회한 데이터 사용
+  const userCredits = propUserCredits !== undefined ? propUserCredits : (creditsData?.data || 0);
   const totalCost = Math.ceil(creditsPerMinute * duration);
   const canAfford = userCredits >= totalCost;
 
@@ -354,9 +357,24 @@ export default function ReservationModalImproved({
                       <span className="text-gray-600">시간</span>
                       <span className="font-medium text-gray-900">{selectedTime} ({duration}분)</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-600">예상 비용</span>
-                      <span className="font-bold text-blue-900">{totalCost.toLocaleString()} 크레딧</span>
+                  </div>
+                </div>
+
+                {/* 크레딧 정보 */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">결제 정보</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">현재 보유 크레딧</span>
+                      <span className="font-semibold text-gray-900">{userCredits.toLocaleString()} 크레딧</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">예상 차감 금액</span>
+                      <span className="font-semibold text-blue-900">{totalCost.toLocaleString()} 크레딧</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-blue-300">
+                      <span className="text-gray-700 font-medium">예약 후 잔액</span>
+                      <span className="font-bold text-blue-900">{(userCredits - totalCost).toLocaleString()} 크레딧</span>
                     </div>
                   </div>
                 </div>

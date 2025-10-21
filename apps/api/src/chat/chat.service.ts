@@ -115,6 +115,38 @@ export class ChatService {
   async sendMessage(userId: number, message: string, sessionId?: string) {
     console.log('[ChatService] sendMessage 호출됨:', { userId, message: message.substring(0, 50), sessionId });
 
+    // ✅ Phase 1: Soft Limit 토큰 체크
+    const usage = await this.aiUsageService.getUsageState(userId);
+    const totalAvailable = 100000 + usage.purchasedTokens; // 무료 + 구매 토큰
+    const remaining = totalAvailable - usage.usedTokens;
+    const usagePercent = (usage.usedTokens / totalAvailable) * 100;
+
+    // Hard limit: 105% 초과 시 차단
+    if (usagePercent >= 105) {
+      throw new Error(JSON.stringify({
+        code: 'TOKEN_EXHAUSTED',
+        message: '토큰이 모두 소진되었습니다. 토큰을 구매해주세요.',
+        remainingTokens: remaining,
+        usagePercent: Math.round(usagePercent),
+        recommendedAction: 'PURCHASE_TOKENS',
+        purchaseUrl: '/credits'
+      }));
+    }
+
+    // Soft warning: 90~105% 사용 중
+    let tokenWarning = null;
+    if (usagePercent >= 90 && usagePercent < 105) {
+      const estimatedTurns = Math.floor(remaining / 900);
+      tokenWarning = {
+        level: usagePercent >= 95 ? 'CRITICAL' : 'WARNING',
+        message: `토큰이 ${Math.round(100 - usagePercent)}% 남았습니다.`,
+        remainingTokens: remaining,
+        estimatedTurns,
+        usagePercent: Math.round(usagePercent)
+      };
+      console.log('[ChatService] 토큰 경고:', tokenWarning);
+    }
+
     let session;
 
     // 세션이 없으면 새로 생성
@@ -213,6 +245,7 @@ export class ChatService {
       content: aiResponse,
       tokenCount,
       creditsUsed: 0, // AI 채팅은 크레딧을 사용하지 않음
+      warning: tokenWarning, // ✅ 토큰 경고 정보 포함
       session: {
         id: updatedSession.id,
         title: updatedSession.title,

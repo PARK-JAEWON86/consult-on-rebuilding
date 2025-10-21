@@ -19,19 +19,29 @@ export default function ApplicationStatusPage() {
   // 페이지 마운트 시 사용자 정보 갱신 (최신 expertApplicationData 가져오기)
   useEffect(() => {
     const initializePage = async () => {
-      if (!isLoading && user) {
-        console.log('📋 [Application Status] 초기 로딩 - 사용자 정보 갱신 시작...')
-        await refreshUser()
-        console.log('✅ [Application Status] 사용자 정보 갱신 완료')
-        setIsInitialRefreshComplete(true)
-      } else if (!isLoading && !user) {
-        // 로그인되지 않은 경우 즉시 처리
+      // 이미 초기화 완료되었으면 skip
+      if (isInitialRefreshComplete) {
+        return
+      }
+
+      if (!isLoading) {
+        if (user) {
+          console.log('📋 [Application Status] 초기 로딩 - 사용자 정보 갱신 시작...')
+          try {
+            await refreshUser()
+            console.log('✅ [Application Status] 사용자 정보 갱신 완료')
+          } catch (error) {
+            console.error('❌ [Application Status] 사용자 정보 갱신 실패:', error)
+            // 갱신 실패해도 페이지는 보여줌
+          }
+        }
+        // 사용자가 있든 없든 갱신 완료 플래그 설정
         setIsInitialRefreshComplete(true)
       }
     }
 
     initializePage()
-  }, []) // 빈 배열로 마운트 시 1회만 실행
+  }, [isLoading, isInitialRefreshComplete]) // 의존성 배열 수정
 
   // 사용자 정보 로드 시 알림 설정 초기화
   useEffect(() => {
@@ -133,12 +143,15 @@ export default function ApplicationStatusPage() {
     }
   }
 
-  if (isLoading || !user) {
+  // 초기 갱신이 완료되지 않았거나 로딩 중이면 로딩 화면 표시
+  if (!isInitialRefreshComplete || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600">
+            {!isInitialRefreshComplete ? '사용자 정보를 확인하는 중...' : '로딩 중...'}
+          </p>
         </div>
       </div>
     )

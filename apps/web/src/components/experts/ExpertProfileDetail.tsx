@@ -1330,6 +1330,7 @@ export default function ExpertProfileDetail({
             experience: (expertData as any).experience || 0
           }}
           creditsPerMinute={creditsPerMinute}
+          userCredits={creditsData?.data}
         />
       )}
 

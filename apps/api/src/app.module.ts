@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { AuthModule } from './auth/auth.module'
@@ -35,6 +36,7 @@ import { validateEnv } from './config/env.schema'
       envFilePath: ['.env.local', '.env'],
       validate: validateEnv,
     }),
+    ScheduleModule.forRoot(), // ✅ Phase 2: 크론 스케줄러 활성화
     PrismaModule,
     RedisModule,
     AuthModule,

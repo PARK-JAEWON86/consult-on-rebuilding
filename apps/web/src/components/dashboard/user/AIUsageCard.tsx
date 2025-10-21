@@ -168,17 +168,90 @@ export function AIUsageCard() {
         </div>
       </div>
 
+      {/* ✅ Phase 1: 토큰 부족 경고 배너 */}
+      {usagePercent >= 90 && usagePercent < 105 && (
+        <div className={`mt-4 p-3 rounded-md border ${
+          usagePercent >= 95
+            ? 'bg-red-50 border-red-200'
+            : 'bg-orange-50 border-orange-200'
+        }`}>
+          <div className="flex items-start">
+            <AlertTriangle className={`w-5 h-5 mt-0.5 mr-2 flex-shrink-0 ${
+              usagePercent >= 95 ? 'text-red-600' : 'text-orange-600'
+            }`} />
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                usagePercent >= 95 ? 'text-red-800' : 'text-orange-800'
+              }`}>
+                {usagePercent >= 95 ? '⚠️ 토큰이 거의 소진되었습니다!' : '토큰이 부족합니다'}
+              </p>
+              <p className={`text-xs mt-1 ${
+                usagePercent >= 95 ? 'text-red-600' : 'text-orange-600'
+              }`}>
+                남은 토큰: {formatTokens(remainingTokens)} (약 {summary?.totalEstimatedTurns || 0}턴)
+              </p>
+              <p className={`text-xs mt-1 ${
+                usagePercent >= 95 ? 'text-red-600' : 'text-orange-600'
+              }`}>
+                {usagePercent >= 95
+                  ? '곧 채팅이 제한됩니다. 토큰을 구매해주세요.'
+                  : '원활한 사용을 위해 토큰 구매를 권장합니다.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/credits')}
+            className={`mt-2 w-full px-3 py-2 text-white rounded-md text-sm font-medium transition-colors ${
+              usagePercent >= 95
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-orange-600 hover:bg-orange-700'
+            }`}
+          >
+            <Plus className="w-4 h-4 mr-1 inline" />
+            토큰 구매하기
+          </button>
+        </div>
+      )}
+
+      {usagePercent >= 105 && (
+        <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md">
+          <div className="flex items-start">
+            <AlertTriangle className="w-5 h-5 mt-0.5 mr-2 flex-shrink-0 text-red-700" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-900">
+                🚫 토큰이 모두 소진되었습니다
+              </p>
+              <p className="text-xs mt-1 text-red-700">
+                AI 채팅을 계속 사용하려면 토큰을 구매해주세요.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/credits')}
+            className="mt-2 w-full px-3 py-2 bg-red-700 text-white rounded-md text-sm font-bold hover:bg-red-800 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-1 inline" />
+            지금 토큰 구매하기
+          </button>
+        </div>
+      )}
+
       {/* 메인 액션 버튼 - 항상 하단에 고정 */}
       <div className="mt-4 space-y-2">
         <button
           onClick={() => router.push('/chat')}
-          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
+          disabled={usagePercent >= 105}
+          className={`w-full px-4 py-2 rounded-md transition-colors flex items-center justify-center ${
+            usagePercent >= 105
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-green-600 text-white hover:bg-green-700'
+          }`}
         >
           <Brain className="w-4 h-4 mr-2" />
-          AI 채팅 시작
+          {usagePercent >= 105 ? 'AI 채팅 사용 불가' : 'AI 채팅 시작'}
         </button>
 
-        {usagePercent >= 80 && (
+        {usagePercent >= 80 && usagePercent < 90 && (
           <button
             onClick={() => router.push('/credits')}
             className="w-full px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors flex items-center justify-center text-sm"

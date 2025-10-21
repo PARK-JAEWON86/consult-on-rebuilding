@@ -277,19 +277,36 @@ export class AuthService {
 
       console.log('[getUserById] User found:', { userId, email: user.email, hasExpert: !!user.expert })
 
-      // 전문가 지원 상태 확인
-      const expertApplication = await this.prisma.expertApplication.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' }
-      })
+      // 전문가 지원 상태 확인 (에러 발생 시에도 사용자 정보는 반환)
+      let expertApplication = null
+      try {
+        expertApplication = await this.prisma.expertApplication.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' }
+        })
 
-      console.log('[getUserById] ExpertApplication lookup:', {
-        userId,
-        found: !!expertApplication,
-        status: expertApplication?.status,
-        hasKeywords: !!expertApplication?.keywords,
-        hasConsultationTypes: !!expertApplication?.consultationTypes
-      })
+        console.log('[getUserById] ExpertApplication lookup success:', {
+          userId,
+          found: !!expertApplication,
+          status: expertApplication?.status,
+          hasKeywords: !!expertApplication?.keywords,
+          hasConsultationTypes: !!expertApplication?.consultationTypes
+        })
+      } catch (error: any) {
+        // ExpertApplication 조회 실패해도 사용자 기본 정보는 반환
+        console.error('[getUserById] ExpertApplication lookup failed (continuing with user data):', {
+          userId,
+          errorMessage: error?.message,
+          errorCode: error?.code,
+          isPrismaError: error?.code?.startsWith('P'),
+          isMySQLError: error?.meta?.code
+        })
+
+        // expertApplication은 null로 유지
+        // 아래 로직은 expertApplication이 null이어도 정상 작동:
+        // - Line 316-317: expertApplicationStatus, expertApplicationId는 null
+        // - Line 326: expertApplicationData는 생성 안 됨 (조건문 false)
+      }
 
     // roles가 JSON 문자열인 경우 파싱
     let roles = user.roles

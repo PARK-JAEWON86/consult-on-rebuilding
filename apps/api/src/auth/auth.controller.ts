@@ -151,8 +151,6 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtGuard)
   async me(@User() user: { id: number; email: string }) {
-    console.log('meaksjiejfkladf')
-    console.log(user.id)
     const userData = await this.auth.getUserById(user.id)
     return { success: true, data: { user: userData } }
   }

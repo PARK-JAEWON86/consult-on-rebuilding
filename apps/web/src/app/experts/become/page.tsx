@@ -35,7 +35,10 @@ import Step31BasicProfile from '@/components/experts/become-steps/Step3-1BasicPr
 import Step32ScheduleSettings from '@/components/experts/become-steps/Step3-2ScheduleSettings'
 import Step4Terms from '@/components/experts/become-steps/Step4Terms'
 import Step5Review from '@/components/experts/become-steps/Step5Review'
-import { AvailabilitySlot, HolidaySettings } from '@/components/experts/AvailabilityScheduleEditor'
+import {
+  AvailabilitySlot,
+  HolidaySettings,
+} from '@/components/experts/AvailabilityScheduleEditor'
 
 type Step = 1 | 2 | 2.5 | 3 | 4 | 5
 
@@ -51,7 +54,8 @@ export default function BecomeExpertPage() {
     const loadCategories = async () => {
       try {
         setIsLoadingCategories(true)
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
         const response = await fetch(`${apiUrl}/categories`)
         const result = await response.json()
 
@@ -100,7 +104,9 @@ export default function BecomeExpertPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null
+  )
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
   // 사용자 정보 로드 시 이름, 이메일, 전화번호 자동 설정
@@ -115,7 +121,6 @@ export default function BecomeExpertPage() {
     }
   }, [user, isLoading])
 
-
   // 2단계: 전문 정보 + 일정/자격증 (통합)
   const [specialty, setSpecialty] = useState('')
   const [experienceYears, setExperienceYears] = useState<number>(0)
@@ -128,7 +133,9 @@ export default function BecomeExpertPage() {
   const [mbti, setMbti] = useState('')
   const [consultationStyle, setConsultationStyle] = useState('')
   const [languages, setLanguages] = useState<string[]>(['한국어'])
-  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'schedule'>('basic')
+  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'schedule'>(
+    'basic'
+  )
 
   // 필수 항목 검증 상태
   const [showValidation, setShowValidation] = useState(false)
@@ -149,10 +156,12 @@ export default function BecomeExpertPage() {
 
   // 일정 및 자격증 (Step 3에서 이동)
   // 예약 가능 시간 (슬롯 기반 시스템)
-  const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([])
+  const [availabilitySlots, setAvailabilitySlots] = useState<
+    AvailabilitySlot[]
+  >([])
   const [holidaySettings, setHolidaySettings] = useState<HolidaySettings>({
     acceptHolidayConsultations: false,
-    holidayNote: ''
+    holidayNote: '',
   })
   const [education, setEducation] = useState<
     Array<{ school: string; major: string; degree: string }>
@@ -202,7 +211,9 @@ export default function BecomeExpertPage() {
         const categoryName = appData.specialty.split(' - ')[0]
         // 카테고리가 로드되었으면 해당 카테고리 ID 찾기
         if (categories.length > 0) {
-          const matchedCategory = categories.find(cat => cat.nameKo === categoryName)
+          const matchedCategory = categories.find(
+            (cat) => cat.nameKo === categoryName
+          )
           if (matchedCategory) {
             setSelectedCategoryId(matchedCategory.id)
           }
@@ -222,29 +233,45 @@ export default function BecomeExpertPage() {
       setConsultationStyle(appData.consultationStyle || '')
 
       // 자격증 및 경력
-      setCertifications(appData.certifications || [{ name: '', issuer: '', year: '' }])
+      setCertifications(
+        appData.certifications || [{ name: '', issuer: '', year: '' }]
+      )
       setEducation(appData.education || [{ school: '', major: '', degree: '' }])
-      setWorkExperience(appData.workExperience || [{ company: '', position: '', period: '' }])
+      setWorkExperience(
+        appData.workExperience || [{ company: '', position: '', period: '' }]
+      )
 
       // 스케줄 복원
       if (appData.availability) {
         // 요일별 객체를 슬롯 배열로 변환
         const slots: AvailabilitySlot[] = []
-        const dayKeys = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+        const dayKeys = [
+          'MONDAY',
+          'TUESDAY',
+          'WEDNESDAY',
+          'THURSDAY',
+          'FRIDAY',
+          'SATURDAY',
+          'SUNDAY',
+        ]
 
-        dayKeys.forEach(dayKey => {
+        dayKeys.forEach((dayKey) => {
           const dayData = appData.availability[dayKey]
           if (dayData && dayData.available && dayData.hours) {
             // "09:00-18:00, 19:00-21:00" 형식을 슬롯으로 분리
-            const timeRanges = dayData.hours.split(',').map((range: string) => range.trim())
+            const timeRanges = dayData.hours
+              .split(',')
+              .map((range: string) => range.trim())
             timeRanges.forEach((range: string) => {
-              const [startTime, endTime] = range.split('-').map((t: string) => t.trim())
+              const [startTime, endTime] = range
+                .split('-')
+                .map((t: string) => t.trim())
               if (startTime && endTime) {
                 slots.push({
                   dayOfWeek: dayKey as any,
                   startTime,
                   endTime,
-                  isActive: true
+                  isActive: true,
                 })
               }
             })
@@ -252,10 +279,12 @@ export default function BecomeExpertPage() {
         })
 
         setAvailabilitySlots(slots)
-        setHolidaySettings(appData.availability.holidaySettings || {
-          acceptHolidayConsultations: false,
-          holidayNote: ''
-        })
+        setHolidaySettings(
+          appData.availability.holidaySettings || {
+            acceptHolidayConsultations: false,
+            holidayNote: '',
+          }
+        )
       }
 
       // 소셜 링크
@@ -265,7 +294,7 @@ export default function BecomeExpertPage() {
           instagram: appData.socialLinks.instagram || '',
           youtube: appData.socialLinks.youtube || '',
           linkedin: appData.socialLinks.linkedin || '',
-          blog: appData.socialLinks.blog || ''
+          blog: appData.socialLinks.blog || '',
         })
       }
 
@@ -285,7 +314,12 @@ export default function BecomeExpertPage() {
     const status = (user as any).expertApplicationStatus
     const appData = (user as any).expertApplicationData
 
-    if (status === 'ADDITIONAL_INFO_REQUESTED' && appData && appData.specialty && categories.length > 0) {
+    if (
+      status === 'ADDITIONAL_INFO_REQUESTED' &&
+      appData &&
+      appData.specialty &&
+      categories.length > 0
+    ) {
       // specialty 기반으로 추천 키워드 설정
       const recommendedKeywords = getRecommendedKeywords(appData.specialty)
       if (recommendedKeywords.length > 0) {
@@ -429,7 +463,9 @@ export default function BecomeExpertPage() {
   const canGoNextStep1 = fullName.trim() !== '' && email.trim() !== ''
 
   // Step 2: 전문정보
-  const hasAvailability = availabilitySlots.length > 0 && availabilitySlots.some(slot => slot.isActive)
+  const hasAvailability =
+    availabilitySlots.length > 0 &&
+    availabilitySlots.some((slot) => slot.isActive)
 
   const canGoNextStep3 =
     selectedCategoryId !== null &&
@@ -445,7 +481,9 @@ export default function BecomeExpertPage() {
     bio.trim().length < 30 && '자기소개(30자 이상)',
     consultationTypes.length === 0 && '상담유형',
     !hasAvailability && '상담 가능 시간',
-  ].filter(Boolean).join(', ')
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   // 전문분야 변경 시 추천 키워드 업데이트
   useEffect(() => {
@@ -467,7 +505,8 @@ export default function BecomeExpertPage() {
         if (!exp.period || !exp.company) return // 빈 항목은 스킵
 
         // period 형식: "2020.01 ~ 2023.12" 또는 "2020 ~ 2023" 또는 "2020.01 ~ 현재"
-        const periodRegex = /(\d{4})(?:\.(\d{1,2}))?\s*~\s*(?:(\d{4})(?:\.(\d{1,2}))?|(현재|재직중))/
+        const periodRegex =
+          /(\d{4})(?:\.(\d{1,2}))?\s*~\s*(?:(\d{4})(?:\.(\d{1,2}))?|(현재|재직중))/
         const match = exp.period.match(periodRegex)
 
         if (!match) return
@@ -502,7 +541,6 @@ export default function BecomeExpertPage() {
 
     calculateTotalExperience()
   }, [workExperience])
-
 
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -559,7 +597,9 @@ export default function BecomeExpertPage() {
         // 압축된 이미지 크기 확인 (base64는 약 1.33배 크기)
         const compressedSize = (compressedDataUrl.length * 3) / 4
         if (compressedSize > maxSize) {
-          alert('압축 후에도 이미지가 너무 큽니다. 더 작은 이미지를 선택해주세요.')
+          alert(
+            '압축 후에도 이미지가 너무 큽니다. 더 작은 이미지를 선택해주세요.'
+          )
           return
         }
 
@@ -577,18 +617,20 @@ export default function BecomeExpertPage() {
   }
 
   // 예약 가능 시간 변경 핸들러
-  const handleAvailabilityChange = (slots: AvailabilitySlot[], holidaySettings: HolidaySettings) => {
+  const handleAvailabilityChange = (
+    slots: AvailabilitySlot[],
+    holidaySettings: HolidaySettings
+  ) => {
     setAvailabilitySlots(slots)
     setHolidaySettings(holidaySettings)
   }
-
 
   const handleKeywordsChange = (value: string) => {
     setKeywordsInput(value)
     const keywordArray = value
       .split(',')
-      .map(k => k.trim())
-      .filter(k => k.length > 0)
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0)
       .slice(0, 10) // 최대 10개
     setKeywords(keywordArray)
   }
@@ -620,7 +662,10 @@ export default function BecomeExpertPage() {
     )
 
   const addWorkExperience = () =>
-    setWorkExperience((prev) => [...prev, { company: '', position: '', period: '' }])
+    setWorkExperience((prev) => [
+      ...prev,
+      { company: '', position: '', period: '' },
+    ])
   const removeWorkExperience = (idx: number) =>
     setWorkExperience((prev) => prev.filter((_, i) => i !== idx))
   const updateWorkExperience = (
@@ -638,7 +683,7 @@ export default function BecomeExpertPage() {
 
     const newFiles = Array.from(files).slice(0, 5 - portfolioFiles.length)
 
-    newFiles.forEach(file => {
+    newFiles.forEach((file) => {
       if (!file.type.startsWith('image/')) {
         alert('이미지 파일만 업로드 가능합니다.')
         return
@@ -649,24 +694,27 @@ export default function BecomeExpertPage() {
       }
     })
 
-    setPortfolioFiles(prev => [...prev, ...newFiles])
+    setPortfolioFiles((prev) => [...prev, ...newFiles])
 
-    newFiles.forEach(file => {
+    newFiles.forEach((file) => {
       const reader = new FileReader()
       reader.onloadend = () => {
-        setPortfolioPreviews(prev => [...prev, reader.result as string])
+        setPortfolioPreviews((prev) => [...prev, reader.result as string])
       }
       reader.readAsDataURL(file)
     })
   }
 
   const removePortfolioFile = (idx: number) => {
-    setPortfolioFiles(prev => prev.filter((_, i) => i !== idx))
-    setPortfolioPreviews(prev => prev.filter((_, i) => i !== idx))
+    setPortfolioFiles((prev) => prev.filter((_, i) => i !== idx))
+    setPortfolioPreviews((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  const handleSocialLinkChange = (platform: keyof typeof socialLinks, value: string) => {
-    setSocialLinks(prev => ({ ...prev, [platform]: value }))
+  const handleSocialLinkChange = (
+    platform: keyof typeof socialLinks,
+    value: string
+  ) => {
+    setSocialLinks((prev) => ({ ...prev, [platform]: value }))
   }
 
   const handleSubmit = async () => {
@@ -682,7 +730,9 @@ export default function BecomeExpertPage() {
     }
 
     // 선택된 카테고리 이름 가져오기
-    const selectedCategory = categories.find(cat => cat.id === selectedCategoryId)
+    const selectedCategory = categories.find(
+      (cat) => cat.id === selectedCategoryId
+    )
     const categoryName = selectedCategory ? selectedCategory.nameKo : ''
 
     // specialty는 카테고리명만 (키워드는 별도로 keywords 필드에 전송)
@@ -690,19 +740,22 @@ export default function BecomeExpertPage() {
 
     // API로 전송할 데이터 구성
     // availability를 요일별 객체로 변환 (DTO 형식에 맞춤)
-    const availabilityByDay = availabilitySlots.reduce((acc, slot) => {
-      const dayKey = slot.dayOfWeek
-      if (!acc[dayKey]) {
-        acc[dayKey] = {
-          available: true,
-          hours: `${slot.startTime}-${slot.endTime}`
+    const availabilityByDay = availabilitySlots.reduce(
+      (acc, slot) => {
+        const dayKey = slot.dayOfWeek
+        if (!acc[dayKey]) {
+          acc[dayKey] = {
+            available: true,
+            hours: `${slot.startTime}-${slot.endTime}`,
+          }
+        } else {
+          // 같은 요일에 여러 시간대가 있는 경우 추가
+          acc[dayKey].hours += `, ${slot.startTime}-${slot.endTime}`
         }
-      } else {
-        // 같은 요일에 여러 시간대가 있는 경우 추가
-        acc[dayKey].hours += `, ${slot.startTime}-${slot.endTime}`
-      }
-      return acc
-    }, {} as Record<string, { available: boolean; hours: string }>)
+        return acc
+      },
+      {} as Record<string, { available: boolean; hours: string }>
+    )
 
     const applicationData = {
       name: fullName,
@@ -718,42 +771,47 @@ export default function BecomeExpertPage() {
       availability: availabilityByDay,
       holidaySettings: {
         acceptHolidayConsultations: holidaySettings.acceptHolidayConsultations,
-        holidayNote: holidaySettings.holidayNote || undefined
+        holidayNote: holidaySettings.holidayNote || undefined,
       },
       certifications: certifications
         .filter((c) => c.name.trim())
         .map((c) => ({
           name: c.name,
           issuer: c.issuer || '',
-          year: c.year || ''
+          year: c.year || '',
         })),
       education: education
         .filter((e) => e.school.trim())
         .map((e) => ({
           school: e.school,
           major: e.major || '',
-          degree: e.degree || ''
+          degree: e.degree || '',
         })),
       workExperience: workExperience
         .filter((w) => w.company.trim())
         .map((w) => ({
           company: w.company,
           position: w.position || '',
-          period: w.period || ''
+          period: w.period || '',
         })),
       profileImage: profileImage,
       mbti: mbti || undefined,
       consultationStyle: consultationStyle || undefined,
       socialLinks: (() => {
         // 소셜링크가 하나라도 있으면 객체로 전송
-        const hasAnySocialLink = socialLinks.website || socialLinks.instagram || socialLinks.youtube || socialLinks.linkedin || socialLinks.blog
+        const hasAnySocialLink =
+          socialLinks.website ||
+          socialLinks.instagram ||
+          socialLinks.youtube ||
+          socialLinks.linkedin ||
+          socialLinks.blog
         console.log('🔗 소셜링크 체크:', {
           hasAnySocialLink,
           website: socialLinks.website,
           instagram: socialLinks.instagram,
           youtube: socialLinks.youtube,
           linkedin: socialLinks.linkedin,
-          blog: socialLinks.blog
+          blog: socialLinks.blog,
         })
 
         if (!hasAnySocialLink) return undefined
@@ -763,10 +821,11 @@ export default function BecomeExpertPage() {
           instagram: socialLinks.instagram || undefined,
           youtube: socialLinks.youtube || undefined,
           linkedin: socialLinks.linkedin || undefined,
-          blog: socialLinks.blog || undefined
+          blog: socialLinks.blog || undefined,
         }
       })(),
-      portfolioImages: portfolioPreviews.length > 0 ? portfolioPreviews : undefined,
+      portfolioImages:
+        portfolioPreviews.length > 0 ? portfolioPreviews : undefined,
     }
 
     // 소셜링크 디버깅
@@ -776,28 +835,27 @@ export default function BecomeExpertPage() {
     // 디버깅: 전송 데이터 로깅
     console.log('📤 전송할 데이터:', {
       ...applicationData,
-      profileImage: profileImage ? `${profileImage.substring(0, 50)}... (${profileImage.length} chars)` : null
+      profileImage: profileImage
+        ? `${profileImage.substring(0, 50)}... (${profileImage.length} chars)`
+        : null,
     })
 
     try {
       const result = await api.post('/experts/apply', applicationData)
 
       if (result.success) {
-        console.log('✅ 신청 제출 성공 - 사용자 정보 갱신 중...')
+        console.log('✅ 신청 제출 성공')
 
         // 성공 시 로컬스토리지 정리
         localStorage.removeItem('pendingExpertApplication')
 
-        // ✅ 수정: 리다이렉트 전에 사용자 정보 갱신
-        // 이렇게 하면 expertApplicationStatus가 'PENDING'으로 업데이트됨
-        await refreshUser()
-
-        console.log('✅ 사용자 정보 갱신 완료 - 상태 확인 페이지로 이동')
-
-        // 짧은 대기 후 리다이렉트 (상태 전파 보장)
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // ✅ 수정: refreshUser() 제거 (로그인이 풀리는 문제 해결)
+        // application-status 페이지에서 자체적으로 refreshUser()를 호출하므로
+        // 여기서는 바로 리다이렉트만 하면 됩니다
+        console.log('✅ 신청 완료 - 상태 확인 페이지로 이동')
 
         // 진행 상황 페이지로 리다이렉트
+        // application-status 페이지가 마운트되면서 최신 사용자 정보를 가져옵니다
         router.push('/experts/application-status')
       } else {
         throw new Error(result.error?.message || '신청 제출 실패')
@@ -810,7 +868,10 @@ export default function BecomeExpertPage() {
         alert('로그인이 필요합니다. 다시 로그인해주세요.')
         router.push('/auth/login?redirect=/experts/become')
       } else {
-        alert(error.message || '신청 제출 중 오류가 발생했습니다. 다시 시도해주세요.')
+        alert(
+          error.message ||
+            '신청 제출 중 오류가 발생했습니다. 다시 시도해주세요.'
+        )
       }
     }
   }
@@ -822,9 +883,7 @@ export default function BecomeExpertPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">
-            {isLoading
-              ? '인증 상태 확인 중...'
-              : '로그인 페이지로 이동 중...'}
+            {isLoading ? '인증 상태 확인 중...' : '로그인 페이지로 이동 중...'}
           </p>
         </div>
       </div>
@@ -834,65 +893,74 @@ export default function BecomeExpertPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 거절 알림 배너 */}
-      {(user as any)?.expertApplicationStatus === 'REJECTED' && (user as any)?.expertApplicationData?.reviewNotes && (
-        <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-6 rounded-r-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <XCircle className="w-6 h-6 text-red-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-red-900 mb-2">
-                지원이 거절되었습니다
-              </h3>
-              <p className="text-sm text-red-800 mb-3">
-                안타깝지만 현재 지원이 승인되지 않았습니다. 아래 사유를 확인하시고 보완 후 재지원하실 수 있습니다.
-              </p>
-              <div className="bg-white border border-red-200 rounded-lg p-4">
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
-                  {(user as any).expertApplicationData.reviewNotes}
-                </pre>
+      {(user as any)?.expertApplicationStatus === 'REJECTED' &&
+        (user as any)?.expertApplicationData?.reviewNotes && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-6 rounded-r-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <XCircle className="w-6 h-6 text-red-600" />
               </div>
-              <p className="text-xs text-red-700 mt-3">
-                💡 정보를 수정하여 재지원하실 수 있습니다.
-              </p>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-900 mb-2">
+                  지원이 거절되었습니다
+                </h3>
+                <p className="text-sm text-red-800 mb-3">
+                  안타깝지만 현재 지원이 승인되지 않았습니다. 아래 사유를
+                  확인하시고 보완 후 재지원하실 수 있습니다.
+                </p>
+                <div className="bg-white border border-red-200 rounded-lg p-4">
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                    {(user as any).expertApplicationData.reviewNotes}
+                  </pre>
+                </div>
+                <p className="text-xs text-red-700 mt-3">
+                  💡 정보를 수정하여 재지원하실 수 있습니다.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* 추가 정보 요청 알림 배너 */}
-      {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' && (user as any)?.expertApplicationData?.reviewNotes && (
-        <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <Info className="w-6 h-6 text-amber-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-amber-900 mb-2">
-                추가 정보 요청
-              </h3>
-              <p className="text-sm text-amber-800 mb-3">
-                관리자가 다음 사항에 대한 추가 정보를 요청했습니다. 아래 내용을 확인하시고 해당 항목을 보완하여 재제출해주세요.
-              </p>
-              <div className="bg-white border border-amber-200 rounded-lg p-4">
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
-                  {(user as any).expertApplicationData.reviewNotes}
-                </pre>
+      {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' &&
+        (user as any)?.expertApplicationData?.reviewNotes && (
+          <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-6 rounded-r-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <Info className="w-6 h-6 text-amber-600" />
               </div>
-              <p className="text-xs text-amber-700 mt-3">
-                💡 아래 폼이 기존 제출 정보로 자동으로 채워져 있습니다. 요청된 항목만 수정하여 다시 제출하시면 됩니다.
-              </p>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-amber-900 mb-2">
+                  추가 정보 요청
+                </h3>
+                <p className="text-sm text-amber-800 mb-3">
+                  관리자가 다음 사항에 대한 추가 정보를 요청했습니다. 아래
+                  내용을 확인하시고 해당 항목을 보완하여 재제출해주세요.
+                </p>
+                <div className="bg-white border border-amber-200 rounded-lg p-4">
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                    {(user as any).expertApplicationData.reviewNotes}
+                  </pre>
+                </div>
+                <p className="text-xs text-amber-700 mt-3">
+                  💡 아래 폼이 기존 제출 정보로 자동으로 채워져 있습니다. 요청된
+                  항목만 수정하여 다시 제출하시면 됩니다.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
-          {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED' ? '전문가 등록 - 추가 정보 제출' : '전문가 등록'}
+          {(user as any)?.expertApplicationStatus ===
+          'ADDITIONAL_INFO_REQUESTED'
+            ? '전문가 등록 - 추가 정보 제출'
+            : '전문가 등록'}
         </h1>
         <p className="text-gray-600 mt-1">
-          {(user as any)?.expertApplicationStatus === 'ADDITIONAL_INFO_REQUESTED'
+          {(user as any)?.expertApplicationStatus ===
+          'ADDITIONAL_INFO_REQUESTED'
             ? '요청된 항목을 확인하고 수정하여 재제출해주세요.'
             : '경험과 지식을 나누고 수익을 만들어보세요. 3단계로 등록 신청을 완료할 수 있습니다.'}
         </p>
@@ -1047,10 +1115,7 @@ export default function BecomeExpertPage() {
 
         {/* Step 4: 최종 검토 */}
         {step === 4 && (
-          <Step5Review
-            onPrevious={() => setStep(3)}
-            onSubmit={handleSubmit}
-          />
+          <Step5Review onPrevious={() => setStep(3)} onSubmit={handleSubmit} />
         )}
       </div>
     </div>

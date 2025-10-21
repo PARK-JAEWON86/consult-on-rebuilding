@@ -13,6 +13,8 @@ import { ContentController } from './content/content.controller'
 import { ContentService } from './content/content.service'
 import { SettingsController } from './settings/settings.controller'
 import { SettingsService } from './settings/settings.service'
+import { TokenStatsController } from './token-stats/token-stats.controller'
+import { TokenStatsService } from './token-stats/token-stats.service'
 import { AdminGuard } from './guards/admin.guard'
 import { AdminRoleGuard } from './guards/admin-role.guard'
 
@@ -29,6 +31,7 @@ import { AdminRoleGuard } from './guards/admin-role.guard'
     UsersController,
     ContentController,
     SettingsController,
+    TokenStatsController,
   ],
   providers: [
     ExpertApplicationsService,
@@ -36,6 +39,7 @@ import { AdminRoleGuard } from './guards/admin-role.guard'
     UsersService,
     ContentService,
     SettingsService,
+    TokenStatsService,
     AdminGuard,
     AdminRoleGuard,
   ],

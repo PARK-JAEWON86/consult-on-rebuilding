@@ -56,16 +56,29 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
         setUser(response.data.user)
       } else {
         console.log('[AuthProvider] No user data in response')
-        setUser(null)
+        // 수정: 응답 형식이 이상해도 기존 세션 유지
+        // 서버가 user를 반환하지 않은 것은 일시적 문제일 수 있음
+        console.warn('[AuthProvider] Unexpected response format, keeping existing session')
       }
     } catch (error) {
-      // 401은 정상적인 미인증 상태이므로 에러 로그 출력하지 않음
-      if ((error as any)?.status !== 401) {
-        console.error('[AuthProvider] Failed to refresh user:', error)
+      const status = (error as any)?.status
+
+      if (status === 401) {
+        // 401 Unauthorized: 인증 실패 - 로그아웃 처리
+        console.log('[AuthProvider] 401 - user not authenticated, logging out')
+        setUser(null)
       } else {
-        console.log('[AuthProvider] 401 - user not authenticated')
+        // 수정: 다른 모든 에러는 기존 세션 유지
+        console.error('[AuthProvider] Failed to refresh user (keeping existing session):', {
+          status,
+          message: (error as any)?.message,
+          error
+        })
+
+        // 서버 에러, 네트워크 에러 등은 일시적 문제
+        // 사용자는 여전히 인증된 상태이므로 세션 유지
+        // 다음 refreshUser 호출 시 복구 가능
       }
-      setUser(null)
     } finally {
       setIsLoading(false)
       console.log('[AuthProvider] refreshUser completed')

@@ -1,14 +1,17 @@
-import { Controller, Get, Post, Patch, Delete, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Query, UseGuards } from '@nestjs/common';
 import { AIUsageService } from './ai-usage.service';
 import { createAIUsageSummary } from '../config/ai-usage.config';
+import { JwtGuard } from '../auth/jwt.guard';
+import { User } from '../auth/user.decorator';
 
 @Controller('ai-usage')
 export class AIUsageController {
   constructor(private readonly aiUsageService: AIUsageService) {}
 
   @Get()
-  async getUsage(@Query('userId') userId?: string) {
-    const uid = Number(userId || 1); // TODO: Auth 연동 시 토큰에서 추출
+  @UseGuards(JwtGuard)
+  async getUsage(@User() user: { id: number; email: string }) {
+    const uid = user.id;
 
     const usageState = await this.aiUsageService.getUsageState(uid);
     const summary = createAIUsageSummary(usageState);
@@ -23,11 +26,12 @@ export class AIUsageController {
   }
 
   @Post()
+  @UseGuards(JwtGuard)
   async manageUsage(
     @Body() body: { action: string; data?: any },
-    @Query('userId') userId?: string
+    @User() user: { id: number; email: string }
   ) {
-    const uid = Number(userId || 1); // TODO: Auth 연동 시 토큰에서 추출
+    const uid = user.id;
     const { action, data } = body;
 
     switch (action) {
@@ -210,11 +214,12 @@ export class AIUsageController {
   }
 
   @Patch()
+  @UseGuards(JwtGuard)
   async updateUsage(
     @Body() body: { updates: any },
-    @Query('userId') userId?: string
+    @User() user: { id: number; email: string }
   ) {
-    const uid = Number(userId || 1); // TODO: Auth 연동 시 토큰에서 추출
+    const uid = user.id;
     const { updates } = body;
 
     // 현재 상태를 가져온 후 업데이트
@@ -235,8 +240,9 @@ export class AIUsageController {
   }
 
   @Delete()
-  async deleteUsage(@Query('userId') userId?: string) {
-    const uid = Number(userId || 1); // TODO: Auth 연동 시 토큰에서 추출
+  @UseGuards(JwtGuard)
+  async deleteUsage(@User() user: { id: number; email: string }) {
+    const uid = user.id;
 
     const newState = await this.aiUsageService.resetAll(uid);
 
