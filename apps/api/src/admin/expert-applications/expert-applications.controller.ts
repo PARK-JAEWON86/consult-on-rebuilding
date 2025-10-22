@@ -78,4 +78,19 @@ export class ExpertApplicationsController {
       reviewedBy: req.user.id,
     })
   }
+
+  @Put(':id/stage')
+  @UseGuards(AdminRoleGuard)
+  @RequirePermission(AdminPermission.MANAGE_APPLICATIONS)
+  async updateApplicationStage(
+    @Param('id') id: string,
+    @Body() body: { stage: string },
+    @Req() req: any
+  ) {
+    return this.service.updateApplicationStage(
+      parseInt(id),
+      body.stage,
+      req.user.id
+    )
+  }
 }

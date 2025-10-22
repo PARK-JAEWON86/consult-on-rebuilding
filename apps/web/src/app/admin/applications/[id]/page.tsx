@@ -38,12 +38,23 @@ interface ApplicationDetail {
     consultationTypes: string[]
     languages: string[]
     availability: any
-    certifications: Array<{ name: string; issuer: string }>
+    availabilitySlots?: Array<{
+      dayOfWeek: string
+      startTime: string
+      endTime: string
+      isActive: boolean
+    }>
+    holidaySettings?: {
+      acceptHolidayConsultations: boolean
+      holidayNote: string
+    }
+    certifications: Array<{ name: string; issuer: string; year?: string }>
     education: Array<{ school: string; major: string; degree: string }>
     workExperience: Array<{ company: string; position: string; period: string }>
     mbti?: string
     consultationStyle?: string
     profileImage: string | null
+    portfolioImages?: string[]
     socialLinks?: {
       linkedin?: string
       github?: string
@@ -54,10 +65,12 @@ interface ApplicationDetail {
       blog?: string
       website?: string
     } | null
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
+    currentStage: 'SUBMITTED' | 'DOCUMENT_REVIEW' | 'UNDER_REVIEW' | 'APPROVAL_PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
     reviewedAt: string | null
     reviewNotes: string | null
     createdAt: string
+    emailNotification?: boolean
+    smsNotification?: boolean
   }
   user: {
     id: number
@@ -104,6 +117,7 @@ export default function ApplicationDetailPage() {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | 'request-info'>('approve')
   const [selectedRequestItems, setSelectedRequestItems] = useState<string[]>([])
   const [selectedRejectionReasons, setSelectedRejectionReasons] = useState<string[]>([])
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false)
 
   useEffect(() => {
     loadApplicationDetail()
@@ -180,6 +194,26 @@ export default function ApplicationDetailPage() {
     }
   }
 
+  async function handleStageChange(newStage: string) {
+    if (isUpdatingStage) return
+
+    try {
+      setIsUpdatingStage(true)
+
+      await api.put(`/admin/applications/${id}/stage`, {
+        stage: newStage
+      })
+
+      alert('단계가 변경되었습니다.')
+      loadApplicationDetail() // 데이터 새로고침
+    } catch (error: any) {
+      console.error('Failed to update stage:', error)
+      alert(error.message || '단계 변경 중 오류가 발생했습니다.')
+    } finally {
+      setIsUpdatingStage(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -205,7 +239,7 @@ export default function ApplicationDetailPage() {
   const { application, user } = data
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* 헤더 */}
       <div className="mb-8">
         <button
@@ -220,7 +254,7 @@ export default function ApplicationDetailPage() {
             <h1 className="text-3xl font-bold text-gray-900">{application.name}</h1>
             <p className="text-gray-500 mt-1">{application.displayId}</p>
           </div>
-          <StatusBadge status={application.status} />
+          <StatusBadge currentStage={application.currentStage} />
         </div>
       </div>
 
@@ -277,7 +311,6 @@ export default function ApplicationDetailPage() {
                 )}
 
                 <InfoRow icon={<Clock className="w-5 h-5" />} label="경력" value={`${application.experienceYears}년`} />
-                <InfoRow icon={<Calendar className="w-5 h-5" />} label="신청일" value={new Date(application.createdAt).toLocaleDateString('ko-KR')} />
               </div>
             </div>
           </div>
@@ -287,6 +320,31 @@ export default function ApplicationDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">자기소개</h2>
             <p className="text-gray-700 whitespace-pre-wrap">{application.bio}</p>
           </div>
+
+          {/* 포트폴리오 이미지 */}
+          {application.portfolioImages && application.portfolioImages.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                포트폴리오
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {application.portfolioImages.map((imageUrl: string, index: number) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={imageUrl}
+                      alt={`포트폴리오 ${index + 1}`}
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => window.open(imageUrl, '_blank')}
+                    />
+                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                      {index + 1} / {application.portfolioImages?.length || 0}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* MBTI & 상담 스타일 */}
           {(application.mbti || application.consultationStyle) && (
@@ -425,6 +483,9 @@ export default function ApplicationDetailPage() {
                     {cert.issuer && (
                       <div className="text-sm text-gray-600 mt-1">발급기관: {cert.issuer}</div>
                     )}
+                    {cert.year && (
+                      <div className="text-sm text-gray-600 mt-1">취득년도: {cert.year}</div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -432,59 +493,99 @@ export default function ApplicationDetailPage() {
           )}
 
           {/* 예약 가능 시간 */}
-          {application.availability && Object.keys(application.availability).length > 0 && (
+          {(application.availabilitySlots && application.availabilitySlots.length > 0) || (application.availability && Object.keys(application.availability).length > 0) ? (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5" />
                 예약 가능 시간
               </h2>
               <div className="space-y-2">
-                {Object.entries(application.availability).map(([day, info]: [string, any]) => {
-                  if (day === 'holidaySettings') return null;
+                {/* ✅ PRIORITY: Use availabilitySlots if available */}
+                {application.availabilitySlots && application.availabilitySlots.length > 0 ? (
+                  (() => {
+                    const dayNames: { [key: string]: string } = {
+                      'MONDAY': '월요일',
+                      'TUESDAY': '화요일',
+                      'WEDNESDAY': '수요일',
+                      'THURSDAY': '목요일',
+                      'FRIDAY': '금요일',
+                      'SATURDAY': '토요일',
+                      'SUNDAY': '일요일'
+                    };
 
-                  const dayNames: { [key: string]: string } = {
-                    'MONDAY': '월요일',
-                    'TUESDAY': '화요일',
-                    'WEDNESDAY': '수요일',
-                    'THURSDAY': '목요일',
-                    'FRIDAY': '금요일',
-                    'SATURDAY': '토요일',
-                    'SUNDAY': '일요일'
-                  };
+                    // Group slots by day
+                    const slotsByDay: { [key: string]: Array<{ startTime: string; endTime: string }> } = {};
+                    application.availabilitySlots.forEach(slot => {
+                      if (!slotsByDay[slot.dayOfWeek]) {
+                        slotsByDay[slot.dayOfWeek] = [];
+                      }
+                      slotsByDay[slot.dayOfWeek].push({
+                        startTime: slot.startTime,
+                        endTime: slot.endTime
+                      });
+                    });
 
-                  return (
-                    <div key={day} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm font-medium text-gray-700">
-                        {dayNames[day] || day}
-                      </span>
-                      <span className="text-sm text-gray-900">
-                        {info?.available ? info.hours : '불가능'}
-                      </span>
-                    </div>
-                  );
-                })}
+                    return Object.entries(slotsByDay).map(([day, slots]) => (
+                      <div key={day} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">
+                          {dayNames[day] || day}
+                        </span>
+                        <span className="text-sm text-gray-900">
+                          {slots.map(slot => `${slot.startTime}-${slot.endTime}`).join(', ')}
+                        </span>
+                      </div>
+                    ));
+                  })()
+                ) : (
+                  /* ✅ FALLBACK: Use old availability format */
+                  application.availability && Object.entries(application.availability).map(([day, info]: [string, any]) => {
+                    if (day === 'holidaySettings' || day === 'availabilitySlots') return null;
+
+                    const dayNames: { [key: string]: string } = {
+                      'MONDAY': '월요일',
+                      'TUESDAY': '화요일',
+                      'WEDNESDAY': '수요일',
+                      'THURSDAY': '목요일',
+                      'FRIDAY': '금요일',
+                      'SATURDAY': '토요일',
+                      'SUNDAY': '일요일'
+                    };
+
+                    return (
+                      <div key={day} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">
+                          {dayNames[day] || day}
+                        </span>
+                        <span className="text-sm text-gray-900">
+                          {info?.available ? info.hours : '불가능'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              {application.availability.holidaySettings && (
+              {/* Holiday Settings */}
+              {(application.holidaySettings || application.availability?.holidaySettings) && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-start gap-2">
                     <span className="text-sm text-gray-700">
-                      {application.availability.holidaySettings.acceptHolidayConsultations
+                      {(application.holidaySettings?.acceptHolidayConsultations || application.availability?.holidaySettings?.acceptHolidayConsultations)
                         ? '✅ 공휴일 상담 가능'
                         : '⛔ 공휴일 상담 불가'}
                     </span>
                   </div>
-                  {application.availability.holidaySettings.holidayNote && (
+                  {(application.holidaySettings?.holidayNote || application.availability?.holidaySettings?.holidayNote) && (
                     <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded p-2">
-                      {application.availability.holidaySettings.holidayNote}
+                      {application.holidaySettings?.holidayNote || application.availability?.holidaySettings?.holidayNote}
                     </p>
                   )}
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           {/* 소셜 링크 */}
-          {application.socialLinks && Object.values(application.socialLinks).some(link => link) && (
+          {application.socialLinks && typeof application.socialLinks === 'object' && Object.values(application.socialLinks).some(link => link) && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">소셜 링크</h2>
               <div className="space-y-3">
@@ -599,8 +700,72 @@ export default function ApplicationDetailPage() {
 
         {/* 사이드바 */}
         <div className="space-y-6">
+          {/* 심사 단계 표시 및 변경 */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">심사 단계</h2>
+
+            {/* 현재 단계 표시 */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">현재 단계</p>
+              <p className="font-semibold text-blue-600">
+                {getStageLabel(application.currentStage || 'SUBMITTED')}
+              </p>
+            </div>
+
+            {/* 단계 변경 드롭다운 (진행중인 단계일 때만) */}
+            {(application.currentStage === 'SUBMITTED' || application.currentStage === 'DOCUMENT_REVIEW' || application.currentStage === 'UNDER_REVIEW' || application.currentStage === 'APPROVAL_PENDING') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  단계 변경
+                </label>
+                <select
+                  value={application.currentStage || 'SUBMITTED'}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  disabled={isUpdatingStage}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 font-medium"
+                >
+                  <option value="SUBMITTED" className="text-gray-900">접수 완료</option>
+                  <option value="DOCUMENT_REVIEW" className="text-gray-900">서류 검토</option>
+                  <option value="UNDER_REVIEW" className="text-gray-900">심사 진행</option>
+                  <option value="APPROVAL_PENDING" className="text-gray-900">최종 승인 대기</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-2">
+                  사용자에게 표시되는 진행 단계를 변경합니다
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 알림 설정 */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">알림 설정</h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">이메일 알림</span>
+                </div>
+                <span className={`text-sm font-medium ${application.emailNotification ? 'text-green-600' : 'text-gray-400'}`}>
+                  {application.emailNotification ? '활성화' : '비활성화'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">SMS 알림</span>
+                </div>
+                <span className={`text-sm font-medium ${application.smsNotification ? 'text-green-600' : 'text-gray-400'}`}>
+                  {application.smsNotification ? '활성화' : '비활성화'}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              지원자에게 연락할 때 선호하는 알림 방법을 참고하세요
+            </p>
+          </div>
+
           {/* 검수 액션 */}
-          {application.status === 'PENDING' && (
+          {(application.currentStage === 'SUBMITTED' || application.currentStage === 'DOCUMENT_REVIEW' || application.currentStage === 'UNDER_REVIEW' || application.currentStage === 'APPROVAL_PENDING') && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">검수</h2>
               <div className="space-y-3">
@@ -639,7 +804,7 @@ export default function ApplicationDetailPage() {
           )}
 
           {/* 검수 결과 */}
-          {application.status !== 'PENDING' && application.reviewedAt && (
+          {(application.currentStage === 'APPROVED' || application.currentStage === 'REJECTED' || application.currentStage === 'ADDITIONAL_INFO_REQUESTED') && application.reviewedAt && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">검수 결과</h2>
               <div className="space-y-3">
@@ -673,6 +838,20 @@ export default function ApplicationDetailPage() {
                   {new Date(user.createdAt).toLocaleDateString('ko-KR')}
                 </p>
               </div>
+              <div>
+                <p className="text-gray-600">신청일</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(application.createdAt).toLocaleDateString('ko-KR')}
+                </p>
+              </div>
+              {application.reviewedAt && (
+                <div>
+                  <p className="text-gray-600">승인일</p>
+                  <p className="font-medium text-gray-900">
+                    {new Date(application.reviewedAt).toLocaleDateString('ko-KR')}
+                  </p>
+                </div>
+              )}
               {user.phoneNumber && (
                 <div>
                   <p className="text-gray-600">전화번호</p>
@@ -828,4 +1007,17 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       </div>
     </div>
   )
+}
+
+function getStageLabel(stage: string): string {
+  const labels: { [key: string]: string } = {
+    'SUBMITTED': '접수 완료',
+    'DOCUMENT_REVIEW': '서류 검토',
+    'UNDER_REVIEW': '심사 진행',
+    'APPROVAL_PENDING': '최종 승인 대기',
+    'APPROVED': '승인 완료',
+    'REJECTED': '거절됨',
+    'ADDITIONAL_INFO_REQUESTED': '추가 정보 요청됨'
+  }
+  return labels[stage] || stage
 }

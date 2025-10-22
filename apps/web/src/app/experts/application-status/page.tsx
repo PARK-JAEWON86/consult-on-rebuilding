@@ -300,6 +300,8 @@ export default function ApplicationStatusPage() {
               mbti: (user as any)?.expertApplicationData?.mbti,
               consultationStyle: (user as any)?.expertApplicationData?.consultationStyle,
               availability: (user as any)?.expertApplicationData?.availability,
+              availabilitySlots: (user as any)?.expertApplicationData?.availabilitySlots, // ✅ ADD
+              holidaySettings: (user as any)?.expertApplicationData?.holidaySettings, // ✅ ADD
               socialLinks: (() => {
                 const socialData = (user as any)?.expertApplicationData?.socialLinks;
                 console.log('🔍 소셜링크 데이터:', socialData);

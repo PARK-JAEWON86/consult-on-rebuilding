@@ -331,6 +331,7 @@ export class AuthService {
       emailVerifiedAt: user.emailVerifiedAt,
       credits,
       expertApplicationStatus: expertApplication?.status || null,
+      expertApplicationStage: expertApplication?.currentStage || null,
       expertApplicationId: expertApplication?.id || null
     }
 

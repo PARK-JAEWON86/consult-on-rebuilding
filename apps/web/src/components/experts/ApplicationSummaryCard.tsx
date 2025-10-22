@@ -23,6 +23,16 @@ interface ApplicationData {
   mbti?: string
   consultationStyle?: string
   availability?: any
+  availabilitySlots?: Array<{
+    dayOfWeek: string
+    startTime: string
+    endTime: string
+    isActive: boolean
+  }>
+  holidaySettings?: {
+    acceptHolidayConsultations: boolean
+    holidayNote: string
+  }
   socialLinks?: {
     website?: string
     instagram?: string
@@ -188,48 +198,88 @@ export default function ApplicationSummaryCard({
       )}
 
       {/* 예약 가능 시간 */}
-      {applicationData.availability && Object.keys(applicationData.availability).length > 0 && (
+      {((applicationData.availabilitySlots && applicationData.availabilitySlots.length > 0) || (applicationData.availability && Object.keys(applicationData.availability).length > 0)) && (
         <div className="mb-6">
           <label className="text-sm font-medium text-gray-600 block mb-2">예약 가능 시간</label>
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <div className="space-y-2">
-              {Object.entries(applicationData.availability).map(([day, info]: [string, any]) => {
-                if (day === 'holidaySettings') return null;
+              {/* ✅ PRIORITY: Use availabilitySlots if available */}
+              {applicationData.availabilitySlots && applicationData.availabilitySlots.length > 0 ? (
+                (() => {
+                  const dayNames: { [key: string]: string } = {
+                    'MONDAY': '월요일',
+                    'TUESDAY': '화요일',
+                    'WEDNESDAY': '수요일',
+                    'THURSDAY': '목요일',
+                    'FRIDAY': '금요일',
+                    'SATURDAY': '토요일',
+                    'SUNDAY': '일요일'
+                  };
 
-                const dayNames: { [key: string]: string } = {
-                  'MONDAY': '월요일',
-                  'TUESDAY': '화요일',
-                  'WEDNESDAY': '수요일',
-                  'THURSDAY': '목요일',
-                  'FRIDAY': '금요일',
-                  'SATURDAY': '토요일',
-                  'SUNDAY': '일요일'
-                };
+                  // Group slots by day
+                  const slotsByDay: { [key: string]: Array<{ startTime: string; endTime: string }> } = {};
+                  applicationData.availabilitySlots.forEach(slot => {
+                    if (!slotsByDay[slot.dayOfWeek]) {
+                      slotsByDay[slot.dayOfWeek] = [];
+                    }
+                    slotsByDay[slot.dayOfWeek].push({
+                      startTime: slot.startTime,
+                      endTime: slot.endTime
+                    });
+                  });
 
-                return (
-                  <div key={day} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-700 font-medium">
-                      {dayNames[day] || day}
-                    </span>
-                    <span className="text-gray-900">
-                      {info?.available ? info.hours : '불가능'}
-                    </span>
-                  </div>
-                );
-              })}
+                  return Object.entries(slotsByDay).map(([day, slots]) => (
+                    <div key={day} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-700 font-medium">
+                        {dayNames[day] || day}
+                      </span>
+                      <span className="text-gray-900">
+                        {slots.map(slot => `${slot.startTime}-${slot.endTime}`).join(', ')}
+                      </span>
+                    </div>
+                  ));
+                })()
+              ) : (
+                /* ✅ FALLBACK: Use old availability format */
+                applicationData.availability && Object.entries(applicationData.availability).map(([day, info]: [string, any]) => {
+                  if (day === 'holidaySettings' || day === 'availabilitySlots') return null;
+
+                  const dayNames: { [key: string]: string } = {
+                    'MONDAY': '월요일',
+                    'TUESDAY': '화요일',
+                    'WEDNESDAY': '수요일',
+                    'THURSDAY': '목요일',
+                    'FRIDAY': '금요일',
+                    'SATURDAY': '토요일',
+                    'SUNDAY': '일요일'
+                  };
+
+                  return (
+                    <div key={day} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-700 font-medium">
+                        {dayNames[day] || day}
+                      </span>
+                      <span className="text-gray-900">
+                        {info?.available ? info.hours : '불가능'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
-            {applicationData.availability.holidaySettings && (
+            {/* Holiday Settings */}
+            {(applicationData.holidaySettings || applicationData.availability?.holidaySettings) && (
               <div className="mt-3 pt-3 border-t border-gray-300">
                 <div className="flex items-start gap-2">
                   <span className="text-sm text-gray-700">
-                    {applicationData.availability.holidaySettings.acceptHolidayConsultations
+                    {(applicationData.holidaySettings?.acceptHolidayConsultations || applicationData.availability?.holidaySettings?.acceptHolidayConsultations)
                       ? '✅ 공휴일 상담 가능'
                       : '⛔ 공휴일 상담 불가'}
                   </span>
                 </div>
-                {applicationData.availability.holidaySettings.holidayNote && (
+                {(applicationData.holidaySettings?.holidayNote || applicationData.availability?.holidaySettings?.holidayNote) && (
                   <p className="text-sm text-gray-600 mt-1">
-                    {applicationData.availability.holidaySettings.holidayNote}
+                    {applicationData.holidaySettings?.holidayNote || applicationData.availability?.holidaySettings?.holidayNote}
                   </p>
                 )}
               </div>

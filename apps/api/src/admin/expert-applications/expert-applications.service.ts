@@ -6,6 +6,22 @@ import {
 import { PrismaService } from '../../prisma/prisma.service'
 import { MailService } from '../../mail/mail.service'
 
+// 유효한 currentStage 값 정의
+const VALID_STAGES = [
+  'SUBMITTED',
+  'DOCUMENT_REVIEW',
+  'UNDER_REVIEW',
+  'APPROVAL_PENDING',
+  'APPROVED',
+  'REJECTED',
+  'ADDITIONAL_INFO_REQUESTED',
+] as const
+
+// 유효성 검증 함수
+function isValidStage(stage: string): boolean {
+  return VALID_STAGES.includes(stage as any)
+}
+
 export interface ApplicationListQuery {
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'
   page?: number
@@ -59,6 +75,7 @@ export class ExpertApplicationsService {
           email: true,
           specialty: true,
           status: true,
+          currentStage: true,
           createdAt: true,
           viewedByAdmin: true,
           reviewedAt: true,
@@ -114,12 +131,17 @@ export class ExpertApplicationsService {
     }
 
     // 관리자가 조회하면 viewedByAdmin을 true로 업데이트
+    // + currentStage를 DOCUMENT_REVIEW로 변경 (서류 검토 시작)
     if (!application.viewedByAdmin) {
+      const currentStage = application.currentStage || 'SUBMITTED'
+
       await this.prisma.expertApplication.update({
         where: { id },
         data: {
           viewedByAdmin: true,
           viewedAt: new Date(),
+          // 처음 조회 시에만 DOCUMENT_REVIEW로 변경 (이미 다른 단계면 유지)
+          currentStage: currentStage === 'SUBMITTED' ? 'DOCUMENT_REVIEW' : currentStage,
         },
       })
     }
@@ -168,8 +190,21 @@ export class ExpertApplicationsService {
       return parts[0].trim()
     }
 
+    // socialLinks 파싱 헬퍼 함수
+    const parseSocialLinks = (links: any) => {
+      if (!links) return null
+      if (typeof links === 'string') {
+        try {
+          return JSON.parse(links)
+        } catch {
+          return null
+        }
+      }
+      return links
+    }
+
     // socialLinks 조회: APPROVED 상태면 Expert 테이블에서, 아니면 ExpertApplication에서
-    let socialLinks = application.socialLinks
+    let socialLinks = parseSocialLinks(application.socialLinks)
     if (application.status === 'APPROVED') {
       const expert = await this.prisma.expert.findFirst({
         where: { userId: application.userId },
@@ -177,8 +212,25 @@ export class ExpertApplicationsService {
       })
       if (expert) {
         // Expert 테이블에 socialLinks가 있으면 사용, 없으면 application에서 사용
-        socialLinks = expert.socialLinks || application.socialLinks
+        const expertSocialLinks = parseSocialLinks(expert.socialLinks)
+        // Expert의 socialLinks에 실제 값이 있는지 확인 (빈 문자열만 있는 경우 application 데이터 사용)
+        const hasValidLinks = expertSocialLinks &&
+          typeof expertSocialLinks === 'object' &&
+          Object.values(expertSocialLinks).some(link => link && link !== '')
+        socialLinks = hasValidLinks ? expertSocialLinks : socialLinks
       }
+    }
+
+    // availability JSON 파싱 및 availabilitySlots 추출
+    const parsedAvailability = typeof application.availability === 'string'
+      ? JSON.parse(application.availability)
+      : application.availability
+
+    // availability 객체에서 availabilitySlots 추출 (있으면)
+    const availabilitySlots = parsedAvailability?.availabilitySlots || []
+    const holidaySettings = parsedAvailability?.holidaySettings || {
+      acceptHolidayConsultations: false,
+      holidayNote: ''
     }
 
     return {
@@ -191,11 +243,11 @@ export class ExpertApplicationsService {
         certifications: parseJsonField(application.certifications),
         education: parseJsonField(application.education),
         workExperience: parseJsonField(application.workExperience),
-        availability:
-          typeof application.availability === 'string'
-            ? JSON.parse(application.availability)
-            : application.availability,
-        socialLinks: socialLinks,
+        portfolioImages: parseJsonField(application.portfolioImages),
+        availability: parsedAvailability,
+        availabilitySlots: availabilitySlots,  // 명시적으로 추출
+        holidaySettings: holidaySettings,  // 명시적으로 추출
+        socialLinks: socialLinks,  // 이미 파싱됨
       },
       user,
       previousApplications,
@@ -240,6 +292,8 @@ export class ExpertApplicationsService {
           reviewedAt: new Date(),
           reviewedBy: dto.reviewedBy,
           reviewNotes: dto.reviewNotes,
+          // ✅ currentStage를 APPROVED로 변경 (사용자 UI 동기화)
+          currentStage: 'APPROVED',
         },
       })
 
@@ -254,6 +308,43 @@ export class ExpertApplicationsService {
       }
 
       const cleanSpecialty = parseSpecialty(application.specialty)
+
+      // availability 데이터 파싱 (문자열 또는 객체 처리)
+      const parseAvailabilityData = (availability: any) => {
+        if (!availability) return {}
+        if (typeof availability === 'string') {
+          try {
+            return JSON.parse(availability)
+          } catch {
+            return {}
+          }
+        }
+        return typeof availability === 'object' ? availability : {}
+      }
+
+      // socialLinks 데이터 파싱 (문자열 또는 객체 처리)
+      const parseSocialLinksData = (links: any) => {
+        if (!links) return {}
+        if (typeof links === 'string') {
+          try {
+            return JSON.parse(links)
+          } catch {
+            return {}
+          }
+        }
+        return typeof links === 'object' ? links : {}
+      }
+
+      // availability 파싱 및 필드 추출
+      const availabilityData = parseAvailabilityData(application.availability)
+      const availabilitySlots = availabilityData?.availabilitySlots || []
+      const holidaySettings = availabilityData?.holidaySettings || {
+        acceptHolidayConsultations: false,
+        holidayNote: ''
+      }
+
+      // socialLinks 파싱
+      const appSocialLinks = parseSocialLinksData(application.socialLinks)
 
       const expert = await tx.expert.create({
         data: {
@@ -280,49 +371,34 @@ export class ExpertApplicationsService {
           consultationTypes: application.consultationTypes || [],
           languages: application.languages || ['한국어'],
           education: application.education || [],
-          portfolioFiles: [], // 초기에는 빈 배열
+          portfolioFiles: application.portfolioImages && Array.isArray(application.portfolioImages)
+            ? application.portfolioImages
+            : [], // portfolioImages 데이터 저장
           portfolioItems: application.workExperience || [],
 
           // JSON 객체 필드들 - availability에 모든 스케줄 정보 통합
-          availability: (() => {
-            const availabilityData =
-              typeof application.availability === 'object'
-                ? application.availability
-                : {}
-
-            // availability Json 내부에 holidaySettings 포함
-            return {
-              ...availabilityData,
-              holidaySettings: {
-                acceptHolidayConsultations: false,
-                holidayNote: '',
-              },
-            } as any
-          })(),
+          availability: {
+            ...availabilityData,
+            availabilitySlots,  // 명시적으로 추출한 슬롯 포함
+            holidaySettings,    // 원본 데이터 사용 (하드코딩 제거)
+          } as any,
           contactInfo: {
-            phone: '',
+            phone: application.phoneNumber || '',  // phoneNumber 필드 사용
             email: application.email,
             location: '',
             website: '',
           } as any,
-          socialLinks: (() => {
-            // ExpertApplication의 socialLinks 데이터를 Expert 테이블로 매핑
-            const appSocialLinks =
-              typeof application.socialLinks === 'object'
-                ? (application.socialLinks as any)
-                : {}
-
-            return {
-              website: appSocialLinks?.website || '',
-              instagram: appSocialLinks?.instagram || '',
-              youtube: appSocialLinks?.youtube || '',
-              linkedin: appSocialLinks?.linkedin || '',
-              blog: appSocialLinks?.blog || '',
-              github: '',
-              twitter: '',
-              facebook: '',
-            }
-          })() as any,
+          socialLinks: {
+            // 값이 있는 필드만 객체에 포함 (조건부 속성 추가)
+            ...(appSocialLinks?.website && { website: appSocialLinks.website }),
+            ...(appSocialLinks?.instagram && { instagram: appSocialLinks.instagram }),
+            ...(appSocialLinks?.youtube && { youtube: appSocialLinks.youtube }),
+            ...(appSocialLinks?.linkedin && { linkedin: appSocialLinks.linkedin }),
+            ...(appSocialLinks?.blog && { blog: appSocialLinks.blog }),
+            ...(appSocialLinks?.github && { github: appSocialLinks.github }),
+            ...(appSocialLinks?.twitter && { twitter: appSocialLinks.twitter }),
+            ...(appSocialLinks?.facebook && { facebook: appSocialLinks.facebook }),
+          } as any,
           socialProof: {} as any,
 
           // 통계 초기값
@@ -389,12 +465,9 @@ export class ExpertApplicationsService {
       }
 
       // 5. ExpertAvailability 슬롯 생성 (availabilitySlots가 있는 경우)
-      if (
-        appData.availabilitySlots &&
-        Array.isArray(appData.availabilitySlots)
-      ) {
+      if (availabilitySlots && Array.isArray(availabilitySlots) && availabilitySlots.length > 0) {
         try {
-          const slots = appData.availabilitySlots.map((slot: any) => ({
+          const slots = availabilitySlots.map((slot: any) => ({
             expertId: expert.id,
             dayOfWeek: slot.dayOfWeek,
             startTime: slot.startTime,
@@ -413,6 +486,9 @@ export class ExpertApplicationsService {
           // 슬롯 생성 실패는 치명적이지 않으므로 계속 진행
         }
       }
+
+      // 6. Expert 생성 데이터 검증 (데이터 무결성 보장)
+      await this.validateExpertCreation(expert, application, tx)
 
       return { updatedApplication, expert, user }
     })
@@ -478,6 +554,8 @@ export class ExpertApplicationsService {
         reviewedAt: new Date(),
         reviewedBy: dto.reviewedBy,
         reviewNotes: dto.reviewNotes,
+        // ✅ currentStage를 REJECTED로 변경 (사용자 UI 동기화)
+        currentStage: 'REJECTED',
       },
     })
 
@@ -546,6 +624,8 @@ export class ExpertApplicationsService {
         reviewedAt: new Date(),
         reviewedBy: dto.reviewedBy,
         reviewNotes: dto.reviewNotes,
+        // ✅ currentStage를 ADDITIONAL_INFO_REQUESTED로 변경 (사용자 UI 동기화)
+        currentStage: 'ADDITIONAL_INFO_REQUESTED',
       },
     })
 
@@ -563,6 +643,55 @@ export class ExpertApplicationsService {
     } catch (error) {
       console.error('Failed to send additional info request email:', error)
     }
+
+    return {
+      success: true,
+      application: updatedApplication,
+    }
+  }
+
+  /**
+   * 심사 단계 수동 변경 (관리자용)
+   */
+  async updateApplicationStage(
+    id: number,
+    stage: string,
+    adminUserId: number
+  ) {
+    // 유효한 stage 값 검증
+    if (!isValidStage(stage)) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'E_INVALID_STAGE',
+          message: `Invalid stage. Must be one of: ${VALID_STAGES.join(', ')}`,
+        },
+      })
+    }
+
+    const application = await this.prisma.expertApplication.findUnique({
+      where: { id },
+    })
+
+    if (!application) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'E_APPLICATION_NOT_FOUND',
+          message: 'Application not found',
+        },
+      })
+    }
+
+    // 단계 업데이트
+    const updatedApplication = await this.prisma.expertApplication.update({
+      where: { id },
+      data: {
+        currentStage: stage,
+        // 로그 목적으로 reviewedBy 업데이트 (선택사항)
+        reviewedBy: adminUserId,
+      },
+    })
 
     return {
       success: true,
@@ -593,5 +722,102 @@ export class ExpertApplicationsService {
       infoRequested,
       conversionRate: total > 0 ? (approved / total) * 100 : 0,
     }
+  }
+
+  /**
+   * Expert 생성 데이터 검증
+   * - approveApplication 트랜잭션 내에서 실행
+   * - 검증 실패 시 전체 롤백으로 데이터 무결성 보장
+   */
+  private async validateExpertCreation(
+    expert: any,
+    application: any,
+    tx: any
+  ) {
+    const issues: string[] = []
+
+    // 1. 중복 Expert 체크 (userId는 유니크해야 함)
+    const existingExpert = await tx.expert.findFirst({
+      where: {
+        userId: application.userId,
+        id: { not: expert.id }  // 방금 생성한 expert는 제외
+      }
+    })
+
+    if (existingExpert) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'E_DUPLICATE_EXPERT',
+          message: `User ${application.userId} already has an expert profile (ID: ${existingExpert.id})`,
+          details: {
+            existingExpertId: existingExpert.id,
+            newExpertId: expert.id,
+            userId: application.userId
+          }
+        }
+      })
+    }
+
+    // 2. phoneNumber 검증
+    const contactInfo = typeof expert.contactInfo === 'string'
+      ? JSON.parse(expert.contactInfo)
+      : expert.contactInfo || {}
+
+    if (application.phoneNumber && !contactInfo.phone) {
+      issues.push('phoneNumber not copied to contactInfo.phone')
+    }
+
+    // 3. socialLinks 검증 (원본에 링크가 있었다면)
+    const appSocialLinks = typeof application.socialLinks === 'string'
+      ? JSON.parse(application.socialLinks)
+      : application.socialLinks || {}
+
+    const expertSocialLinks = typeof expert.socialLinks === 'string'
+      ? JSON.parse(expert.socialLinks)
+      : expert.socialLinks || {}
+
+    const hasAppLinks = Object.values(appSocialLinks || {}).some(v => v)
+    const hasExpertLinks = Object.values(expertSocialLinks || {}).some(v => v)
+
+    if (hasAppLinks && !hasExpertLinks) {
+      issues.push('socialLinks not copied despite application having links')
+    }
+
+    // 4. availabilitySlots 검증
+    const availability = typeof application.availability === 'string'
+      ? JSON.parse(application.availability)
+      : application.availability || {}
+
+    const appSlots = availability?.availabilitySlots || []
+
+    if (appSlots.length > 0) {
+      const createdSlots = await tx.expertAvailability.count({
+        where: { expertId: expert.id }
+      })
+
+      if (createdSlots === 0) {
+        issues.push(`availabilitySlots not created (expected ${appSlots.length} slots)`)
+      }
+    }
+
+    // 검증 실패 시 예외 발생 → 트랜잭션 롤백
+    if (issues.length > 0) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'E_EXPERT_CREATION_VALIDATION_FAILED',
+          message: `Expert creation validation failed: ${issues.join(', ')}`,
+          details: {
+            applicationId: application.id,
+            userId: application.userId,
+            expertId: expert.id,
+            issues
+          }
+        }
+      })
+    }
+
+    console.log(`✅ Expert 생성 검증 통과 (userId: ${application.userId}, expertId: ${expert.id})`)
   }
 }

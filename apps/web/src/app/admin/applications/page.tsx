@@ -13,8 +13,9 @@ interface ExpertApplication {
   email: string
   specialty: string
   experienceYears: number
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
+  currentStage: 'SUBMITTED' | 'DOCUMENT_REVIEW' | 'UNDER_REVIEW' | 'APPROVAL_PENDING' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUESTED'
   createdAt: string
+  reviewedAt: string | null
 }
 
 interface ApplicationsResponse {
@@ -139,6 +140,12 @@ export default function AdminApplicationsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    순번
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    신청번호
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     신청자
                   </th>
@@ -154,14 +161,25 @@ export default function AdminApplicationsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     신청일
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    승인일
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     액션
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {applications.map((app) => (
+                {applications.map((app, index) => (
                   <tr key={app.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-500">
+                        {(page - 1) * 20 + index + 1}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-mono text-gray-900">{app.displayId}</div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{app.name}</div>
@@ -175,17 +193,24 @@ export default function AdminApplicationsPage() {
                       <div className="text-sm text-gray-900">{app.experienceYears}년</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={app.status} />
+                      <StatusBadge currentStage={app.currentStage} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
                         {new Date(app.createdAt).toLocaleDateString('ko-KR')}
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">
+                        {app.reviewedAt
+                          ? new Date(app.reviewedAt).toLocaleDateString('ko-KR')
+                          : '-'}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => router.push(`/admin/applications/${app.id}`)}
-                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                         상세보기

@@ -467,128 +467,205 @@ export class ExpertsService {
 
   async createApplication(userId: number, dto: CreateExpertApplicationDto) {
     try {
-      // 신청번호 형식: CO + YYMMDD + 상담분야번호(2자리) + 접수순서번호(4자리)
-      const now = new Date();
-      const yy = now.getFullYear().toString().slice(-2);
-      const mm = (now.getMonth() + 1).toString().padStart(2, '0');
-      const dd = now.getDate().toString().padStart(2, '0');
-      const dateStr = `${yy}${mm}${dd}`;
-
-      // 카테고리 번호 추출 (specialty에서 카테고리명 추출 후 매핑)
-      const categoryMap: { [key: string]: string } = {
-        '심리상담': '01',
-        '법률상담': '02',
-        '재무상담': '03',
-        '건강상담': '04',
-        '진로상담': '05',
-        'IT상담': '06',
-        '교육상담': '07',
-        '부동산상담': '08',
-        '창업상담': '09',
-        '디자인상담': '10',
-      };
-
-      const categoryName = dto.specialty.split(' - ')[0] || dto.specialty;
-      const categoryNum = categoryMap[categoryName] || '99';
-
-      // 오늘 날짜의 접수 순서번호 조회
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
-      const todayCount = await this.prisma.expertApplication.count({
-        where: {
-          createdAt: {
-            gte: todayStart,
-            lt: todayEnd,
+      // ✅ Use transaction to prevent race conditions
+      return await this.prisma.$transaction(async (tx) => {
+        // ✅ STEP 1: Check for existing active application (PENDING or ADDITIONAL_INFO_REQUESTED)
+        const existingApplication = await tx.expertApplication.findFirst({
+          where: {
+            userId,
+            status: { in: ['PENDING', 'ADDITIONAL_INFO_REQUESTED'] }
           },
-        },
-      });
+          orderBy: { createdAt: 'desc' }
+        });
 
-      const sequenceNum = (todayCount + 1).toString().padStart(4, '0');
-      const displayId = `CO${dateStr}${categoryNum}${sequenceNum}`;
+        // ✅ STEP 2: If existing application found, UPDATE it
+        if (existingApplication) {
+          console.log('[createApplication] Existing application found:', {
+            id: existingApplication.id,
+            displayId: existingApplication.displayId,
+            previousStatus: existingApplication.status,
+            userId
+          });
+          console.log('[createApplication] Updating existing application instead of creating new one');
 
-      console.log('Creating expert application for userId:', userId);
-      console.log('Application data:', {
-        displayId,
-        name: dto.name,
-        email: dto.email,
-        specialty: dto.specialty,
-        categoryName,
-        categoryNum,
-        sequenceNum,
-        experienceYears: dto.experienceYears,
-        keywordsCount: dto.keywords?.length,
-        consultationTypesCount: dto.consultationTypes?.length,
-        certificationsCount: dto.certifications?.length,
-        hasProfileImage: !!dto.profileImage,
-        availabilityKeys: Object.keys(dto.availability || {}),
-      });
+          const updatedApplication = await tx.expertApplication.update({
+            where: { id: existingApplication.id },
+            data: {
+              // ✅ Keep existing displayId (maintain tracking consistency)
+              name: dto.name,
+              email: dto.email,
+              phoneNumber: dto.phoneNumber,
+              jobTitle: dto.jobTitle || '',
+              specialty: dto.specialty,
+              experienceYears: dto.experienceYears,
+              bio: dto.bio,
+              keywords: this.safeJsonStringify(dto.keywords, 'keywords'),
+              consultationTypes: this.safeJsonStringify(dto.consultationTypes, 'consultationTypes'),
+              languages: this.safeJsonStringify(dto.languages || ['한국어'], 'languages'),
+              availability: this.safeJsonStringify({
+                ...dto.availability,
+                availabilitySlots: dto.availabilitySlots,
+                holidaySettings: dto.holidaySettings
+              }, 'availability'),
+              certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
+              education: this.safeJsonStringify(dto.education || [], 'education'),
+              workExperience: this.safeJsonStringify(dto.workExperience || [], 'workExperience'),
+              mbti: dto.mbti || null,
+              consultationStyle: dto.consultationStyle || null,
+              profileImage: dto.profileImage || null,
+              socialLinks: dto.socialLinks ? this.safeJsonStringify(dto.socialLinks, 'socialLinks') : Prisma.JsonNull,
+              portfolioImages: dto.portfolioImages ? this.safeJsonStringify(dto.portfolioImages, 'portfolioImages') : Prisma.JsonNull,
 
-      // ExpertApplication 생성 (User.roles는 변경하지 않음)
-      // expertApplicationStatus는 ExpertApplication.status로 관리
-      console.log('[createApplication] Creating application with safe JSON stringify')
+              // ✅ Reset status to PENDING (needs admin re-review)
+              status: 'PENDING',
+              currentStage: 'SUBMITTED',
 
-      const application = await this.prisma.expertApplication.create({
-        data: {
+              // ✅ Clear previous review information (new submission)
+              reviewedAt: null,
+              reviewedBy: null,
+              reviewNotes: null,
+              viewedByAdmin: false,
+              viewedAt: null,
+
+              // updatedAt will be automatically updated by Prisma
+            }
+          });
+
+          console.log('[createApplication] Application updated successfully:', {
+            id: updatedApplication.id,
+            displayId: updatedApplication.displayId,
+            newStatus: updatedApplication.status,
+            userId
+          });
+
+          return updatedApplication;
+        }
+
+        // ✅ STEP 3: No existing application, CREATE new one
+        console.log('[createApplication] No existing application found, creating new one');
+
+        // 신청번호 형식: CO + YYMMDD + 상담분야번호(2자리) + 접수순서번호(4자리)
+        const now = new Date();
+        const yy = now.getFullYear().toString().slice(-2);
+        const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+        const dd = now.getDate().toString().padStart(2, '0');
+        const dateStr = `${yy}${mm}${dd}`;
+
+        // 카테고리 번호 추출 (specialty에서 카테고리명 추출 후 매핑)
+        const categoryMap: { [key: string]: string } = {
+          '심리상담': '01',
+          '법률상담': '02',
+          '재무상담': '03',
+          '건강상담': '04',
+          '진로상담': '05',
+          'IT상담': '06',
+          '교육상담': '07',
+          '부동산상담': '08',
+          '창업상담': '09',
+          '디자인상담': '10',
+        };
+
+        const categoryName = dto.specialty.split(' - ')[0] || dto.specialty;
+        const categoryNum = categoryMap[categoryName] || '99';
+
+        // 오늘 날짜의 접수 순서번호 조회
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+        const todayCount = await tx.expertApplication.count({
+          where: {
+            createdAt: {
+              gte: todayStart,
+              lt: todayEnd,
+            },
+          },
+        });
+
+        const sequenceNum = (todayCount + 1).toString().padStart(4, '0');
+        const displayId = `CO${dateStr}${categoryNum}${sequenceNum}`;
+
+        console.log('Creating expert application for userId:', userId);
+        console.log('Application data:', {
           displayId,
-          userId,
           name: dto.name,
           email: dto.email,
-          phoneNumber: dto.phoneNumber,
-          jobTitle: dto.jobTitle || '',
           specialty: dto.specialty,
+          categoryName,
+          categoryNum,
+          sequenceNum,
           experienceYears: dto.experienceYears,
-          bio: dto.bio,
-          keywords: this.safeJsonStringify(dto.keywords, 'keywords'),
-          consultationTypes: this.safeJsonStringify(dto.consultationTypes, 'consultationTypes'),
-          languages: this.safeJsonStringify(dto.languages || ['한국어'], 'languages'),
-          availability: this.safeJsonStringify({
-            ...dto.availability,
-            holidaySettings: dto.holidaySettings
-          }, 'availability'),
-          certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
-          education: this.safeJsonStringify(dto.education || [], 'education'),
-          workExperience: this.safeJsonStringify(dto.workExperience || [], 'workExperience'),
-          mbti: dto.mbti || null,
-          consultationStyle: dto.consultationStyle || null,
-          profileImage: dto.profileImage || null,
-          socialLinks: dto.socialLinks ? this.safeJsonStringify(dto.socialLinks, 'socialLinks') : Prisma.JsonNull,
-          portfolioImages: dto.portfolioImages ? this.safeJsonStringify(dto.portfolioImages, 'portfolioImages') : Prisma.JsonNull,
-          status: 'PENDING',
-          currentStage: 'SUBMITTED',
-        },
-      });
+          keywordsCount: dto.keywords?.length,
+          consultationTypesCount: dto.consultationTypes?.length,
+          certificationsCount: dto.certifications?.length,
+          hasProfileImage: !!dto.profileImage,
+          availabilityKeys: Object.keys(dto.availability || {}),
+        });
 
-      console.log('[createApplication] Application created successfully:', {
-        id: application.id,
-        displayId: application.displayId,
-        userId
-      });
+        console.log('[createApplication] Creating application with safe JSON stringify')
 
-      // User roles에 EXPERT_APPLICANT 추가 (신청 상태 표시용)
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-      });
+        const application = await tx.expertApplication.create({
+          data: {
+            displayId,
+            userId,
+            name: dto.name,
+            email: dto.email,
+            phoneNumber: dto.phoneNumber,
+            jobTitle: dto.jobTitle || '',
+            specialty: dto.specialty,
+            experienceYears: dto.experienceYears,
+            bio: dto.bio,
+            keywords: this.safeJsonStringify(dto.keywords, 'keywords'),
+            consultationTypes: this.safeJsonStringify(dto.consultationTypes, 'consultationTypes'),
+            languages: this.safeJsonStringify(dto.languages || ['한국어'], 'languages'),
+            availability: this.safeJsonStringify({
+              ...dto.availability,
+              availabilitySlots: dto.availabilitySlots,
+              holidaySettings: dto.holidaySettings
+            }, 'availability'),
+            certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
+            education: this.safeJsonStringify(dto.education || [], 'education'),
+            workExperience: this.safeJsonStringify(dto.workExperience || [], 'workExperience'),
+            mbti: dto.mbti || null,
+            consultationStyle: dto.consultationStyle || null,
+            profileImage: dto.profileImage || null,
+            socialLinks: dto.socialLinks ? this.safeJsonStringify(dto.socialLinks, 'socialLinks') : Prisma.JsonNull,
+            portfolioImages: dto.portfolioImages ? this.safeJsonStringify(dto.portfolioImages, 'portfolioImages') : Prisma.JsonNull,
+            status: 'PENDING',
+            currentStage: 'SUBMITTED',
+          },
+        });
 
-      if (user) {
-        const roles = Array.isArray(user.roles)
-          ? user.roles
-          : typeof user.roles === 'string'
-          ? JSON.parse(user.roles)
-          : ['USER'];
+        console.log('[createApplication] Application created successfully:', {
+          id: application.id,
+          displayId: application.displayId,
+          userId
+        });
 
-        if (!roles.includes('EXPERT_APPLICANT')) {
-          roles.push('EXPERT_APPLICANT');
-          await this.prisma.user.update({
-            where: { id: userId },
-            data: { roles: JSON.stringify(roles) },
-          });
-          console.log(`✅ User ${userId} roles updated to:`, roles);
+        // User roles에 EXPERT_APPLICANT 추가 (신청 상태 표시용)
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+        });
+
+        if (user) {
+          const roles = Array.isArray(user.roles)
+            ? user.roles
+            : typeof user.roles === 'string'
+            ? JSON.parse(user.roles)
+            : ['USER'];
+
+          if (!roles.includes('EXPERT_APPLICANT')) {
+            roles.push('EXPERT_APPLICANT');
+            await tx.user.update({
+              where: { id: userId },
+              data: { roles: JSON.stringify(roles) },
+            });
+            console.log(`✅ User ${userId} roles updated to:`, roles);
+          }
         }
-      }
 
-      console.log('Application created successfully:', application.id);
-      return application;
+        console.log('Application created successfully:', application.id);
+        return application;
+      }); // End of transaction
     } catch (error: any) {
       console.error('Error creating expert application:', error);
       console.error('Error details:', {
@@ -823,6 +900,22 @@ export class ExpertsService {
       return null;
     }
 
+    // availabilitySlots 조회 (ExpertAvailability 테이블에서)
+    const availabilitySlots = await this.prisma.expertAvailability.findMany({
+      where: { expertId: expert.id },
+      orderBy: [
+        { dayOfWeek: 'asc' },
+        { startTime: 'asc' }
+      ]
+    });
+
+    // holidaySettings 추출 (availability JSON 필드에서)
+    const availabilityData = expert.availability as any;
+    const holidaySettings = availabilityData?.holidaySettings || {
+      acceptHolidayConsultations: false,
+      holidayNote: ''
+    };
+
     // 프로필 편집에 필요한 필드들만 반환
     return {
       id: expert.id,
@@ -855,6 +948,9 @@ export class ExpertsService {
       consultationStyle: expert.consultationStyle,
       workExperience: expert.workExperience,
       userId: (expert as any).userId, // userId 필드 추가
+      // 새로 추가: 예약 가능 시간과 공휴일 설정
+      availabilitySlots: availabilitySlots,
+      holidaySettings: holidaySettings,
     };
   }
 

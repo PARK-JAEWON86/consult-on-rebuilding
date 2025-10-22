@@ -302,8 +302,12 @@ export default function ExpertProfileEditPage() {
             ? expertProfile.education
             : [""],
           certifications: expertProfile.certifications && Array.isArray(expertProfile.certifications) && expertProfile.certifications.length > 0
-            ? expertProfile.certifications
-            : [{ name: "", issuer: "" }],
+            ? expertProfile.certifications.map(cert => ({
+                name: cert?.name || '',
+                issuer: cert?.issuer || '',
+                year: cert?.year || ''  // year 필드 추가
+              }))
+            : [{ name: "", issuer: "", year: "" }],
           // keywords 필드 (백엔드에서 keywords로 반환)
           keywords: expertProfile.keywords && Array.isArray(expertProfile.keywords)
             ? expertProfile.keywords
@@ -366,13 +370,34 @@ export default function ExpertProfileEditPage() {
             youtube: ""
           },
 
+          // availabilitySlots - 백엔드에서 ExpertAvailability 테이블 데이터
+          availabilitySlots: expertProfile.availabilitySlots && Array.isArray(expertProfile.availabilitySlots)
+            ? expertProfile.availabilitySlots
+            : [],
+
+          // holidaySettings - 백엔드에서 추출된 공휴일 설정
+          holidaySettings: expertProfile.holidaySettings || {
+            acceptHolidayConsultations: expertProfile.availability?.holidaySettings?.acceptHolidayConsultations || false,
+            holidayNote: expertProfile.availability?.holidaySettings?.holidayNote || ''
+          },
+
           // 프로필 이미지 - avatarUrl을 profileImage로 매핑
           profileImage: expertProfile.avatarUrl || expertProfile.profileImage || null,
 
-          // 포트폴리오 파일
-          portfolioFiles: expertProfile.portfolioFiles && Array.isArray(expertProfile.portfolioFiles)
-            ? expertProfile.portfolioFiles
-            : [],
+          // 포트폴리오 파일 - 문자열 URL 배열 또는 객체 배열 처리
+          portfolioFiles: (() => {
+            if (!expertProfile.portfolioFiles || !Array.isArray(expertProfile.portfolioFiles)) {
+              return [];
+            }
+            // 문자열이면 그대로, 객체면 data 또는 url 필드 추출
+            return expertProfile.portfolioFiles.map(item => {
+              if (typeof item === 'string') return item;
+              if (typeof item === 'object' && item !== null) {
+                return (item as any).data || (item as any).url || '';
+              }
+              return '';
+            }).filter(url => url.length > 0);
+          })(),
 
           // 경력사항 - workExperience를 portfolioItems로 매핑
           portfolioItems: expertProfile.workExperience && Array.isArray(expertProfile.workExperience)
@@ -735,16 +760,18 @@ export default function ExpertProfileEditPage() {
                   holidayNote: (initialData as any)?.holidaySettings?.holidayNote || initialData?.holidayPolicy || ''
                 },
 
-                // 포트폴리오 미리보기
-                portfolioPreviews: [],
+                // 포트폴리오 미리보기 - portfolioFiles는 이미 변환됨 (문자열 배열)
+                portfolioPreviews: initialData?.portfolioFiles && Array.isArray(initialData.portfolioFiles)
+                  ? initialData.portfolioFiles
+                  : [],
 
                 // 소셜 링크 - socialLinks 객체에서 모든 필드 가져오기
                 socialLinks: {
-                  website: initialData?.socialLinks?.linkedin || initialData?.contactInfo?.website || '',
+                  website: initialData?.socialLinks?.website || initialData?.contactInfo?.website || '',
                   instagram: initialData?.socialLinks?.instagram || '',
                   youtube: initialData?.socialLinks?.youtube || '',
                   linkedin: initialData?.socialLinks?.linkedin || '',
-                  blog: (initialData?.socialLinks as any)?.blog || (initialData?.contactInfo as any)?.website || ''
+                  blog: (initialData?.socialLinks as any)?.blog || ''
                 },
 
                 // 통계 정보
@@ -790,7 +817,8 @@ export default function ExpertProfileEditPage() {
                   },
                   // socialLinks 저장
                   socialLinks: data.socialLinks,
-                  portfolioFiles: [],
+                  // portfolioPreviews를 portfolioFiles로 저장
+                  portfolioFiles: data.portfolioPreviews || [],
                   isProfileComplete: true
                 };
                 handleSave(convertedData as any);

@@ -141,6 +141,9 @@ export default function AdminUsersPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    순번
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     사용자
                   </th>
@@ -162,10 +165,15 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => {
+                {users.map((user, index) => {
                   const roles = getRoles(user)
                   return (
                     <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-500">
+                          {(page - 1) * 20 + index + 1}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {user.avatarUrl ? (
@@ -232,7 +240,7 @@ export default function AdminUsersPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => router.push(`/admin/users/${user.id}` as any)}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           상세보기

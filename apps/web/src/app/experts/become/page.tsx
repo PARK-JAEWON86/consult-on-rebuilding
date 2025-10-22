@@ -205,6 +205,9 @@ export default function BecomeExpertPage() {
       console.log('🔄 추가 정보 요청 상태 - 기존 데이터로 폼 채우기:', appData)
 
       // 1단계: 기본 정보
+      if (appData.phoneNumber) {
+        setPhoneNumber(appData.phoneNumber) // ✅ ADD: Restore phone number
+      }
       if (appData.specialty) {
         setSpecialty(appData.specialty)
         // specialty에서 카테고리 추출 (예: "심리상담 - 가족상담" -> "심리상담")
@@ -769,6 +772,7 @@ export default function BecomeExpertPage() {
       consultationTypes: consultationTypes,
       languages: languages.filter((lang) => lang.trim()),
       availability: availabilityByDay,
+      availabilitySlots: availabilitySlots, // ✅ ADD: Send availabilitySlots array to backend
       holidaySettings: {
         acceptHolidayConsultations: holidaySettings.acceptHolidayConsultations,
         holidayNote: holidaySettings.holidayNote || undefined,
