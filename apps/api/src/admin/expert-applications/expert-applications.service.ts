@@ -232,6 +232,14 @@ export class ExpertApplicationsService {
       acceptHolidayConsultations: false,
       holidayNote: ''
     }
+    const restTimeSettings = parsedAvailability?.restTimeSettings || {
+      enableLunchBreak: false,
+      lunchStartTime: '12:00',
+      lunchEndTime: '13:00',
+      enableDinnerBreak: false,
+      dinnerStartTime: '18:00',
+      dinnerEndTime: '19:00'
+    }
 
     return {
       application: {
@@ -247,6 +255,7 @@ export class ExpertApplicationsService {
         availability: parsedAvailability,
         availabilitySlots: availabilitySlots,  // 명시적으로 추출
         holidaySettings: holidaySettings,  // 명시적으로 추출
+        restTimeSettings: restTimeSettings,  // 명시적으로 추출
         socialLinks: socialLinks,  // 이미 파싱됨
       },
       user,
@@ -357,6 +366,14 @@ export class ExpertApplicationsService {
         acceptHolidayConsultations: false,
         holidayNote: ''
       }
+      const restTimeSettings = availabilityData?.restTimeSettings || {
+        enableLunchBreak: false,
+        lunchStartTime: '12:00',
+        lunchEndTime: '13:00',
+        enableDinnerBreak: false,
+        dinnerStartTime: '18:00',
+        dinnerEndTime: '19:00'
+      }
 
       // socialLinks 파싱
       const appSocialLinks = parseSocialLinksData(application.socialLinks)
@@ -416,6 +433,7 @@ export class ExpertApplicationsService {
             ...availabilityData,
             availabilitySlots,  // 명시적으로 추출한 슬롯 포함
             holidaySettings,    // 원본 데이터 사용 (하드코딩 제거)
+            restTimeSettings,   // 휴식시간 설정 포함
           } as any,
           contactInfo: {
             phone: application.phoneNumber || '',  // phoneNumber 필드 사용

@@ -587,8 +587,8 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                   <ImageIcon className="w-4 h-4 mr-2" /> 프로필 사진
                   <span className="text-red-500 ml-1">*</span>
                 </h3>
-                <div className="w-56">
-                  <div className="w-full h-72 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200 flex items-center justify-center overflow-hidden mb-3">
+                <div className="w-64">
+                  <div className="w-full h-96 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200 flex items-center justify-center overflow-hidden mb-3">
                     {formData.profileImage ? (
                       <div className="relative w-full h-full">
                         <img
@@ -607,7 +607,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                       <div className="text-center px-4">
                         <ImageIcon className="w-16 h-16 text-blue-400 mx-auto mb-3" />
                         <p className="text-sm text-gray-600">프로필 사진</p>
-                        <p className="text-xs text-gray-500 mt-1">권장: 3:4 비율</p>
+                        <p className="text-xs text-gray-500 mt-1">권장: 2:3 비율 (1024×1536)</p>
                       </div>
                     )}
                   </div>

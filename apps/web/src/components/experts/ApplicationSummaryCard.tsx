@@ -79,11 +79,11 @@ export default function ApplicationSummaryCard({
       <h3 className="text-xl font-bold text-gray-900 mb-6">신청 정보</h3>
 
       {/* 프로필 이미지 & 기본 정보 */}
-      <div className="flex gap-6 mb-6">
+      <div className="flex flex-col md:flex-row gap-6 mb-6 pb-6 border-b border-gray-200">
         {/* 프로필 이미지 */}
-        {applicationData.profileImage && (
+        {applicationData.profileImage ? (
           <div className="flex-shrink-0">
-            <div className="w-56 h-72 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200 overflow-hidden">
+            <div className="w-64 h-96 rounded-lg border-2 border-gray-200 overflow-hidden">
               <img
                 src={applicationData.profileImage}
                 alt="프로필 이미지"
@@ -91,88 +91,128 @@ export default function ApplicationSummaryCard({
               />
             </div>
           </div>
+        ) : (
+          <div className="flex-shrink-0 w-64 h-96 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+            <User className="w-16 h-16 text-gray-400" />
+          </div>
         )}
 
-        {/* 기본 정보 그리드 */}
+        {/* 기본 정보 */}
         <div className="flex-1 space-y-4">
-          {/* 전문 분야 */}
-          <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              전문 분야
-            </label>
-            <div className="text-base font-semibold text-gray-900">
-              {applicationData.categoryName}
-            </div>
+          {applicationData.name && (
+            <InfoRow icon={<User className="w-5 h-5" />} label="이름" value={applicationData.name} />
+          )}
+
+          {/* 신청번호 & 신청일시 */}
+          <div className="grid grid-cols-2 gap-4">
+            <InfoRow
+              icon={<Hash className="w-5 h-5" />}
+              label="신청번호"
+              value={applicationData.displayId || `#${applicationData.id?.toString().padStart(6, '0')}`}
+            />
+            <InfoRow
+              icon={<Clock className="w-5 h-5" />}
+              label="신청 일시"
+              value={formatDate(applicationData.submittedAt)}
+            />
+          </div>
+
+          {applicationData.email && (
+            <InfoRow icon={<Mail className="w-5 h-5" />} label="이메일" value={applicationData.email} />
+          )}
+
+          {applicationData.phoneNumber && (
+            <InfoRow icon={<Phone className="w-5 h-5" />} label="전화번호" value={applicationData.phoneNumber} />
+          )}
+
+          {/* 전문 분야 & 경력 */}
+          <div className="grid grid-cols-2 gap-4">
+            <InfoRow
+              icon={<Target className="w-5 h-5" />}
+              label="전문 분야"
+              value={applicationData.categoryName}
+            />
+            {applicationData.experienceYears !== undefined && (
+              <InfoRow icon={<Briefcase className="w-5 h-5" />} label="경력" value={`${applicationData.experienceYears}년`} />
+            )}
           </div>
 
           {/* 전문 키워드 */}
           {applicationData.keywords && applicationData.keywords.length > 0 && (
-            <div>
-              <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                전문 키워드
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {applicationData.keywords.map((keyword, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-full font-medium"
-                  >
-                    {keyword}
-                  </span>
-                ))}
+            <div className="flex items-start gap-3">
+              <div className="text-gray-400 pt-0.5">
+                <Tag className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-500 mb-1">전문 키워드</p>
+                <div className="flex flex-wrap gap-2">
+                  {applicationData.keywords.map((keyword, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* 상담 방식 & 구사 언어 */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* 상담 방식 */}
-            {applicationData.consultationTypes && applicationData.consultationTypes.length > 0 && (
-              <div>
-                <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  상담 방식
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {applicationData.consultationTypes.map((type, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-sm rounded-full font-medium"
-                    >
-                      {type === 'video' ? '화상' : type === 'voice' ? '음성' : '채팅'}
-                    </span>
-                  ))}
+          {/* 상담 유형 & 구사 언어 */}
+          {((applicationData.consultationTypes && applicationData.consultationTypes.length > 0) ||
+            (applicationData.languages && applicationData.languages.length > 0)) && (
+            <div className="grid grid-cols-2 gap-4">
+              {/* 상담 유형 */}
+              {applicationData.consultationTypes && applicationData.consultationTypes.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="text-gray-400 pt-0.5">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">상담 유형</p>
+                    <div className="flex flex-wrap gap-2">
+                      {applicationData.consultationTypes.map((type, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs"
+                        >
+                          {type === 'video' ? '화상' : type === 'voice' ? '음성' : '채팅'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* 구사 언어 */}
-            {applicationData.languages && applicationData.languages.length > 0 && (
-              <div>
-                <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
-                  <Languages className="w-4 h-4" />
-                  구사 언어
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {applicationData.languages.map((language, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1.5 bg-green-100 text-green-700 text-sm rounded-full font-medium"
-                    >
-                      {language}
-                    </span>
-                  ))}
+              {/* 구사 언어 */}
+              {applicationData.languages && applicationData.languages.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="text-gray-400 pt-0.5">
+                    <Languages className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">구사 언어</p>
+                    <div className="flex flex-wrap gap-2">
+                      {applicationData.languages.map((language, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
+                        >
+                          {language}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 연락처 정보 */}
-      <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
+      {/* 연락처 정보 - 제거됨 (기본 정보로 통합) */}
+      <div className="hidden">
         {applicationData.name && (
           <div>
             <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
@@ -288,7 +328,7 @@ export default function ApplicationSummaryCard({
               ) : (
                 /* ✅ FALLBACK: Use old availability format */
                 applicationData.availability && Object.entries(applicationData.availability).map(([day, info]: [string, any]) => {
-                  if (day === 'holidaySettings' || day === 'availabilitySlots') return null;
+                  if (day === 'holidaySettings' || day === 'availabilitySlots' || day === 'restTimeSettings') return null;
 
                   const dayNames: { [key: string]: string } = {
                     'MONDAY': '월요일',
@@ -610,6 +650,18 @@ export default function ApplicationSummaryCard({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-gray-400">{icon}</div>
+      <div className="flex-1">
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-gray-900">{value}</p>
+      </div>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3, Shield, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { getUserAvatarUrl, getUserDisplayName, getUserInitial } from '@/lib/user-avatar';
 
 interface NavItem {
   href: string;
@@ -151,37 +152,88 @@ export default function Navbar() {
                     e.stopPropagation();
                     setShowUserMenu(!showUserMenu);
                   }}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors hover:text-blue-600"
                   aria-expanded={showUserMenu}
                   aria-haspopup="true"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    {user.avatarUrl ? (
-                      <img 
-                        src={user.avatarUrl} 
-                        alt={user.name}
+                  {/* 프로필 사진: 전문가 모드일 때만 블루 테두리 */}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    user.expert && viewMode === 'expert'
+                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-2 ring-blue-500 shadow-md'
+                      : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                  }`}>
+                    {getUserAvatarUrl(user) ? (
+                      <img
+                        src={getUserAvatarUrl(user)}
+                        alt={getUserDisplayName(user)}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
                       <span className="text-white font-semibold text-sm">
-                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                        {getUserInitial(user)}
                       </span>
                     )}
                   </div>
-                      <span>{user.name || '사용자'}{isAdmin && ' (관리자)'}</span>
+
+                  {/* 이름: 전문가 모드일 때만 블루 컬러 */}
+                  <span className={user.expert && viewMode === 'expert' ? 'text-blue-600 font-semibold' : 'text-gray-700'}>
+                    {getUserDisplayName(user)}{isAdmin && ' (관리자)'}
+                  </span>
                 </button>
 
                 {/* 사용자 드롭다운 메뉴 */}
                 {showUserMenu && (
                   <div
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                    className={`absolute right-0 mt-2 w-64 rounded-lg shadow-lg border z-50 ${
+                      user.expert && viewMode === 'expert'
+                        ? 'bg-gradient-to-br from-blue-50 to-white border-blue-200'
+                        : 'bg-white border-gray-200'
+                    }`}
                     role="menu"
                     aria-orientation="vertical"
                   >
                     <div className="py-1">
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}{isAdmin && ' (관리자)'}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                      {/* 사용자 정보 헤더 */}
+                      <div className={`px-4 py-3 border-b ${
+                        user.expert && viewMode === 'expert' ? 'border-blue-100 bg-blue-50/50' : 'border-gray-100'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          {/* 프로필 사진 (큰 사이즈) */}
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            user.expert && viewMode === 'expert'
+                              ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-2 ring-blue-500 shadow-md'
+                              : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                          }`}>
+                            {getUserAvatarUrl(user) ? (
+                              <img
+                                src={getUserAvatarUrl(user)}
+                                alt={getUserDisplayName(user)}
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-white font-semibold text-lg">
+                                {getUserInitial(user)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 이름과 정보 */}
+                          <div className="flex-1">
+                            <p className={`text-sm font-semibold flex items-center gap-2 ${
+                              user.expert && viewMode === 'expert' ? 'text-blue-600' : 'text-gray-900'
+                            }`}>
+                              {getUserDisplayName(user)}
+                              {isAdmin && <span className="text-gray-600 font-normal">(관리자)</span>}
+                            </p>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                            {user.expert && viewMode === 'expert' && (
+                              <p className="text-xs text-blue-600 font-medium mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                전문가 회원
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       
                       {/* 클라이언트 대시보드 - 클라이언트 또는 관리자만 표시 */}
@@ -467,24 +519,42 @@ export default function Navbar() {
 
               {/* 모바일에서 인증된 사용자 정보 */}
               {!isLoading && isAuthenticated && user && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className={`border-t pt-4 mt-4 ${
+                  user.expert && viewMode === 'expert' ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center px-3 py-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3">
-                      {user.avatarUrl ? (
-                        <img 
-                          src={user.avatarUrl} 
-                          alt={user.name}
+                    {/* 프로필 사진 */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                      user.expert && viewMode === 'expert'
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-2 ring-blue-500 shadow-md'
+                        : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                    }`}>
+                      {getUserAvatarUrl(user) ? (
+                        <img
+                          src={getUserAvatarUrl(user)}
+                          alt={getUserDisplayName(user)}
                           className="w-full h-full rounded-full object-cover"
                         />
                       ) : (
                         <span className="text-white font-semibold">
-                          {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                          {getUserInitial(user)}
                         </span>
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{user.name || '사용자'}{isAdmin && ' (관리자)'}</p>
+                      <p className={`text-sm font-semibold flex items-center gap-2 ${
+                        user.expert && viewMode === 'expert' ? 'text-blue-600' : 'text-gray-900'
+                      }`}>
+                        {getUserDisplayName(user)}
+                        {isAdmin && <span className="text-gray-600 font-normal">(관리자)</span>}
+                      </p>
                       <p className="text-xs text-gray-500">{user.email}</p>
+                      {user.expert && viewMode === 'expert' && (
+                        <p className="text-xs text-blue-600 font-medium mt-0.5 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          전문가 회원
+                        </p>
+                      )}
                     </div>
                   </div>
                   

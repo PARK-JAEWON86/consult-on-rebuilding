@@ -267,10 +267,7 @@ export default function ApplicationDetailPage() {
           목록으로
         </button>
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{application.name}</h1>
-            <p className="text-gray-500 mt-1">{application.displayId}</p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">전문가 지원 상세</h1>
           <StatusBadge currentStage={application.currentStage} />
         </div>
       </div>
@@ -288,25 +285,34 @@ export default function ApplicationDetailPage() {
               {/* 프로필 이미지 */}
               {application.profileImage ? (
                 <div className="flex-shrink-0">
-                  <img
-                    src={application.profileImage}
-                    alt="프로필"
-                    className="max-w-xs max-h-60 w-auto h-auto rounded-lg border-2 border-gray-200"
-                  />
+                  <div className="w-64 h-96 rounded-lg border-2 border-gray-200 overflow-hidden">
+                    <img
+                      src={application.profileImage}
+                      alt="프로필"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="flex-shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                <div className="flex-shrink-0 w-64 h-96 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-gray-200">
                   <User className="w-16 h-16 text-gray-400" />
                 </div>
               )}
 
               {/* 기본 정보 */}
               <div className="flex-1 space-y-3">
+                <InfoRow icon={<User className="w-5 h-5" />} label="이름" value={application.name} />
+                <InfoRow icon={<FileText className="w-5 h-5" />} label="신청번호" value={application.displayId} />
                 <InfoRow icon={<Mail className="w-5 h-5" />} label="이메일" value={application.email} />
                 {application.phoneNumber && (
                   <InfoRow icon={<Phone className="w-5 h-5" />} label="전화번호" value={application.phoneNumber} />
                 )}
-                <InfoRow icon={<FileText className="w-5 h-5" />} label="전문분야" value={application.specialty} />
+
+                {/* 전문분야 & 경력 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={<FileText className="w-5 h-5" />} label="전문분야" value={application.specialty} />
+                  <InfoRow icon={<Briefcase className="w-5 h-5" />} label="경력" value={`${application.experienceYears}년`} />
+                </div>
 
                 {/* 키워드 */}
                 {application.keywords && Array.isArray(application.keywords) && application.keywords.length > 0 && (
@@ -330,7 +336,70 @@ export default function ApplicationDetailPage() {
                   </div>
                 )}
 
-                <InfoRow icon={<Clock className="w-5 h-5" />} label="경력" value={`${application.experienceYears}년`} />
+                {/* 상담 유형 & 구사 언어 */}
+                {((application.consultationTypes && application.consultationTypes.length > 0) ||
+                  (application.languages && application.languages.length > 0)) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* 상담 유형 */}
+                    {application.consultationTypes && application.consultationTypes.length > 0 && (
+                      <div className="flex items-start gap-3">
+                        <div className="text-gray-400 pt-0.5">
+                          <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500 mb-1">상담 유형</p>
+                          <div className="flex flex-wrap gap-2">
+                            {application.consultationTypes.map((type, index) => {
+                              const getTypeConfig = (type: string) => {
+                                switch (type) {
+                                  case 'video':
+                                    return '화상';
+                                  case 'voice':
+                                    return '음성';
+                                  case 'chat':
+                                    return '채팅';
+                                  default:
+                                    return type;
+                                }
+                              };
+
+                              return (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs"
+                                >
+                                  {getTypeConfig(type)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 구사 언어 */}
+                    {application.languages && application.languages.length > 0 && (
+                      <div className="flex items-start gap-3">
+                        <div className="text-gray-400 pt-0.5">
+                          <Languages className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500 mb-1">구사 언어</p>
+                          <div className="flex flex-wrap gap-2">
+                            {application.languages.map((language, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
+                              >
+                                {language}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -403,65 +472,6 @@ export default function ApplicationDetailPage() {
             </div>
           )}
 
-          {/* 상담 유형 & 구사 언어 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 상담 유형 */}
-            {application.consultationTypes && Array.isArray(application.consultationTypes) && application.consultationTypes.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-gray-700" />
-                  상담 유형
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {application.consultationTypes.map((type, index) => {
-                    const getTypeConfig = (type: string) => {
-                      switch (type) {
-                        case 'video':
-                          return { icon: <Video className="w-4 h-4" />, label: '화상' };
-                        case 'voice':
-                          return { icon: <Mic className="w-4 h-4" />, label: '음성' };
-                        case 'chat':
-                          return { icon: <MessageSquare className="w-4 h-4" />, label: '채팅' };
-                        default:
-                          return { icon: null, label: type };
-                      }
-                    };
-                    const config = getTypeConfig(type);
-
-                    return (
-                      <span
-                        key={index}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium"
-                      >
-                        {config.icon}
-                        {config.label}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 구사 언어 */}
-            {application.languages && Array.isArray(application.languages) && application.languages.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Languages className="w-5 h-5 text-gray-700" />
-                  구사 언어
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {application.languages.map((language, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
-                    >
-                      {language}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* 경력사항 */}
           {application.workExperience && Array.isArray(application.workExperience) && application.workExperience.length > 0 && (
@@ -579,7 +589,7 @@ export default function ApplicationDetailPage() {
                 ) : (
                   /* ✅ FALLBACK: Use old availability format */
                   application.availability && Object.entries(application.availability).map(([day, info]: [string, any]) => {
-                    if (day === 'holidaySettings' || day === 'availabilitySlots') return null;
+                    if (day === 'holidaySettings' || day === 'availabilitySlots' || day === 'restTimeSettings') return null;
 
                     const dayNames: { [key: string]: string } = {
                       'MONDAY': '월요일',
@@ -919,20 +929,38 @@ export default function ApplicationDetailPage() {
               <div>
                 <p className="text-gray-600">가입일</p>
                 <p className="font-medium text-gray-900">
-                  {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                  {new Date(user.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">신청일</p>
                 <p className="font-medium text-gray-900">
-                  {new Date(application.createdAt).toLocaleDateString('ko-KR')}
+                  {new Date(application.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
               </div>
               {application.reviewedAt && (
                 <div>
                   <p className="text-gray-600">승인일</p>
                   <p className="font-medium text-gray-900">
-                    {new Date(application.reviewedAt).toLocaleDateString('ko-KR')}
+                    {new Date(application.reviewedAt).toLocaleString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
                 </div>
               )}
