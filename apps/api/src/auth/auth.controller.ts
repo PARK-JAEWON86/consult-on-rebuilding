@@ -59,8 +59,57 @@ export class AuthController {
       const r = await this.auth.register({ email, passwordHash, name })
       return ok({ userId: r.userId })
     } catch (e: any) {
-      if (e?.code === 'P2002')
+      if (e?.code === 'P2002') {
+        console.log('[Register] Email conflict detected:', email)
+
+        // 이메일 중복 - 미인증 상태인지 확인
+        const existingUser = await this.auth.findUserByEmail(email)
+        console.log('[Register] Existing user found:', {
+          id: existingUser?.id,
+          email: existingUser?.email,
+          emailVerifiedAt: existingUser?.emailVerifiedAt,
+          provider: existingUser?.provider
+        })
+
+        if (existingUser && !existingUser.emailVerifiedAt) {
+          console.log('[Register] Unverified user - attempting to resend verification')
+
+          // 미인증 상태 - 새 인증 코드 재발송
+          try {
+            const resendResult = await this.auth.resendVerification(email)
+            console.log('[Register] Resend result:', resendResult)
+
+            if (resendResult.ok) {
+              console.log('[Register] Verification resent successfully')
+              return ok({
+                userId: existingUser.id,
+                resent: true,
+                message: '이전에 가입을 시작하셨습니다. 새로운 인증 코드를 이메일로 발송했습니다.'
+              })
+            } else {
+              console.warn('[Register] Resend returned not ok:', resendResult)
+              return ok({
+                userId: existingUser.id,
+                resent: true,
+                message: resendResult.message || '이전에 가입을 시작하셨습니다. 이메일로 발송된 인증 코드를 입력해주세요.'
+              })
+            }
+          } catch (resendError: any) {
+            console.error('[Register] Resend failed with error:', resendError)
+            // 재발송 실패해도 사용자에게는 인증 화면으로 이동하도록 안내
+            return ok({
+              userId: existingUser.id,
+              resent: true,
+              message: '이전에 가입을 시작하셨습니다. 이메일로 발송된 인증 코드를 입력해주세요.'
+            })
+          }
+        }
+
+        console.log('[Register] User already verified or not found')
+        // 이미 인증 완료된 계정
         return fail('CONFLICT', '이미 사용 중인 이메일입니다.')
+      }
+      console.error('[Register] Unexpected error:', e)
       return fail('INTERNAL', '회원가입 처리 중 오류가 발생했습니다.')
     }
   }

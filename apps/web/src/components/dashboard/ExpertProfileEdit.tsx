@@ -25,7 +25,7 @@ import {
   X,
   Mail
 } from "lucide-react";
-import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings } from '@/components/experts/AvailabilityScheduleEditor';
+import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings, RestTimeSettings } from '@/components/experts/AvailabilityScheduleEditor';
 
 type ConsultationType = "video" | "chat" | "voice";
 
@@ -90,6 +90,7 @@ interface ExpertProfileEditData {
   // 예약 가능 시간 (새로운 슬롯 기반)
   availabilitySlots: AvailabilitySlot[];
   holidaySettings: HolidaySettings;
+  restTimeSettings: RestTimeSettings;
 
   // 포트폴리오
   portfolioPreviews: string[];
@@ -137,6 +138,14 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
     holidaySettings: {
       acceptHolidayConsultations: false,
       holidayNote: ''
+    },
+    restTimeSettings: {
+      enableLunchBreak: false,
+      lunchStartTime: '12:00',
+      lunchEndTime: '13:00',
+      enableDinnerBreak: false,
+      dinnerStartTime: '18:00',
+      dinnerEndTime: '19:00'
     },
     portfolioPreviews: [],
     socialLinks: {
@@ -435,9 +444,10 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
   };
 
   // 예약 가능 시간 변경
-  const handleAvailabilityChange = (slots: AvailabilitySlot[], holidaySettings: HolidaySettings) => {
+  const handleAvailabilityChange = (slots: AvailabilitySlot[], holidaySettings: HolidaySettings, restTimeSettings: RestTimeSettings) => {
     handleInputChange('availabilitySlots', slots);
     handleInputChange('holidaySettings', holidaySettings);
+    handleInputChange('restTimeSettings', restTimeSettings);
   };
 
   // 경력(년) 자동 계산 (개월 단위 포함)
@@ -957,52 +967,103 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center">
               <ImageIcon className="w-4 h-4 mr-2" /> 자격증 및 포트폴리오 이미지
+              <span className="ml-2 text-xs text-gray-500 font-normal">(최대 5개, 선택사항)</span>
             </h3>
 
-            <div
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                isDragging
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
-              }`}
-            >
-              <Upload className={`w-12 h-12 mx-auto mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
-              <input
-                type="file"
-                id="portfolioUpload"
-                className="hidden"
-                accept="image/*"
-                multiple
-                onChange={handlePortfolioUpload}
-              />
-              <label htmlFor="portfolioUpload" className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium">
-                파일 선택
-              </label>
-              <p className="text-gray-500 text-sm mt-1">또는 여기로 이미지를 드래그하세요</p>
-              <p className="text-gray-400 text-xs mt-2">이미지 파일 (최대 5개, 각 5MB 이하)</p>
-            </div>
-
+            {/* 업로드된 이미지 미리보기 */}
             {formData.portfolioPreviews.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
                 {formData.portfolioPreviews.map((preview, index) => (
                   <div key={index} className="relative group">
                     <img
                       src={preview}
                       alt={`포트폴리오 ${index + 1}`}
-                      className="w-full h-40 object-cover rounded-lg"
+                      className="w-full h-auto object-contain rounded-lg border border-gray-200"
                     />
                     <button
                       onClick={() => removePortfolio(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 드래그 앤 드롭 영역 - 파일 없을 때만 대형 영역 표시 */}
+            {formData.portfolioPreviews.length === 0 && (
+              <div
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+              >
+                <input
+                  type="file"
+                  id="portfolioUpload"
+                  className="hidden"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePortfolioUpload}
+                />
+                <Upload className={`w-12 h-12 mx-auto mb-3 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                <label
+                  htmlFor="portfolioUpload"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer mb-2"
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" /> 파일 선택
+                </label>
+                <p className="text-sm text-gray-600 mb-1">
+                  또는 여기로 이미지를 드래그하세요
+                </p>
+                <p className="text-xs text-gray-500">
+                  JPG, PNG 파일 (각 최대 5MB)
+                </p>
+              </div>
+            )}
+
+            {/* 컴팩트 업로드 버튼 - 파일 1-4개일 때 표시 */}
+            {formData.portfolioPreviews.length > 0 && formData.portfolioPreviews.length < 5 && (
+              <div
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className={`flex items-center gap-3 p-3 border-2 border-dashed rounded-lg transition-colors ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+                aria-label={`이미지 추가 영역, ${5 - formData.portfolioPreviews.length}개 더 업로드 가능`}
+              >
+                <input
+                  type="file"
+                  id="portfolioUploadCompact"
+                  className="hidden"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePortfolioUpload}
+                />
+
+                <Upload className={`w-5 h-5 flex-shrink-0 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+
+                <label
+                  htmlFor="portfolioUploadCompact"
+                  className="flex-1 cursor-pointer"
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    이미지 추가 ({5 - formData.portfolioPreviews.length}개 더 가능)
+                  </span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    또는 여기로 드래그
+                  </span>
+                </label>
               </div>
             )}
           </div>
@@ -1067,6 +1128,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
             <AvailabilityScheduleEditor
               initialSlots={formData.availabilitySlots}
               initialHolidaySettings={formData.holidaySettings}
+              initialRestTimeSettings={formData.restTimeSettings}
               onChange={handleAvailabilityChange}
             />
           </div>

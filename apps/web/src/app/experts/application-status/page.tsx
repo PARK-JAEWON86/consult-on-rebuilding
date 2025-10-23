@@ -302,6 +302,7 @@ export default function ApplicationStatusPage() {
               availability: (user as any)?.expertApplicationData?.availability,
               availabilitySlots: (user as any)?.expertApplicationData?.availabilitySlots, // ✅ ADD
               holidaySettings: (user as any)?.expertApplicationData?.holidaySettings, // ✅ ADD
+              restTimeSettings: (user as any)?.expertApplicationData?.restTimeSettings, // ✅ ADD
               socialLinks: (() => {
                 const socialData = (user as any)?.expertApplicationData?.socialLinks;
                 console.log('🔍 소셜링크 데이터:', socialData);

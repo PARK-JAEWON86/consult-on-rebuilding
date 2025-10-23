@@ -172,7 +172,16 @@ export default function ExpertProfileEditPage() {
           console.log(`🔄 전문가 프로필 데이터베이스 조회: ID=${expertId}`);
 
           if (expertId && actualDisplayId) {
+            console.log(`🌐 API 요청: GET /experts/${actualDisplayId}`);
             const response = await api.get(`/experts/${actualDisplayId}`);
+
+            console.log('📦 API 응답 원본:', {
+              success: response.success,
+              hasData: !!response.data,
+              portfolioFiles_in_response: response.data?.portfolioFiles,
+              portfolioImages_in_response: response.data?.portfolioImages,
+              certifications_in_response: response.data?.certifications,
+            });
 
             if (response.success && response.data) {
               console.log('✅ 데이터베이스에서 프로필 로드 성공:', response.data);
@@ -384,19 +393,39 @@ export default function ExpertProfileEditPage() {
           // 프로필 이미지 - avatarUrl을 profileImage로 매핑
           profileImage: expertProfile.avatarUrl || expertProfile.profileImage || null,
 
-          // 포트폴리오 파일 - 문자열 URL 배열 또는 객체 배열 처리
+          // 포트폴리오 파일 - portfolioFiles를 portfolioImages로 매핑
           portfolioFiles: (() => {
-            if (!expertProfile.portfolioFiles || !Array.isArray(expertProfile.portfolioFiles)) {
-              return [];
+            console.log('🔍 포트폴리오 원본 데이터:', {
+              portfolioFiles: expertProfile.portfolioFiles,
+              portfolioImages: expertProfile.portfolioImages,
+              type_portfolioFiles: typeof expertProfile.portfolioFiles,
+              type_portfolioImages: typeof expertProfile.portfolioImages
+            });
+
+            // 1순위: portfolioFiles 배열 (백엔드가 실제로 사용하는 필드)
+            if (expertProfile.portfolioFiles && Array.isArray(expertProfile.portfolioFiles) && expertProfile.portfolioFiles.length > 0) {
+              console.log('📁 portfolioFiles 발견:', expertProfile.portfolioFiles);
+              // 문자열이면 그대로, 객체면 data 또는 url 필드 추출
+              const processed = expertProfile.portfolioFiles.map(item => {
+                if (typeof item === 'string') return item;
+                if (typeof item === 'object' && item !== null) {
+                  return (item as any).data || (item as any).url || '';
+                }
+                return '';
+              }).filter(url => url && url.length > 0);
+
+              console.log('✅ portfolioFiles 처리 결과:', processed);
+              return processed;
             }
-            // 문자열이면 그대로, 객체면 data 또는 url 필드 추출
-            return expertProfile.portfolioFiles.map(item => {
-              if (typeof item === 'string') return item;
-              if (typeof item === 'object' && item !== null) {
-                return (item as any).data || (item as any).url || '';
-              }
-              return '';
-            }).filter(url => url.length > 0);
+
+            // 2순위: portfolioImages 배열 (폴백)
+            if (expertProfile.portfolioImages && Array.isArray(expertProfile.portfolioImages) && expertProfile.portfolioImages.length > 0) {
+              console.log('📸 portfolioImages 발견:', expertProfile.portfolioImages);
+              return expertProfile.portfolioImages.filter(url => url && url.length > 0);
+            }
+
+            console.log('⚠️ 포트폴리오 이미지 없음');
+            return [];
           })(),
 
           // 경력사항 - workExperience를 portfolioItems로 매핑
@@ -420,6 +449,11 @@ export default function ExpertProfileEditPage() {
           경력사항: expertProfile.workExperience,
           키워드: expertProfile.keywords || expertProfile.specialties,
           프로필이미지: expertProfile.avatarUrl,
+          포트폴리오이미지: expertProfile.portfolioImages,
+          포트폴리오파일: expertProfile.portfolioFiles,
+          자격증: expertProfile.certifications,
+          변환된_포트폴리오: convertedData.portfolioFiles,
+          변환된_자격증: convertedData.certifications,
         });
 
         setInitialData(convertedData);
@@ -759,6 +793,14 @@ export default function ExpertProfileEditPage() {
                   acceptHolidayConsultations: (initialData as any)?.holidaySettings?.acceptHolidayConsultations || false,
                   holidayNote: (initialData as any)?.holidaySettings?.holidayNote || initialData?.holidayPolicy || ''
                 },
+                restTimeSettings: {
+                  enableLunchBreak: (initialData as any)?.restTimeSettings?.enableLunchBreak || false,
+                  lunchStartTime: (initialData as any)?.restTimeSettings?.lunchStartTime || '12:00',
+                  lunchEndTime: (initialData as any)?.restTimeSettings?.lunchEndTime || '13:00',
+                  enableDinnerBreak: (initialData as any)?.restTimeSettings?.enableDinnerBreak || false,
+                  dinnerStartTime: (initialData as any)?.restTimeSettings?.dinnerStartTime || '18:00',
+                  dinnerEndTime: (initialData as any)?.restTimeSettings?.dinnerEndTime || '19:00'
+                },
 
                 // 포트폴리오 미리보기 - portfolioFiles는 이미 변환됨 (문자열 배열)
                 portfolioPreviews: initialData?.portfolioFiles && Array.isArray(initialData.portfolioFiles)
@@ -808,6 +850,7 @@ export default function ExpertProfileEditPage() {
                   // availabilitySlots 저장
                   availabilitySlots: data.availabilitySlots,
                   holidaySettings: data.holidaySettings,
+                  restTimeSettings: data.restTimeSettings,
                   // contactInfo에 socialLinks 포함
                   contactInfo: {
                     phone: data.phoneNumber || '',

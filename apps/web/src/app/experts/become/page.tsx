@@ -38,6 +38,7 @@ import Step5Review from '@/components/experts/become-steps/Step5Review'
 import {
   AvailabilitySlot,
   HolidaySettings,
+  RestTimeSettings,
 } from '@/components/experts/AvailabilityScheduleEditor'
 
 type Step = 1 | 2 | 2.5 | 3 | 4 | 5
@@ -163,6 +164,14 @@ export default function BecomeExpertPage() {
     acceptHolidayConsultations: false,
     holidayNote: '',
   })
+  const [restTimeSettings, setRestTimeSettings] = useState<RestTimeSettings>({
+    enableLunchBreak: false,
+    lunchStartTime: '12:00',
+    lunchEndTime: '13:00',
+    enableDinnerBreak: false,
+    dinnerStartTime: '18:00',
+    dinnerEndTime: '19:00',
+  })
   const [education, setEducation] = useState<
     Array<{ school: string; major: string; degree: string }>
   >([{ school: '', major: '', degree: '' }])
@@ -286,6 +295,16 @@ export default function BecomeExpertPage() {
           appData.availability.holidaySettings || {
             acceptHolidayConsultations: false,
             holidayNote: '',
+          }
+        )
+        setRestTimeSettings(
+          appData.availability.restTimeSettings || {
+            enableLunchBreak: false,
+            lunchStartTime: '12:00',
+            lunchEndTime: '13:00',
+            enableDinnerBreak: false,
+            dinnerStartTime: '18:00',
+            dinnerEndTime: '19:00',
           }
         )
       }
@@ -622,10 +641,12 @@ export default function BecomeExpertPage() {
   // 예약 가능 시간 변경 핸들러
   const handleAvailabilityChange = (
     slots: AvailabilitySlot[],
-    holidaySettings: HolidaySettings
+    holidaySettings: HolidaySettings,
+    restTimeSettings: RestTimeSettings
   ) => {
     setAvailabilitySlots(slots)
     setHolidaySettings(holidaySettings)
+    setRestTimeSettings(restTimeSettings)
   }
 
   const handleKeywordsChange = (value: string) => {
@@ -776,6 +797,14 @@ export default function BecomeExpertPage() {
       holidaySettings: {
         acceptHolidayConsultations: holidaySettings.acceptHolidayConsultations,
         holidayNote: holidaySettings.holidayNote || undefined,
+      },
+      restTimeSettings: {
+        enableLunchBreak: restTimeSettings.enableLunchBreak,
+        lunchStartTime: restTimeSettings.lunchStartTime,
+        lunchEndTime: restTimeSettings.lunchEndTime,
+        enableDinnerBreak: restTimeSettings.enableDinnerBreak,
+        dinnerStartTime: restTimeSettings.dinnerStartTime,
+        dinnerEndTime: restTimeSettings.dinnerEndTime,
       },
       certifications: certifications
         .filter((c) => c.name.trim())
@@ -1079,6 +1108,7 @@ export default function BecomeExpertPage() {
             onToggleConsultationType={toggleConsultationType}
             availabilitySlots={availabilitySlots}
             holidaySettings={holidaySettings}
+            restTimeSettings={restTimeSettings}
             onAvailabilityChange={handleAvailabilityChange}
             certifications={certifications}
             onCertificationChange={updateCertification}

@@ -44,6 +44,14 @@ export const CreateExpertApplicationSchema = z.object({
     acceptHolidayConsultations: z.boolean(),
     holidayNote: z.string().optional()
   }).optional(),
+  restTimeSettings: z.object({
+    enableLunchBreak: z.boolean(),
+    lunchStartTime: z.string(),
+    lunchEndTime: z.string(),
+    enableDinnerBreak: z.boolean(),
+    dinnerStartTime: z.string(),
+    dinnerEndTime: z.string()
+  }).optional(),
   socialLinks: z.object({
     website: z.string().optional(),
     instagram: z.string().optional(),

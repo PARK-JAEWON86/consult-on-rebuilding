@@ -190,7 +190,8 @@ export class ExpertsController {
     const data = await this.svc.updateAvailabilitySlots(
       displayId,
       availabilityData.slots,
-      availabilityData.holidaySettings
+      availabilityData.holidaySettings,
+      availabilityData.restTimeSettings
     );
 
     return {

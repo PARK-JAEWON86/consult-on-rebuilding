@@ -85,6 +85,19 @@ class APIClient {
           timestamp: new Date().toISOString(),
         };
 
+        // ✅ E_EMAIL_NOT_VERIFIED 특별 처리 (401보다 먼저)
+        if (error.response?.data?.error?.code === 'E_EMAIL_NOT_VERIFIED') {
+          message = error.response.data.error.message || '회원가입 인증 절차를 완료해주세요 (회원가입 탭)';
+          shouldShowToast = true;
+          console.warn('이메일 미인증 오류:', errorContext);
+
+          const customError = new Error(message);
+          (customError as any).status = error.response.status;
+          (customError as any).error = error.response.data.error; // 원본 error 보존
+          (customError as any).context = errorContext;
+          throw customError;
+        }
+
         if (error.response?.status === 401) {
           // /auth/me 엔드포인트의 401은 정상적인 미인증 상태
           const isAuthCheck = error.config?.url?.includes('/auth/me');
@@ -150,6 +163,7 @@ class APIClient {
 
         const customError = new Error(message);
         (customError as any).status = error.response?.status;
+        (customError as any).error = error.response?.data?.error; // ✅ 원본 error 보존
         (customError as any).context = errorContext;
         throw customError;
       }

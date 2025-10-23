@@ -26,6 +26,18 @@ export class AuthService {
     return Number(process.env.AUTH_RESEND_COOLDOWN_SEC || 60); 
   }
 
+  async findUserByEmail(email: string) {
+    return await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        emailVerifiedAt: true,
+        provider: true,
+      }
+    });
+  }
+
   async register({ email, passwordHash, name }: { email: string; passwordHash: string; name: string }) {
     // 1) 사용자 생성 (email unique)
     const user = await this.prisma.user.create({
@@ -144,19 +156,16 @@ export class AuthService {
 
     if (!user || !(await argon2.verify((user as any).passwordHash, dto.password))) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_AUTH_INVALID', message: 'Invalid credentials' }
+        code: 'E_AUTH_INVALID',
+        message: 'Invalid credentials'
       })
     }
 
     // 이메일 인증 확인 (로컬 회원가입 사용자만)
     if (user.provider === 'local' && !user.emailVerifiedAt) {
       throw new UnauthorizedException({
-        success: false,
-        error: {
-          code: 'E_EMAIL_NOT_VERIFIED',
-          message: 'Email not verified. Please check your email for verification code.'
-        }
+        code: 'E_EMAIL_NOT_VERIFIED',
+        message: '회원가입 인증 절차를 완료해주세요 (회원가입 탭)'
       })
     }
 
@@ -179,8 +188,8 @@ export class AuthService {
       return this.jwt.verify(token, { secret })
     } catch (error) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_AUTH_INVALID_TOKEN', message: 'Invalid token' }
+        code: 'E_AUTH_INVALID_TOKEN',
+        message: 'Invalid token'
       })
     }
   }
@@ -196,8 +205,8 @@ export class AuthService {
     const storedUserId = await this.redis.getRefreshToken(payload.jti)
     if (!storedUserId || storedUserId !== payload.sub) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_AUTH_INVALID_REFRESH', message: 'Invalid refresh token' }
+        code: 'E_AUTH_INVALID_REFRESH',
+        message: 'Invalid refresh token'
       })
     }
 
@@ -207,8 +216,8 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_AUTH_USER_NOT_FOUND', message: 'User not found' }
+        code: 'E_AUTH_USER_NOT_FOUND',
+        message: 'User not found'
       })
     }
 
@@ -270,8 +279,8 @@ export class AuthService {
       if (!user) {
         console.error('[getUserById] User not found:', { userId })
         throw new UnauthorizedException({
-          success: false,
-          error: { code: 'E_AUTH_USER_NOT_FOUND', message: 'User not found' }
+          code: 'E_AUTH_USER_NOT_FOUND',
+          message: 'User not found'
         })
       }
 
@@ -430,22 +439,16 @@ export class AuthService {
           userId
         })
         throw new UnauthorizedException({
-          success: false,
-          error: {
-            code: 'E_AUTH_DB_ERROR',
-            message: 'Database error while fetching user information'
-          }
+          code: 'E_AUTH_DB_ERROR',
+          message: 'Database error while fetching user information'
         })
       }
 
       // 기타 예상치 못한 에러
       console.error('[getUserById] Unexpected error:', error)
       throw new UnauthorizedException({
-        success: false,
-        error: {
-          code: 'E_AUTH_FETCH_FAILED',
-          message: 'Failed to fetch user information'
-        }
+        code: 'E_AUTH_FETCH_FAILED',
+        message: 'Failed to fetch user information'
       })
     }
   }
@@ -616,15 +619,15 @@ export class AuthService {
 
     if (!verification.valid) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_INVALID_TEMP_TOKEN', message: verification.error }
+        code: 'E_INVALID_TEMP_TOKEN',
+        message: verification.error
       })
     }
 
     if (!agreedToTerms) {
       throw new UnauthorizedException({
-        success: false,
-        error: { code: 'E_TERMS_NOT_AGREED', message: 'Terms must be agreed to complete onboarding' }
+        code: 'E_TERMS_NOT_AGREED',
+        message: 'Terms must be agreed to complete onboarding'
       })
     }
 

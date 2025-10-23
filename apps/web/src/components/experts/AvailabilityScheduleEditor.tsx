@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Plus, Trash2, Copy, Calendar } from 'lucide-react';
+import { Clock, Plus, Trash2, Copy, Calendar, Coffee } from 'lucide-react';
 
 type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
 
@@ -18,10 +18,20 @@ export interface HolidaySettings {
   holidayNote?: string;
 }
 
+export interface RestTimeSettings {
+  enableLunchBreak: boolean;
+  lunchStartTime: string;
+  lunchEndTime: string;
+  enableDinnerBreak: boolean;
+  dinnerStartTime: string;
+  dinnerEndTime: string;
+}
+
 interface AvailabilityScheduleEditorProps {
   initialSlots?: AvailabilitySlot[];
   initialHolidaySettings?: HolidaySettings;
-  onChange: (slots: AvailabilitySlot[], holidaySettings: HolidaySettings) => void;
+  initialRestTimeSettings?: RestTimeSettings;
+  onChange: (slots: AvailabilitySlot[], holidaySettings: HolidaySettings, restTimeSettings: RestTimeSettings) => void;
 }
 
 const dayLabels: Record<DayOfWeek, string> = {
@@ -39,10 +49,19 @@ const dayOrder: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FR
 export default function AvailabilityScheduleEditor({
   initialSlots = [],
   initialHolidaySettings = { acceptHolidayConsultations: false },
+  initialRestTimeSettings = {
+    enableLunchBreak: false,
+    lunchStartTime: '12:00',
+    lunchEndTime: '13:00',
+    enableDinnerBreak: false,
+    dinnerStartTime: '18:00',
+    dinnerEndTime: '19:00'
+  },
   onChange
 }: AvailabilityScheduleEditorProps) {
   const [slots, setSlots] = useState<AvailabilitySlot[]>(initialSlots);
   const [holidaySettings, setHolidaySettings] = useState<HolidaySettings>(initialHolidaySettings);
+  const [restTimeSettings, setRestTimeSettings] = useState<RestTimeSettings>(initialRestTimeSettings);
 
   useEffect(() => {
     setSlots(initialSlots);
@@ -52,14 +71,23 @@ export default function AvailabilityScheduleEditor({
     setHolidaySettings(initialHolidaySettings);
   }, [initialHolidaySettings]);
 
+  useEffect(() => {
+    setRestTimeSettings(initialRestTimeSettings);
+  }, [initialRestTimeSettings]);
+
   const handleSlotsChange = (newSlots: AvailabilitySlot[]) => {
     setSlots(newSlots);
-    onChange(newSlots, holidaySettings);
+    onChange(newSlots, holidaySettings, restTimeSettings);
   };
 
   const handleHolidaySettingsChange = (newSettings: HolidaySettings) => {
     setHolidaySettings(newSettings);
-    onChange(slots, newSettings);
+    onChange(slots, newSettings, restTimeSettings);
+  };
+
+  const handleRestTimeSettingsChange = (newSettings: RestTimeSettings) => {
+    setRestTimeSettings(newSettings);
+    onChange(slots, holidaySettings, newSettings);
   };
 
   const addSlot = (day: DayOfWeek) => {
@@ -259,6 +287,124 @@ export default function AvailabilityScheduleEditor({
             </div>
           );
         })}
+      </div>
+
+      {/* 휴식 시간 설정 */}
+      <div className="border-t border-gray-200 mt-6 pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Coffee className="w-5 h-5 text-orange-600" />
+            <h3 className="text-lg font-semibold text-gray-900">휴식 시간 설정</h3>
+          </div>
+          <span className="text-xs text-gray-500">(선택사항)</span>
+        </div>
+
+        <div className="space-y-4">
+          {/* 점심시간 */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <label className="relative inline-flex items-center cursor-pointer mt-0.5">
+                <input
+                  type="checkbox"
+                  checked={restTimeSettings.enableLunchBreak}
+                  onChange={(e) => handleRestTimeSettingsChange({
+                    ...restTimeSettings,
+                    enableLunchBreak: e.target.checked
+                  })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+              </label>
+
+              <div className="flex-1">
+                <div className="font-medium text-gray-900 mb-1">점심시간 제외</div>
+                <p className="text-sm text-gray-600 mb-3">
+                  활성화하면 모든 활성 요일에 점심시간이 예약 불가능 시간으로 설정됩니다
+                </p>
+
+                {restTimeSettings.enableLunchBreak && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={restTimeSettings.lunchStartTime}
+                      onChange={(e) => handleRestTimeSettingsChange({
+                        ...restTimeSettings,
+                        lunchStartTime: e.target.value
+                      })}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <span className="text-gray-500">~</span>
+                    <input
+                      type="time"
+                      value={restTimeSettings.lunchEndTime}
+                      onChange={(e) => handleRestTimeSettingsChange({
+                        ...restTimeSettings,
+                        lunchEndTime: e.target.value
+                      })}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 저녁시간 */}
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <label className="relative inline-flex items-center cursor-pointer mt-0.5">
+                <input
+                  type="checkbox"
+                  checked={restTimeSettings.enableDinnerBreak}
+                  onChange={(e) => handleRestTimeSettingsChange({
+                    ...restTimeSettings,
+                    enableDinnerBreak: e.target.checked
+                  })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+
+              <div className="flex-1">
+                <div className="font-medium text-gray-900 mb-1">저녁시간 제외</div>
+                <p className="text-sm text-gray-600 mb-3">
+                  활성화하면 모든 활성 요일에 저녁시간이 예약 불가능 시간으로 설정됩니다
+                </p>
+
+                {restTimeSettings.enableDinnerBreak && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={restTimeSettings.dinnerStartTime}
+                      onChange={(e) => handleRestTimeSettingsChange({
+                        ...restTimeSettings,
+                        dinnerStartTime: e.target.value
+                      })}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    <span className="text-gray-500">~</span>
+                    <input
+                      type="time"
+                      value={restTimeSettings.dinnerEndTime}
+                      onChange={(e) => handleRestTimeSettingsChange({
+                        ...restTimeSettings,
+                        dinnerEndTime: e.target.value
+                      })}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+          <p className="text-sm text-blue-800">
+            <strong>💡 안내:</strong> 휴식 시간은 모든 활성화된 요일에 자동으로 적용됩니다.
+            예약 시스템에서 해당 시간대는 예약 불가능한 시간으로 표시됩니다.
+          </p>
+        </div>
       </div>
 
       {/* 공휴일 상담 설정 */}

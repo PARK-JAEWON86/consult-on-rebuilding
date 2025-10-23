@@ -170,7 +170,12 @@ const RegisterForm = () => {
       }
 
       if (data.success === true) {
-        // 회원가입 성공 - 인증 코드 입력 단계로 전환
+        // 회원가입 성공 또는 미인증 상태로 재발송
+        if (data.data?.resent) {
+          // 이전에 가입했지만 미인증 상태 - 인증 코드 재발송됨
+          alert(data.data.message || '새로운 인증 코드를 이메일로 발송했습니다.');
+        }
+        // 인증 코드 입력 단계로 전환
         setStep('verification');
       } else if (data.error) {
         // 구조화된 에러 응답 처리

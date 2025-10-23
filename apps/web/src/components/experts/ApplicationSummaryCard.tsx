@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { X, Coffee, CheckCircle, XCircle, User, FileText, UserCircle, Heart, MessageSquare, Languages, CalendarCheck, Share2, Award, GraduationCap, Briefcase, Image, Target, Tag, Mail, Phone, Clock, Hash } from 'lucide-react'
 
 interface ApplicationData {
   id: number
@@ -33,6 +34,14 @@ interface ApplicationData {
     acceptHolidayConsultations: boolean
     holidayNote: string
   }
+  restTimeSettings?: {
+    enableLunchBreak: boolean
+    lunchStartTime: string
+    lunchEndTime: string
+    enableDinnerBreak: boolean
+    dinnerStartTime: string
+    dinnerEndTime: string
+  }
   socialLinks?: {
     website?: string
     instagram?: string
@@ -53,6 +62,7 @@ export default function ApplicationSummaryCard({
   onViewDetails,
 }: ApplicationSummaryCardProps) {
   const [showFullDetails, setShowFullDetails] = useState(true)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString('ko-KR', {
@@ -85,9 +95,12 @@ export default function ApplicationSummaryCard({
 
         {/* 기본 정보 그리드 */}
         <div className="flex-1 space-y-4">
-          {/* 지원 분야 */}
+          {/* 전문 분야 */}
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">지원 분야</label>
+            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              전문 분야
+            </label>
             <div className="text-base font-semibold text-gray-900">
               {applicationData.categoryName}
             </div>
@@ -96,7 +109,10 @@ export default function ApplicationSummaryCard({
           {/* 전문 키워드 */}
           {applicationData.keywords && applicationData.keywords.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-2">전문 키워드</label>
+              <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                전문 키워드
+              </label>
               <div className="flex flex-wrap gap-2">
                 {applicationData.keywords.map((keyword, index) => (
                   <span
@@ -115,7 +131,10 @@ export default function ApplicationSummaryCard({
             {/* 상담 방식 */}
             {applicationData.consultationTypes && applicationData.consultationTypes.length > 0 && (
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-2">상담 방식</label>
+                <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  상담 방식
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {applicationData.consultationTypes.map((type, index) => (
                     <span
@@ -132,7 +151,10 @@ export default function ApplicationSummaryCard({
             {/* 구사 언어 */}
             {applicationData.languages && applicationData.languages.length > 0 && (
               <div>
-                <label className="text-sm font-medium text-gray-600 block mb-2">구사 언어</label>
+                <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+                  <Languages className="w-4 h-4" />
+                  구사 언어
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {applicationData.languages.map((language, index) => (
                     <span
@@ -153,34 +175,52 @@ export default function ApplicationSummaryCard({
       <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
         {applicationData.name && (
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">신청자명</label>
+            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+              <User className="w-4 h-4" />
+              신청자명
+            </label>
             <div className="text-base text-gray-900">{applicationData.name}</div>
           </div>
         )}
         {applicationData.email && (
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">이메일</label>
+            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              이메일
+            </label>
             <div className="text-base text-gray-900">{applicationData.email}</div>
           </div>
         )}
         {applicationData.phoneNumber && (
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">전화번호</label>
+            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+              <Phone className="w-4 h-4" />
+              전화번호
+            </label>
             <div className="text-base text-gray-900">{applicationData.phoneNumber}</div>
           </div>
         )}
         {applicationData.experienceYears !== undefined && (
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">경력</label>
+            <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+              <Briefcase className="w-4 h-4" />
+              경력
+            </label>
             <div className="text-base text-gray-900">{applicationData.experienceYears}년</div>
           </div>
         )}
         <div>
-          <label className="text-sm font-medium text-gray-600 block mb-1">신청 일시</label>
+          <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            신청 일시
+          </label>
           <div className="text-base text-gray-900">{formatDate(applicationData.submittedAt)}</div>
         </div>
         <div>
-          <label className="text-sm font-medium text-gray-600 block mb-1">신청 번호</label>
+          <label className="text-sm font-medium text-gray-600 block mb-1 flex items-center gap-2">
+            <Hash className="w-4 h-4" />
+            신청 번호
+          </label>
           <div className="font-mono text-base text-gray-900">
             {applicationData.displayId || `#${applicationData.id?.toString().padStart(6, '0')}`}
           </div>
@@ -190,7 +230,10 @@ export default function ApplicationSummaryCard({
       {/* 자기소개 */}
       {applicationData.bio && (
         <div className="mb-6">
-          <label className="text-sm font-medium text-gray-600 block mb-2">자기소개</label>
+          <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            자기소개
+          </label>
           <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-4 border border-gray-200 leading-relaxed">
             {applicationData.bio}
           </p>
@@ -200,7 +243,10 @@ export default function ApplicationSummaryCard({
       {/* 예약 가능 시간 */}
       {((applicationData.availabilitySlots && applicationData.availabilitySlots.length > 0) || (applicationData.availability && Object.keys(applicationData.availability).length > 0)) && (
         <div className="mb-6">
-          <label className="text-sm font-medium text-gray-600 block mb-2">예약 가능 시간</label>
+          <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+            <CalendarCheck className="w-4 h-4" />
+            예약 가능 시간
+          </label>
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <div className="space-y-2">
               {/* ✅ PRIORITY: Use availabilitySlots if available */}
@@ -271,17 +317,60 @@ export default function ApplicationSummaryCard({
             {(applicationData.holidaySettings || applicationData.availability?.holidaySettings) && (
               <div className="mt-3 pt-3 border-t border-gray-300">
                 <div className="flex items-start gap-2">
-                  <span className="text-sm text-gray-700">
-                    {(applicationData.holidaySettings?.acceptHolidayConsultations || applicationData.availability?.holidaySettings?.acceptHolidayConsultations)
-                      ? '✅ 공휴일 상담 가능'
-                      : '⛔ 공휴일 상담 불가'}
-                  </span>
+                  {(applicationData.holidaySettings?.acceptHolidayConsultations || applicationData.availability?.holidaySettings?.acceptHolidayConsultations) ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">공휴일 상담 가능</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">공휴일 상담 불가</span>
+                    </>
+                  )}
                 </div>
                 {(applicationData.holidaySettings?.holidayNote || applicationData.availability?.holidaySettings?.holidayNote) && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 mt-1 ml-6">
                     {applicationData.holidaySettings?.holidayNote || applicationData.availability?.holidaySettings?.holidayNote}
                   </p>
                 )}
+              </div>
+            )}
+            {/* Rest Time Settings */}
+            {(applicationData.restTimeSettings || applicationData.availability?.restTimeSettings) && (
+              <div className="mt-3 pt-3 border-t border-gray-300">
+                <div className="flex items-start gap-2 mb-2">
+                  <Coffee className="w-4 h-4 text-blue-600 mt-0.5" />
+                  <span className="text-sm font-medium text-gray-900">휴게시간 설정</span>
+                </div>
+                <div className="space-y-1 ml-6">
+                  {(applicationData.restTimeSettings?.enableLunchBreak || applicationData.availability?.restTimeSettings?.enableLunchBreak) && (
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="text-orange-600">점심시간:</span>
+                      <span>
+                        {applicationData.restTimeSettings?.lunchStartTime || applicationData.availability?.restTimeSettings?.lunchStartTime}
+                        {' ~ '}
+                        {applicationData.restTimeSettings?.lunchEndTime || applicationData.availability?.restTimeSettings?.lunchEndTime}
+                      </span>
+                    </div>
+                  )}
+                  {(applicationData.restTimeSettings?.enableDinnerBreak || applicationData.availability?.restTimeSettings?.enableDinnerBreak) && (
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="text-purple-600">저녁시간:</span>
+                      <span>
+                        {applicationData.restTimeSettings?.dinnerStartTime || applicationData.availability?.restTimeSettings?.dinnerStartTime}
+                        {' ~ '}
+                        {applicationData.restTimeSettings?.dinnerEndTime || applicationData.availability?.restTimeSettings?.dinnerEndTime}
+                      </span>
+                    </div>
+                  )}
+                  {!(applicationData.restTimeSettings?.enableLunchBreak || applicationData.availability?.restTimeSettings?.enableLunchBreak) &&
+                   !(applicationData.restTimeSettings?.enableDinnerBreak || applicationData.availability?.restTimeSettings?.enableDinnerBreak) && (
+                    <div className="text-sm text-gray-500">
+                      설정된 휴게시간 없음
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -294,14 +383,22 @@ export default function ApplicationSummaryCard({
           {/* MBTI & 상담 스타일 */}
           {applicationData.mbti && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-1">MBTI</label>
-              <div className="text-base text-gray-900">{applicationData.mbti}</div>
+              <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+                <UserCircle className="w-4 h-4" />
+                MBTI
+              </label>
+              <div className="text-base text-gray-900 bg-gray-50 rounded-lg p-4 border border-gray-200 font-semibold">
+                {applicationData.mbti}
+              </div>
             </div>
           )}
 
           {applicationData.consultationStyle && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-2">상담 스타일</label>
+              <label className="text-sm font-medium text-gray-600 block mb-2 flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                상담 스타일
+              </label>
               <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-4 border border-gray-200 leading-relaxed">
                 {applicationData.consultationStyle}
               </p>
@@ -311,7 +408,10 @@ export default function ApplicationSummaryCard({
           {/* 자격증 */}
           {applicationData.certifications && applicationData.certifications.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-3">자격증</label>
+              <label className="text-sm font-medium text-gray-600 block mb-3 flex items-center gap-2">
+                <Award className="w-4 h-4" />
+                자격증
+              </label>
               <div className="space-y-3">
                 {applicationData.certifications.map((cert, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -332,7 +432,10 @@ export default function ApplicationSummaryCard({
           {/* 학력 */}
           {applicationData.education && applicationData.education.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-3">학력</label>
+              <label className="text-sm font-medium text-gray-600 block mb-3 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4" />
+                학력
+              </label>
               <div className="space-y-3">
                 {applicationData.education.map((edu, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -352,7 +455,10 @@ export default function ApplicationSummaryCard({
           {/* 경력사항 */}
           {applicationData.workExperience && applicationData.workExperience.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-3">경력사항</label>
+              <label className="text-sm font-medium text-gray-600 block mb-3 flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                경력사항
+              </label>
               <div className="space-y-3">
                 {applicationData.workExperience.map((work, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -372,15 +478,27 @@ export default function ApplicationSummaryCard({
           {/* 포트폴리오 이미지 */}
           {applicationData.portfolioImages && applicationData.portfolioImages.length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-3">자격증 & 포트폴리오 이미지</label>
-              <div className="grid grid-cols-3 gap-3">
+              <label className="text-sm font-medium text-gray-600 block mb-3 flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                자격증 & 포트폴리오 이미지
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {applicationData.portfolioImages.map((image, index) => (
-                  <div key={index} className="relative group">
+                  <div
+                    key={index}
+                    className="relative group cursor-pointer"
+                    onClick={() => setSelectedImage(image)}
+                  >
                     <img
                       src={image}
                       alt={`포트폴리오 ${index + 1}`}
-                      className="w-full h-40 object-cover rounded-lg border-2 border-gray-200"
+                      className="w-full h-auto object-contain rounded-lg border-2 border-gray-200 hover:border-blue-400 transition-colors"
                     />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 px-3 py-1 rounded">
+                        확대 보기
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -390,7 +508,10 @@ export default function ApplicationSummaryCard({
           {/* 소셜 링크 */}
           {applicationData.socialLinks && Object.values(applicationData.socialLinks).some(link => link) && (
             <div>
-              <label className="text-sm font-medium text-gray-600 block mb-3">소셜 링크</label>
+              <label className="text-sm font-medium text-gray-600 block mb-3 flex items-center gap-2">
+                <Share2 className="w-4 h-4" />
+                소셜 링크
+              </label>
               <div className="space-y-3">
                 {applicationData.socialLinks.website && (
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -462,6 +583,33 @@ export default function ApplicationSummaryCard({
       >
         {showFullDetails ? '간단히 보기 ▲' : '신청 내역 전체 보기 ▼'}
       </button>
+
+      {/* 이미지 확대 모달 */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+            aria-label="닫기"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+          <div className="max-w-7xl max-h-full w-full h-full flex items-center justify-center">
+            <img
+              src={selectedImage}
+              alt="포트폴리오 확대 보기"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-full">
+            클릭하면 닫힙니다
+          </div>
+        </div>
+      )}
     </div>
   )
 }

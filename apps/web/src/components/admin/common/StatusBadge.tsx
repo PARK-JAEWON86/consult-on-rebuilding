@@ -36,7 +36,10 @@ export default function StatusBadge({ currentStage }: StatusBadgeProps) {
     }
   }
 
-  const { label, className } = stageConfig[currentStage]
+  const { label, className } = stageConfig[currentStage] ?? {
+    label: '알 수 없음',
+    className: 'bg-gray-100 text-gray-800 border-gray-200'
+  }
 
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${className}`}>

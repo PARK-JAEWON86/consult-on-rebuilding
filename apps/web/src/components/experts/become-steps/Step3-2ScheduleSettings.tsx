@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Users, Phone, MessageCircle, Video, Award, Image as ImageIcon, Upload, X, Globe, Instagram, Youtube, Linkedin, FileText } from 'lucide-react'
-import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings } from '../AvailabilityScheduleEditor'
+import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings, RestTimeSettings } from '../AvailabilityScheduleEditor'
 
 type ConsultationType = 'video' | 'chat' | 'voice'
 
@@ -28,7 +28,8 @@ interface Step32ScheduleSettingsProps {
   // 예약 가능 시간 (새로운 슬롯 기반 시스템)
   availabilitySlots: AvailabilitySlot[]
   holidaySettings: HolidaySettings
-  onAvailabilityChange: (slots: AvailabilitySlot[], holidaySettings: HolidaySettings) => void
+  restTimeSettings: RestTimeSettings
+  onAvailabilityChange: (slots: AvailabilitySlot[], holidaySettings: HolidaySettings, restTimeSettings: RestTimeSettings) => void
 
   // 자격증
   certifications: Certification[]
@@ -58,6 +59,7 @@ export default function Step32ScheduleSettings({
   onToggleConsultationType,
   availabilitySlots,
   holidaySettings,
+  restTimeSettings,
   onAvailabilityChange,
   certifications,
   onCertificationChange,
@@ -203,8 +205,8 @@ export default function Step32ScheduleSettings({
           </div>
         )}
 
-        {/* 드래그 앤 드롭 영역 */}
-        {portfolioPreviews.length < 5 && (
+        {/* 드래그 앤 드롭 영역 - 파일 없을 때만 대형 영역 표시 */}
+        {portfolioPreviews.length === 0 && (
           <div
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -239,6 +241,45 @@ export default function Step32ScheduleSettings({
                 JPG, PNG 파일 (각 최대 5MB)
               </p>
             </div>
+          </div>
+        )}
+
+        {/* 컴팩트 업로드 버튼 - 파일 1-4개일 때 표시 */}
+        {portfolioPreviews.length > 0 && portfolioPreviews.length < 5 && (
+          <div
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className={`flex items-center gap-3 p-3 border-2 border-dashed rounded-lg transition-colors ${
+              isDragging
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+            }`}
+            aria-label={`이미지 추가 영역, ${5 - portfolioPreviews.length}개 더 업로드 가능`}
+          >
+            <input
+              id="portfolioUploadCompact"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={onPortfolioUpload}
+              className="hidden"
+            />
+
+            <Upload className={`w-5 h-5 flex-shrink-0 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+
+            <label
+              htmlFor="portfolioUploadCompact"
+              className="flex-1 cursor-pointer"
+            >
+              <span className="text-sm font-medium text-gray-700">
+                이미지 추가 ({5 - portfolioPreviews.length}개 더 가능)
+              </span>
+              <span className="text-xs text-gray-500 ml-2">
+                또는 여기로 드래그
+              </span>
+            </label>
           </div>
         )}
       </div>
@@ -302,6 +343,7 @@ export default function Step32ScheduleSettings({
         <AvailabilityScheduleEditor
           initialSlots={availabilitySlots}
           initialHolidaySettings={holidaySettings}
+          initialRestTimeSettings={restTimeSettings}
           onChange={onAvailabilityChange}
         />
       </div>

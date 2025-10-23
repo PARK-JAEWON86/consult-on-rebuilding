@@ -335,6 +335,21 @@ export class ExpertApplicationsService {
         return typeof links === 'object' ? links : {}
       }
 
+      // JSON 배열 필드 파싱 (문자열 또는 배열 처리)
+      const parseJsonArrayField = (field: any): any[] => {
+        if (!field) return []
+        if (Array.isArray(field)) return field
+        if (typeof field === 'string') {
+          try {
+            const parsed = JSON.parse(field)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        }
+        return []
+      }
+
       // availability 파싱 및 필드 추출
       const availabilityData = parseAvailabilityData(application.availability)
       const availabilitySlots = availabilityData?.availabilitySlots || []
@@ -345,6 +360,26 @@ export class ExpertApplicationsService {
 
       // socialLinks 파싱
       const appSocialLinks = parseSocialLinksData(application.socialLinks)
+
+      // JSON 배열 필드들 미리 파싱
+      const parsedPortfolioImages = parseJsonArrayField(application.portfolioImages)
+      const parsedKeywords = parseJsonArrayField(application.keywords)
+      const parsedCertifications = parseJsonArrayField(application.certifications)
+      const parsedWorkExperience = parseJsonArrayField(application.workExperience)
+
+      // 디버깅: 파싱 전후 데이터 확인
+      console.log('🔍 [Approval] ExpertApplication 원본 데이터:', {
+        applicationId: application.id,
+        portfolioImages_raw: application.portfolioImages,
+        portfolioImages_type: typeof application.portfolioImages,
+        portfolioImages_isArray: Array.isArray(application.portfolioImages),
+      });
+      console.log('✅ [Approval] 파싱 결과:', {
+        parsedPortfolioImages_count: parsedPortfolioImages.length,
+        parsedKeywords_count: parsedKeywords.length,
+        parsedCertifications_count: parsedCertifications.length,
+        parsedWorkExperience_count: parsedWorkExperience.length,
+      });
 
       const expert = await tx.expert.create({
         data: {
@@ -362,19 +397,19 @@ export class ExpertApplicationsService {
           // MBTI 및 상담 스타일
           mbti: application.mbti || null,
           consultationStyle: application.consultationStyle || null,
-          workExperience: application.workExperience || [],
+          workExperience: parsedWorkExperience,
 
-          // JSON 배열 필드들 (application에서 그대로 전송)
+          // JSON 배열 필드들 (parseJsonArrayField로 안전하게 파싱된 데이터 사용)
           categories: [], // 카테고리는 별도 ExpertCategory 테이블에서 관리
-          keywords: application.keywords || [],
-          certifications: application.certifications || [],
-          consultationTypes: application.consultationTypes || [],
-          languages: application.languages || ['한국어'],
-          education: application.education || [],
-          portfolioFiles: application.portfolioImages && Array.isArray(application.portfolioImages)
-            ? application.portfolioImages
-            : [], // portfolioImages 데이터 저장
-          portfolioItems: application.workExperience || [],
+          keywords: parsedKeywords,
+          certifications: parsedCertifications,
+          consultationTypes: parseJsonArrayField(application.consultationTypes),
+          languages: parseJsonArrayField(application.languages).length > 0
+            ? parseJsonArrayField(application.languages)
+            : ['한국어'],
+          education: parseJsonArrayField(application.education),
+          portfolioFiles: parsedPortfolioImages, // ✅ 핵심 수정: portfolioImages를 안전하게 파싱
+          portfolioItems: parsedWorkExperience,
 
           // JSON 객체 필드들 - availability에 모든 스케줄 정보 통합
           availability: {
@@ -414,6 +449,15 @@ export class ExpertApplicationsService {
           isProfilePublic: false, // 초기에는 비공개로 설정 (전문가가 직접 공개 설정)
         },
       })
+
+      // 디버깅: Expert 생성 후 portfolioFiles 확인
+      console.log('✅ [Approval] Expert 생성 완료:', {
+        expertId: expert.id,
+        displayId: expert.displayId,
+        portfolioFiles: expert.portfolioFiles,
+        portfolioFiles_type: typeof expert.portfolioFiles,
+        certifications: expert.certifications,
+      });
 
       // 3. User roles에 EXPERT 추가
       const user = await tx.user.findUnique({

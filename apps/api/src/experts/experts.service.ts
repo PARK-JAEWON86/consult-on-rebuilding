@@ -335,6 +335,17 @@ export class ExpertsService {
       return parts[0].trim();
     };
 
+    // 디버깅: DB에서 가져온 원본 portfolioFiles 확인
+    console.log('🔍 [Backend] Expert DB 원본 데이터:', {
+      displayId: expert.displayId,
+      portfolioFiles_raw: expert.portfolioFiles,
+      portfolioFiles_type: typeof expert.portfolioFiles,
+      certifications_raw: expert.certifications,
+    });
+
+    const parsedPortfolioFiles = parseJsonField(expert.portfolioFiles);
+    console.log('📁 [Backend] portfolioFiles 파싱 결과:', parsedPortfolioFiles);
+
     return {
       ...expert,
       // specialty 파싱하여 카테고리명만 반환
@@ -345,7 +356,7 @@ export class ExpertsService {
       consultationTypes: parseJsonField(expert.consultationTypes),
       languages: parseJsonField(expert.languages),
       education: parseJsonField(expert.education),
-      portfolioFiles: parseJsonField(expert.portfolioFiles),
+      portfolioFiles: parsedPortfolioFiles,
       portfolioItems: parseJsonField(expert.portfolioItems),
       workExperience: parseJsonField(expert.workExperience),
       // 객체 필드들을 실제 객체로 변환
@@ -505,7 +516,8 @@ export class ExpertsService {
               availability: this.safeJsonStringify({
                 ...dto.availability,
                 availabilitySlots: dto.availabilitySlots,
-                holidaySettings: dto.holidaySettings
+                holidaySettings: dto.holidaySettings,
+                restTimeSettings: dto.restTimeSettings
               }, 'availability'),
               certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
               education: this.safeJsonStringify(dto.education || [], 'education'),
@@ -620,7 +632,8 @@ export class ExpertsService {
             availability: this.safeJsonStringify({
               ...dto.availability,
               availabilitySlots: dto.availabilitySlots,
-              holidaySettings: dto.holidaySettings
+              holidaySettings: dto.holidaySettings,
+              restTimeSettings: dto.restTimeSettings
             }, 'availability'),
             certifications: this.safeJsonStringify(dto.certifications || [], 'certifications'),
             education: this.safeJsonStringify(dto.education || [], 'education'),
@@ -909,11 +922,19 @@ export class ExpertsService {
       ]
     });
 
-    // holidaySettings 추출 (availability JSON 필드에서)
+    // holidaySettings와 restTimeSettings 추출 (availability JSON 필드에서)
     const availabilityData = expert.availability as any;
     const holidaySettings = availabilityData?.holidaySettings || {
       acceptHolidayConsultations: false,
       holidayNote: ''
+    };
+    const restTimeSettings = availabilityData?.restTimeSettings || {
+      enableLunchBreak: false,
+      lunchStartTime: '12:00',
+      lunchEndTime: '13:00',
+      enableDinnerBreak: false,
+      dinnerStartTime: '18:00',
+      dinnerEndTime: '19:00'
     };
 
     // 프로필 편집에 필요한 필드들만 반환
@@ -948,9 +969,10 @@ export class ExpertsService {
       consultationStyle: expert.consultationStyle,
       workExperience: expert.workExperience,
       userId: (expert as any).userId, // userId 필드 추가
-      // 새로 추가: 예약 가능 시간과 공휴일 설정
+      // 새로 추가: 예약 가능 시간, 공휴일 설정, 휴식시간 설정
       availabilitySlots: availabilitySlots,
       holidaySettings: holidaySettings,
+      restTimeSettings: restTimeSettings,
     };
   }
 
@@ -1026,12 +1048,13 @@ export class ExpertsService {
       data: updateData,
     });
 
-    // availabilitySlots와 holidaySettings가 있으면 별도로 업데이트
-    if (profileData.availabilitySlots || profileData.holidaySettings) {
+    // availabilitySlots, holidaySettings, restTimeSettings가 있으면 별도로 업데이트
+    if (profileData.availabilitySlots || profileData.holidaySettings || profileData.restTimeSettings) {
       await this.updateAvailabilitySlots(
         displayId,
         profileData.availabilitySlots || [],
-        profileData.holidaySettings
+        profileData.holidaySettings,
+        profileData.restTimeSettings
       );
     }
 
@@ -1262,8 +1285,9 @@ export class ExpertsService {
    * @param displayId 전문가 displayId
    * @param slots 업데이트할 슬롯 목록
    * @param holidaySettings 공휴일 상담 설정
+   * @param restTimeSettings 휴식 시간 설정
    */
-  async updateAvailabilitySlots(displayId: string, slots: any[], holidaySettings?: any) {
+  async updateAvailabilitySlots(displayId: string, slots: any[], holidaySettings?: any, restTimeSettings?: any) {
     const expert = await this.prisma.expert.findUnique({
       where: { displayId },
       select: {
@@ -1298,15 +1322,16 @@ export class ExpertsService {
         });
       }
 
-      // 공휴일 설정을 availability Json 필드에 저장
-      if (holidaySettings) {
+      // 공휴일 설정과 휴식시간 설정을 availability Json 필드에 저장
+      if (holidaySettings || restTimeSettings) {
         const currentAvailability = (expert.availability as any) || {};
         await tx.expert.update({
           where: { id: expert.id },
           data: {
             availability: {
               ...currentAvailability,
-              holidaySettings
+              ...(holidaySettings && { holidaySettings }),
+              ...(restTimeSettings && { restTimeSettings })
             }
           }
         });

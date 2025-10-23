@@ -86,9 +86,11 @@ const LoginForm = () => {
       router.push(redirectUrl as any);
     } catch (err: any) {
       // 이메일 미인증 에러 처리
-      if (err.error?.code === 'E_EMAIL_NOT_VERIFIED') {
+      const errorCode = err.error?.code || err.code;
+
+      if (errorCode === 'E_EMAIL_NOT_VERIFIED') {
         setErrors({
-          general: '이메일 인증이 완료되지 않았습니다. 이메일을 확인하여 인증을 완료해주세요.'
+          general: err.message || '회원가입 인증 절차를 완료해주세요 (회원가입 탭)'
         });
       } else {
         setErrors({

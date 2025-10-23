@@ -18,7 +18,15 @@ import {
   User,
   Video,
   MessageSquare,
-  Mic
+  Mic,
+  X,
+  Coffee,
+  CalendarCheck,
+  Share2,
+  UserCircle,
+  Heart,
+  Globe,
+  Languages
 } from 'lucide-react'
 import StatusBadge from '@/components/admin/common/StatusBadge'
 import { api } from '@/lib/api'
@@ -47,6 +55,14 @@ interface ApplicationDetail {
     holidaySettings?: {
       acceptHolidayConsultations: boolean
       holidayNote: string
+    }
+    restTimeSettings?: {
+      enableLunchBreak: boolean
+      lunchStartTime: string
+      lunchEndTime: string
+      enableDinnerBreak: boolean
+      dinnerStartTime: string
+      dinnerEndTime: string
     }
     certifications: Array<{ name: string; issuer: string; year?: string }>
     education: Array<{ school: string; major: string; degree: string }>
@@ -118,6 +134,7 @@ export default function ApplicationDetailPage() {
   const [selectedRequestItems, setSelectedRequestItems] = useState<string[]>([])
   const [selectedRejectionReasons, setSelectedRejectionReasons] = useState<string[]>([])
   const [isUpdatingStage, setIsUpdatingStage] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
   useEffect(() => {
     loadApplicationDetail()
@@ -263,7 +280,10 @@ export default function ApplicationDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* 프로필 사진 & 기본 정보 */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-gray-700" />
+              기본 정보
+            </h2>
             <div className="flex flex-col md:flex-row gap-6">
               {/* 프로필 이미지 */}
               {application.profileImage ? (
@@ -317,7 +337,10 @@ export default function ApplicationDetailPage() {
 
           {/* 자기소개 */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">자기소개</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-700" />
+              자기소개
+            </h2>
             <p className="text-gray-700 whitespace-pre-wrap">{application.bio}</p>
           </div>
 
@@ -326,19 +349,24 @@ export default function ApplicationDetailPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                포트폴리오
+                자격증 & 포트폴리오 이미지
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {application.portfolioImages.map((imageUrl: string, index: number) => (
-                  <div key={index} className="relative group">
+                  <div
+                    key={index}
+                    className="relative group cursor-pointer"
+                    onClick={() => setSelectedImage(imageUrl)}
+                  >
                     <img
                       src={imageUrl}
                       alt={`포트폴리오 ${index + 1}`}
-                      className="w-full h-48 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => window.open(imageUrl, '_blank')}
+                      className="w-full h-auto object-contain rounded-lg border-2 border-gray-200 hover:border-blue-400 transition-colors"
                     />
-                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                      {index + 1} / {application.portfolioImages?.length || 0}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
+                      <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 px-3 py-1 rounded">
+                        확대 보기
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -352,7 +380,10 @@ export default function ApplicationDetailPage() {
               {/* MBTI */}
               {application.mbti && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">MBTI</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <UserCircle className="w-5 h-5 text-gray-700" />
+                    MBTI
+                  </h2>
                   <p className="text-2xl font-bold text-blue-600">{application.mbti}</p>
                 </div>
               )}
@@ -360,7 +391,10 @@ export default function ApplicationDetailPage() {
               {/* 상담 스타일 */}
               {application.consultationStyle && (
                 <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">상담 스타일</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-gray-700" />
+                    상담 스타일
+                  </h2>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                     {application.consultationStyle}
                   </p>
@@ -374,7 +408,10 @@ export default function ApplicationDetailPage() {
             {/* 상담 유형 */}
             {application.consultationTypes && Array.isArray(application.consultationTypes) && application.consultationTypes.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">상담 유형</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-gray-700" />
+                  상담 유형
+                </h2>
                 <div className="flex flex-wrap gap-2">
                   {application.consultationTypes.map((type, index) => {
                     const getTypeConfig = (type: string) => {
@@ -408,7 +445,10 @@ export default function ApplicationDetailPage() {
             {/* 구사 언어 */}
             {application.languages && Array.isArray(application.languages) && application.languages.length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">구사 언어</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Languages className="w-5 h-5 text-gray-700" />
+                  구사 언어
+                </h2>
                 <div className="flex flex-wrap gap-2">
                   {application.languages.map((language, index) => (
                     <span
@@ -567,18 +607,59 @@ export default function ApplicationDetailPage() {
               {/* Holiday Settings */}
               {(application.holidaySettings || application.availability?.holidaySettings) && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-start gap-2">
-                    <span className="text-sm text-gray-700">
-                      {(application.holidaySettings?.acceptHolidayConsultations || application.availability?.holidaySettings?.acceptHolidayConsultations)
-                        ? '✅ 공휴일 상담 가능'
-                        : '⛔ 공휴일 상담 불가'}
-                    </span>
+                  <div className="flex items-start gap-2 mb-3">
+                    <CalendarCheck className="w-5 h-5 text-gray-700 mt-0.5" />
+                    <span className="text-base font-semibold text-gray-900">공휴일 상담 설정</span>
+                  </div>
+                  <div className="flex items-start gap-2 ml-7">
+                    {(application.holidaySettings?.acceptHolidayConsultations || application.availability?.holidaySettings?.acceptHolidayConsultations) ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">공휴일 상담 가능</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">공휴일 상담 불가</span>
+                      </>
+                    )}
                   </div>
                   {(application.holidaySettings?.holidayNote || application.availability?.holidaySettings?.holidayNote) && (
-                    <p className="text-sm text-gray-600 mt-2 bg-gray-50 rounded p-2">
+                    <p className="text-sm text-gray-600 mt-2 ml-7 bg-gray-50 rounded p-2">
                       {application.holidaySettings?.holidayNote || application.availability?.holidaySettings?.holidayNote}
                     </p>
                   )}
+                </div>
+              )}
+              {/* Rest Time Settings */}
+              {(application.restTimeSettings || application.availability?.restTimeSettings) && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-start gap-2 mb-3">
+                    <Coffee className="w-5 h-5 text-gray-700 mt-0.5" />
+                    <span className="text-base font-semibold text-gray-900">휴게시간 설정</span>
+                  </div>
+                  <div className="space-y-2 ml-7">
+                    {(application.restTimeSettings?.enableLunchBreak || application.availability?.restTimeSettings?.enableLunchBreak) && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <span className="text-orange-600">점심시간:</span>
+                        <span className="font-medium">
+                          {application.restTimeSettings?.lunchStartTime || application.availability?.restTimeSettings?.lunchStartTime}
+                          {' ~ '}
+                          {application.restTimeSettings?.lunchEndTime || application.availability?.restTimeSettings?.lunchEndTime}
+                        </span>
+                      </div>
+                    )}
+                    {(application.restTimeSettings?.enableDinnerBreak || application.availability?.restTimeSettings?.enableDinnerBreak) && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <span className="text-purple-600">저녁시간:</span>
+                        <span className="font-medium">
+                          {application.restTimeSettings?.dinnerStartTime || application.availability?.restTimeSettings?.dinnerStartTime}
+                          {' ~ '}
+                          {application.restTimeSettings?.dinnerEndTime || application.availability?.restTimeSettings?.dinnerEndTime}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -587,7 +668,10 @@ export default function ApplicationDetailPage() {
           {/* 소셜 링크 */}
           {application.socialLinks && typeof application.socialLinks === 'object' && Object.values(application.socialLinks).some(link => link) && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">소셜 링크</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-gray-700" />
+                소셜 링크
+              </h2>
               <div className="space-y-3">
                 {application.socialLinks.website && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -990,6 +1074,33 @@ export default function ApplicationDetailPage() {
                 {isSubmitting ? '처리 중...' : reviewAction === 'approve' ? '승인' : reviewAction === 'request-info' ? '요청 전송' : '거절'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 이미지 확대 모달 */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full transition-colors"
+            aria-label="닫기"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+          <div className="max-w-7xl max-h-full w-full h-full flex items-center justify-center">
+            <img
+              src={selectedImage}
+              alt="포트폴리오 확대 보기"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-full">
+            클릭하면 닫힙니다
           </div>
         </div>
       )}
