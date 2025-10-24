@@ -126,4 +126,43 @@ export class UpdateExpertProfileDto {
   @IsOptional()
   @IsBoolean()
   isProfileComplete?: boolean;
+
+  // 추가 필드들
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  hourlyRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  creditsPerMinute?: number;
+
+  @IsOptional()
+  @IsString()
+  level?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  averageSessionDuration?: number;
+
+  // 예약 가능 시간 슬롯
+  @IsOptional()
+  @IsArray()
+  availabilitySlots?: any[];
+
+  // 휴무 설정
+  @IsOptional()
+  @IsObject()
+  holidaySettings?: any;
+
+  // 휴식 시간 설정
+  @IsOptional()
+  @IsObject()
+  restTimeSettings?: any;
 }

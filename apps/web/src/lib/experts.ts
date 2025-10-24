@@ -42,7 +42,9 @@ export async function fetchExperts(params?: {
 }
 
 export async function fetchExpertById(displayId: string): Promise<ApiResponse<Expert>> {
-  const response = await api.get(`/experts/${displayId}`);
+  // 프로필 상세 정보 (availabilitySlots, holidaySettings, restTimeSettings 포함)를 가져오기 위해
+  // /experts/${displayId}/profile 엔드포인트 사용
+  const response = await api.get(`/experts/${displayId}/profile`);
   return response;
 }
 

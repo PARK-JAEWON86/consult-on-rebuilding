@@ -12,7 +12,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 
 type ConsultationType = "video" | "chat" | "voice";
 
-type Availability = Record<
+type Availability = Partial<Record<
   | "monday"
   | "tuesday"
   | "wednesday"
@@ -21,7 +21,7 @@ type Availability = Record<
   | "saturday"
   | "sunday",
   { available: boolean; hours: string }
->;
+>>;
 
 type PortfolioFile = {
   id: number;
@@ -247,15 +247,7 @@ export default function ExpertProfileEditPage() {
             averageSessionDuration: 60,
             reviewCount: 0,
             cancellationPolicy: '24시간 전 취소 가능',
-            availability: {
-              monday: { available: false, hours: "09:00-18:00" },
-              tuesday: { available: false, hours: "09:00-18:00" },
-              wednesday: { available: false, hours: "09:00-18:00" },
-              thursday: { available: false, hours: "09:00-18:00" },
-              friday: { available: false, hours: "09:00-18:00" },
-              saturday: { available: false, hours: "09:00-18:00" },
-              sunday: { available: false, hours: "09:00-18:00" },
-            },
+            availability: {}, // 하드코딩 제거, 빈 객체로 초기화
             holidayPolicy: "",
             contactInfo: {
               phone: "",
@@ -264,14 +256,7 @@ export default function ExpertProfileEditPage() {
               website: ""
             },
             profileImage: null,
-            portfolioFiles: [
-              { id: 1, name: "상담 사례 연구", type: "pdf", size: 2048, data: "" },
-              { id: 2, name: "전문 자격증", type: "jpg", size: 1024, data: "" },
-              { id: 3, name: "상담 후기 모음", type: "pdf", size: 3072, data: "" },
-              { id: 4, name: "학회 발표 자료", type: "ppt", size: 4096, data: "" },
-              { id: 5, name: "논문 발표", type: "pdf", size: 2560, data: "" },
-              { id: 6, name: "워크샵 자료", type: "pdf", size: 1536, data: "" }
-            ],
+            portfolioFiles: [], // 더미 데이터 제거, 빈 배열로 초기화
             socialProof: {
               linkedIn: "",
               website: "",
@@ -345,18 +330,10 @@ export default function ExpertProfileEditPage() {
           // 정책 정보
           cancellationPolicy: expertProfile.cancellationPolicy || '24시간 전 취소 가능',
 
-          // 예약 가능 시간 - 백엔드 availability JSON 객체
+          // 예약 가능 시간 - 백엔드 availability JSON 객체 (하드코딩 제거, DB 데이터만 사용)
           availability: expertProfile.availability && typeof expertProfile.availability === 'object'
             ? expertProfile.availability
-            : {
-                monday: { available: false, hours: "09:00-18:00" },
-                tuesday: { available: false, hours: "09:00-18:00" },
-                wednesday: { available: false, hours: "09:00-18:00" },
-                thursday: { available: false, hours: "09:00-18:00" },
-                friday: { available: false, hours: "09:00-18:00" },
-                saturday: { available: false, hours: "09:00-18:00" },
-                sunday: { available: false, hours: "09:00-18:00" },
-              },
+            : {},
 
           holidayPolicy: expertProfile.holidayPolicy ||
             (expertProfile.availability?.holidaySettings?.holidayNote) || "",
@@ -388,6 +365,16 @@ export default function ExpertProfileEditPage() {
           holidaySettings: expertProfile.holidaySettings || {
             acceptHolidayConsultations: expertProfile.availability?.holidaySettings?.acceptHolidayConsultations || false,
             holidayNote: expertProfile.availability?.holidaySettings?.holidayNote || ''
+          },
+
+          // restTimeSettings - 백엔드에서 추출된 휴식시간 설정
+          restTimeSettings: expertProfile.restTimeSettings || {
+            enableLunchBreak: expertProfile.availability?.restTimeSettings?.enableLunchBreak || false,
+            lunchStartTime: expertProfile.availability?.restTimeSettings?.lunchStartTime || '12:00',
+            lunchEndTime: expertProfile.availability?.restTimeSettings?.lunchEndTime || '13:00',
+            enableDinnerBreak: expertProfile.availability?.restTimeSettings?.enableDinnerBreak || false,
+            dinnerStartTime: expertProfile.availability?.restTimeSettings?.dinnerStartTime || '18:00',
+            dinnerEndTime: expertProfile.availability?.restTimeSettings?.dinnerEndTime || '19:00'
           },
 
           // 프로필 이미지 - avatarUrl을 profileImage로 매핑
@@ -488,14 +475,44 @@ export default function ExpertProfileEditPage() {
         throw new Error('전문가 displayId를 찾을 수 없습니다.');
       }
 
-      // 실제 데이터베이스 API 호출
-      const response = await api.put(`/experts/${currentDisplayId}/profile`, {
-        ...updated,
-        id: currentExpertId,
+      // 1️⃣ 프로필 데이터와 availability 데이터 분리
+      const updatedWithAvailability = updated as any;
+      const { availabilitySlots, holidaySettings, restTimeSettings, ...profileData } = updatedWithAvailability;
+
+      console.log('📤 저장할 데이터 분리:', {
+        profileData: Object.keys(profileData),
+        availabilityData: { availabilitySlots, holidaySettings, restTimeSettings }
       });
 
+      // 2️⃣ 프로필 정보 저장 (기본 정보)
+      const profileResponse = await api.put(`/experts/${currentDisplayId}/profile`, profileData);
+
+      if (!profileResponse.success) {
+        throw new Error(profileResponse.error?.message || '프로필 저장 실패');
+      }
+
+      console.log('✅ 프로필 저장 성공:', profileResponse);
+
+      // 3️⃣ 예약 가능 시간, 공휴일 설정, 휴식시간 설정 저장
+      if (availabilitySlots || holidaySettings || restTimeSettings) {
+        const availabilityResponse = await api.put(`/experts/${currentDisplayId}/availability`, {
+          slots: availabilitySlots || [],
+          holidaySettings: holidaySettings,
+          restTimeSettings: restTimeSettings
+        });
+
+        if (!availabilityResponse.success) {
+          console.warn('⚠️ Availability 저장 실패:', availabilityResponse.error);
+          // 프로필은 저장되었으므로 경고만 표시
+        } else {
+          console.log('✅ Availability 저장 성공:', availabilityResponse);
+        }
+      }
+
+      const response = profileResponse; // 기존 코드 호환성을 위해
+
       if (response.success) {
-        console.log('✅ API 저장 성공:', response);
+        console.log('✅ 전체 저장 완료');
 
         // 로컬 상태 업데이트
         setInitialData(updated);
@@ -538,6 +555,18 @@ export default function ExpertProfileEditPage() {
 
         localStorage.setItem(`expertProfile_${currentExpertId}`, JSON.stringify(storageData));
         localStorage.setItem("approvedExpertProfile", JSON.stringify(updated));
+
+        // 4️⃣ 저장 후 최신 데이터 다시 조회 (availability 데이터 포함)
+        console.log('🔄 최신 데이터 재조회 시작...');
+        const refreshedData = await api.get(`/experts/${currentDisplayId}/profile`);
+
+        if (refreshedData.success) {
+          console.log('✅ 최신 데이터 조회 성공:', refreshedData.data);
+          // 조회한 최신 데이터로 상태 업데이트
+          setInitialData(refreshedData.data);
+        } else {
+          console.warn('⚠️ 최신 데이터 조회 실패, 기존 데이터 사용');
+        }
 
         // React Query 캐시 무효화 (미리보기 실시간 업데이트)
         queryClient.invalidateQueries({ queryKey: ['expert-profile-live', currentExpertId] });
@@ -823,46 +852,58 @@ export default function ExpertProfileEditPage() {
                 reviewCount: initialData?.reviewCount || 0
               }}
               onSave={(data) => {
+                // DTO에 허용된 필드만 명시적으로 추출 (불필요한 필드 제외)
                 const convertedData = {
-                  ...data,
+                  // 기본 정보
+                  name: data.name,
+                  title: data.title,
+                  specialty: data.specialty,
+                  bio: data.bio,
                   description: data.bio,
-                  specialties: data.keywords,
+                  experience: data.experience,
+                  mbti: data.mbti,
+                  consultationStyle: data.consultationStyle,
+
+                  // 배열 필드
+                  education: data.education,
+                  certifications: data.certifications,
                   keywords: data.keywords,
+                  specialties: data.keywords, // keywords와 동일하게 설정
+                  consultationTypes: data.consultationTypes,
                   languages: ['한국어'],
-                  hourlyRate: 0,
-                  creditsPerMinute: 0,
-                  level: '',
-                  responseTime: '2시간 내',
-                  averageSessionDuration: 60,
-                  cancellationPolicy: '24시간 전 취소 가능',
-                  // availability 필드에 holidaySettings 포함
-                  availability: {
-                    monday: { available: false, hours: '09:00-18:00' },
-                    tuesday: { available: false, hours: '09:00-18:00' },
-                    wednesday: { available: false, hours: '09:00-18:00' },
-                    thursday: { available: false, hours: '09:00-18:00' },
-                    friday: { available: false, hours: '09:00-18:00' },
-                    saturday: { available: false, hours: '09:00-18:00' },
-                    sunday: { available: false, hours: '09:00-18:00' },
-                    holidaySettings: data.holidaySettings
-                  },
-                  holidayPolicy: data.holidaySettings.holidayNote,
-                  // availabilitySlots 저장
-                  availabilitySlots: data.availabilitySlots,
-                  holidaySettings: data.holidaySettings,
-                  restTimeSettings: data.restTimeSettings,
-                  // contactInfo에 socialLinks 포함
+                  portfolioFiles: data.portfolioPreviews || [],
+                  portfolioItems: data.portfolioItems,
+                  workExperience: data.workExperience,
+
+                  // 객체 필드
                   contactInfo: {
                     phone: data.phoneNumber || '',
                     email: data.email || '',
                     location: '',
                     website: data.socialLinks?.website || ''
                   },
-                  // socialLinks 저장
                   socialLinks: data.socialLinks,
-                  // portfolioPreviews를 portfolioFiles로 저장
-                  portfolioFiles: data.portfolioPreviews || [],
-                  isProfileComplete: true
+
+                  // 설정 필드
+                  responseTime: '2시간 내',
+                  cancellationPolicy: '24시간 전 취소 가능',
+                  holidayPolicy: data.holidaySettings?.holidayNote || '',
+
+                  // 프로필 관련
+                  profileImage: data.profileImage,
+                  isProfilePublic: data.isProfilePublic,
+                  isProfileComplete: true,
+
+                  // 추가 필드
+                  hourlyRate: 0,
+                  creditsPerMinute: 0,
+                  level: '',
+                  averageSessionDuration: 60,
+
+                  // 예약 관련 (하드코딩 제거, 실제 데이터만 전송)
+                  availabilitySlots: data.availabilitySlots,
+                  holidaySettings: data.holidaySettings,
+                  restTimeSettings: data.restTimeSettings
                 };
                 handleSave(convertedData as any);
               }}

@@ -35,11 +35,8 @@ import {
   X,
   Brain,
   GraduationCap,
-  Github,
   Linkedin,
-  Twitter,
   Instagram,
-  Facebook,
   Youtube,
   ChevronLeft,
   ChevronRight,
@@ -127,6 +124,11 @@ export default function ExpertProfileDetail({
   // Debug logging
   console.log('🔍 ExpertProfileDetail debug:', { displayId, isLoading, expert, error, isOwner, showEditMode });
   console.log('📊 Ranking data debug:', { isRankingLoading, rankingData });
+  console.log('📅 Availability data debug:', {
+    availabilitySlots: (expert?.data as any)?.availabilitySlots,
+    holidaySettings: (expert?.data as any)?.holidaySettings,
+    restTimeSettings: (expert?.data as any)?.restTimeSettings
+  });
 
   const handleBackClick = () => {
     if (onBackClick) {
@@ -244,6 +246,16 @@ export default function ExpertProfileDetail({
 
   // 데이터 추출 및 계산
   const expertData = expert.data;
+
+  // 공휴일 설정 디버깅
+  console.log('🔍 공휴일 설정 상세 디버그:', {
+    'expert.data 전체': expertData,
+    'holidaySettings': (expertData as any).holidaySettings,
+    'acceptHolidayConsultations': (expertData as any).holidaySettings?.acceptHolidayConsultations,
+    'holidayNote': (expertData as any).holidaySettings?.holidayNote,
+    'availability': (expertData as any).availability,
+  });
+
   const expertLevel = (expertData as any).calculatedLevel || calculateExpertLevel(
     (expertData as any).totalSessions || 0,
     expertData.ratingAvg || 0,
@@ -304,10 +316,10 @@ export default function ExpertProfileDetail({
                 {/* 왼쪽: 프로필 사진 */}
                 <div className="flex-shrink-0">
                   <div className="relative">
-                    <div className="w-36 h-48 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 flex items-center justify-center overflow-hidden">
-                      {expertData.avatarUrl ? (
+                    <div className="w-48 h-72 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 flex items-center justify-center overflow-hidden">
+                      {((expertData as any).profileImage || expertData.avatarUrl) ? (
                         <img
-                          src={expertData.avatarUrl}
+                          src={(expertData as any).profileImage || expertData.avatarUrl}
                           alt={expertData.name}
                           className="w-full h-full object-cover"
                         />
@@ -358,7 +370,7 @@ export default function ExpertProfileDetail({
                         {category}
                       </Badge>
                     ))}
-                    {(expertData as any).keywords?.slice(0, 3).map((specialty: any, index: number) => (
+                    {(expertData as any).keywords?.map((specialty: any, index: number) => (
                       <Badge key={`specialty-${index}`} variant="gray">
                         {specialty}
                       </Badge>
@@ -455,26 +467,42 @@ export default function ExpertProfileDetail({
               <div className="pt-6">
                 {activeTab === 'overview' && (
                   <div className="space-y-6">
-                    {/* MBTI 및 상담 스타일 */}
-                    {(expertData as any).mbti && (
+                    {/* 성격 유형 및 상담 스타일 */}
+                    {((expertData as any).mbti || (expertData as any).consultationStyle) && (
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-3">성격 유형 및 상담 스타일</h3>
-                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-lg p-4">
-                          <div className="flex items-start">
-                            <Brain className="h-6 w-6 text-purple-600 mr-3 mt-1 flex-shrink-0" />
-                            <div className="flex-1">
-                              <div className="mb-2">
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-lg p-4 space-y-4">
+
+                          {/* 성격 유형 (MBTI) */}
+                          {(expertData as any).mbti && (
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <Brain className="h-5 w-5 text-purple-600 mr-2" />
+                                <h4 className="font-semibold text-purple-900">성격 유형 (MBTI)</h4>
+                              </div>
+                              <div className="ml-7">
                                 <span className="inline-block bg-purple-600 text-white text-sm font-bold px-3 py-1 rounded-full">
                                   {(expertData as any).mbti}
                                 </span>
                               </div>
-                              {(expertData as any).description && (
-                                <p className="text-gray-700 text-sm leading-relaxed">
-                                  {(expertData as any).description}
-                                </p>
-                              )}
                             </div>
-                          </div>
+                          )}
+
+                          {/* 상담 스타일 */}
+                          {(expertData as any).consultationStyle && (
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <MessageCircle className="h-5 w-5 text-purple-600 mr-2" />
+                                <h4 className="font-semibold text-purple-900">상담 스타일</h4>
+                              </div>
+                              <div className="ml-7">
+                                <p className="text-gray-700 text-sm leading-relaxed">
+                                  {(expertData as any).consultationStyle}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                         </div>
                       </div>
                     )}
@@ -492,11 +520,33 @@ export default function ExpertProfileDetail({
                               <h4 className="font-semibold text-blue-900">학력</h4>
                             </div>
                             <div className="space-y-1 ml-7">
-                              {(expertData as any).education.map((edu: any, index: number) => (
-                                <p key={index} className="text-gray-700 text-sm">
-                                  {typeof edu === 'string' ? edu : `${edu.year || ''} ${edu.degree || ''} ${edu.school || ''}`.trim()}
-                                </p>
-                              ))}
+                              {(expertData as any).education.map((edu: any, index: number) => {
+                                if (typeof edu === 'string') {
+                                  return <p key={index} className="text-gray-700 text-sm">{edu}</p>;
+                                }
+
+                                // 학교 이름 - 전공 (학위) 형태로 표시
+                                const school = edu.school || '';
+                                const major = edu.major || '';
+                                const degree = edu.degree || '';
+
+                                let displayText = '';
+                                if (school && major && degree) {
+                                  displayText = `${school} - ${major} (${degree})`;
+                                } else if (school && major) {
+                                  displayText = `${school} - ${major}`;
+                                } else if (school && degree) {
+                                  displayText = `${school} (${degree})`;
+                                } else {
+                                  displayText = school || major || degree || '학력 정보';
+                                }
+
+                                return (
+                                  <p key={index} className="text-gray-700 text-sm">
+                                    {displayText}
+                                  </p>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -537,10 +587,7 @@ export default function ExpertProfileDetail({
 
                     {/* 자격증 섹션 */}
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <Award className="h-5 w-5 text-blue-600 mr-2" />
-                        자격증 및 포트폴리오
-                      </h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">자격증</h3>
                       {(expertData as any).certifications && (expertData as any).certifications.length > 0 ? (
                         <div className="bg-green-50 border border-green-100 rounded-lg p-4">
                           <div className="grid gap-3">
@@ -586,33 +633,41 @@ export default function ExpertProfileDetail({
                           // 4개 이하일 때는 기존 그리드 레이아웃
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {(expertData as any).portfolioFiles.map((file: any, index: number) => {
-                              const isImage = file.type?.startsWith('image/');
+                              // file이 문자열(URL)이면 객체로 변환, 아니면 그대로 사용
+                              const fileData = typeof file === 'string'
+                                ? { url: file, data: file, name: `포트폴리오 ${index + 1}`, type: 'image/jpeg', size: 0 }
+                                : file;
+                              const imageUrl = fileData.url || fileData.data || fileData;
+                              const isImage = typeof imageUrl === 'string' && (imageUrl.startsWith('data:image/') || imageUrl.startsWith('http'));
+
                               return (
                                 <div key={index} className="bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
                                   {isImage ? (
                                     // 이미지 파일 - 미리보기와 확대 기능
                                     <div className="relative">
                                       <img
-                                        src={file.url}
-                                        alt={file.name}
+                                        src={imageUrl}
+                                        alt={fileData.name || `포트폴리오 ${index + 1}`}
                                         className="w-full aspect-[3/4] object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                                        onClick={() => setSelectedImage(file.url)}
+                                        onClick={() => setSelectedImage(imageUrl)}
                                       />
                                       <div className="absolute top-2 right-2">
                                         <button
-                                          onClick={() => setSelectedImage(file.url)}
+                                          onClick={() => setSelectedImage(imageUrl)}
                                           className="p-1 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
                                           title="확대해서 보기"
                                         >
                                           <ZoomIn className="h-4 w-4" />
                                         </button>
                                       </div>
-                                      <div className="p-2">
-                                        <h4 className="text-xs font-medium text-gray-900 truncate">{file.name}</h4>
-                                        <div className="flex items-center space-x-1 text-xs text-gray-500 mt-1">
-                                          <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                                      {fileData.name && fileData.size > 0 && (
+                                        <div className="p-2">
+                                          <h4 className="text-xs font-medium text-gray-900 truncate">{fileData.name}</h4>
+                                          <div className="flex items-center space-x-1 text-xs text-gray-500 mt-1">
+                                            <span>{(fileData.size / 1024 / 1024).toFixed(1)} MB</span>
+                                          </div>
                                         </div>
-                                      </div>
+                                      )}
                                     </div>
                                   ) : (
                                     // 문서 파일 - 아이콘과 정보만 표시
@@ -621,15 +676,19 @@ export default function ExpertProfileDetail({
                                         <FileText className="h-8 w-8 text-blue-600" />
                                       </div>
                                       <div className="text-center">
-                                        <h4 className="text-xs font-medium text-gray-900 truncate w-full">{file.name}</h4>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                          <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                                        </div>
-                                        <div className="mt-2">
-                                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                            {file.type?.split('/')[1]?.toUpperCase()}
-                                          </span>
-                                        </div>
+                                        <h4 className="text-xs font-medium text-gray-900 truncate w-full">{fileData.name}</h4>
+                                        {fileData.size > 0 && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            <span>{(fileData.size / 1024 / 1024).toFixed(1)} MB</span>
+                                          </div>
+                                        )}
+                                        {fileData.type && (
+                                          <div className="mt-2">
+                                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                              {fileData.type.split('/')[1]?.toUpperCase()}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -668,21 +727,26 @@ export default function ExpertProfileDetail({
                             {/* 포트폴리오 슬라이드 */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               {(expertData as any).portfolioFiles.slice(currentPortfolioIndex, currentPortfolioIndex + 4).map((file: any, index: number) => {
-                                const isImage = file.type?.startsWith('image/');
+                                // file이 문자열(URL)이면 객체로 변환, 아니면 그대로 사용
+                                const fileData = typeof file === 'string'
+                                  ? { url: file, data: file, name: `포트폴리오 ${currentPortfolioIndex + index + 1}`, type: 'image/jpeg', size: 0 }
+                                  : file;
+                                const imageUrl = fileData.url || fileData.data || fileData;
+                                const isImage = typeof imageUrl === 'string' && (imageUrl.startsWith('data:image/') || imageUrl.startsWith('http'));
                                 return (
                                   <div key={currentPortfolioIndex + index} className="bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
                                     {isImage ? (
                                       // 이미지 파일 - 미리보기와 확대 기능
                                       <div className="relative">
                                         <img
-                                          src={file.url}
-                                          alt={file.name}
+                                          src={imageUrl}
+                                          alt={fileData.name}
                                           className="w-full aspect-[3/4] object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
-                                          onClick={() => setSelectedImage(file.url)}
+                                          onClick={() => setSelectedImage(imageUrl)}
                                         />
                                         <div className="absolute top-2 right-2">
                                           <button
-                                            onClick={() => setSelectedImage(file.url)}
+                                            onClick={() => setSelectedImage(imageUrl)}
                                             className="p-1 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
                                             title="확대해서 보기"
                                           >
@@ -690,10 +754,12 @@ export default function ExpertProfileDetail({
                                           </button>
                                         </div>
                                         <div className="p-2">
-                                          <h4 className="text-xs font-medium text-gray-900 truncate">{file.name}</h4>
-                                          <div className="flex items-center space-x-1 text-xs text-gray-500 mt-1">
-                                            <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                                          </div>
+                                          <h4 className="text-xs font-medium text-gray-900 truncate">{fileData.name}</h4>
+                                          {fileData.size > 0 && (
+                                            <div className="flex items-center space-x-1 text-xs text-gray-500 mt-1">
+                                              <span>{(fileData.size / 1024 / 1024).toFixed(1)} MB</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     ) : (
@@ -703,13 +769,15 @@ export default function ExpertProfileDetail({
                                           <FileText className="h-8 w-8 text-blue-600" />
                                         </div>
                                         <div className="text-center">
-                                          <h4 className="text-xs font-medium text-gray-900 truncate w-full">{file.name}</h4>
-                                          <div className="text-xs text-gray-500 mt-1">
-                                            <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                                          </div>
+                                          <h4 className="text-xs font-medium text-gray-900 truncate w-full">{fileData.name}</h4>
+                                          {fileData.size > 0 && (
+                                            <div className="text-xs text-gray-500 mt-1">
+                                              <span>{(fileData.size / 1024 / 1024).toFixed(1)} MB</span>
+                                            </div>
+                                          )}
                                           <div className="mt-2">
                                             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                              {file.type?.split('/')[1]?.toUpperCase()}
+                                              {fileData.type?.split('/')[1]?.toUpperCase()}
                                             </span>
                                           </div>
                                         </div>
@@ -729,37 +797,15 @@ export default function ExpertProfileDetail({
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-3">소셜 미디어</h3>
                         <div className="flex flex-wrap gap-4">
-                          {(expertData as any).socialLinks.linkedin && (
+                          {(expertData as any).socialLinks.website && (
                             <a
-                              href={(expertData as any).socialLinks.linkedin}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center space-x-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors border border-blue-100"
-                            >
-                              <Linkedin className="h-4 w-4" />
-                              <span className="text-sm font-medium">LinkedIn</span>
-                            </a>
-                          )}
-                          {(expertData as any).socialLinks.github && (
-                            <a
-                              href={(expertData as any).socialLinks.github}
+                              href={(expertData as any).socialLinks.website}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center space-x-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors border border-gray-200"
                             >
-                              <Github className="h-4 w-4" />
-                              <span className="text-sm font-medium">GitHub</span>
-                            </a>
-                          )}
-                          {(expertData as any).socialLinks.twitter && (
-                            <a
-                              href={(expertData as any).socialLinks.twitter}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center space-x-2 px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg transition-colors border border-sky-100"
-                            >
-                              <Twitter className="h-4 w-4" />
-                              <span className="text-sm font-medium">Twitter</span>
+                              <Globe className="h-4 w-4" />
+                              <span className="text-sm font-medium">웹사이트</span>
                             </a>
                           )}
                           {(expertData as any).socialLinks.instagram && (
@@ -773,17 +819,6 @@ export default function ExpertProfileDetail({
                               <span className="text-sm font-medium">Instagram</span>
                             </a>
                           )}
-                          {(expertData as any).socialLinks.facebook && (
-                            <a
-                              href={(expertData as any).socialLinks.facebook}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center space-x-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors border border-blue-100"
-                            >
-                              <Facebook className="h-4 w-4" />
-                              <span className="text-sm font-medium">Facebook</span>
-                            </a>
-                          )}
                           {(expertData as any).socialLinks.youtube && (
                             <a
                               href={(expertData as any).socialLinks.youtube}
@@ -795,37 +830,31 @@ export default function ExpertProfileDetail({
                               <span className="text-sm font-medium">YouTube</span>
                             </a>
                           )}
+                          {(expertData as any).socialLinks.linkedin && (
+                            <a
+                              href={(expertData as any).socialLinks.linkedin}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center space-x-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors border border-blue-100"
+                            >
+                              <Linkedin className="h-4 w-4" />
+                              <span className="text-sm font-medium">LinkedIn</span>
+                            </a>
+                          )}
+                          {(expertData as any).socialLinks.blog && (
+                            <a
+                              href={(expertData as any).socialLinks.blog}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center space-x-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors border border-green-100"
+                            >
+                              <Globe className="h-4 w-4" />
+                              <span className="text-sm font-medium">블로그</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     )}
-
-                    {/* 상담 정보 */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">상담 정보</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">분당 상담료</span>
-                          <span className="font-semibold text-gray-900">
-                            {creditsPerMinute} 크레딧
-                            <span className="text-sm text-gray-500 ml-1">
-                              (Lv.{expertLevel} | {tierInfo?.name || (expertData as any).level || 'Iron (아이언)'})
-                            </span>
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">취소 정책</span>
-                          <span className="text-gray-900">
-                            {(expertData as any).cancellationPolicy || "24시간 전 취소 가능"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">일정 변경</span>
-                          <span className="text-gray-900">
-                            {(expertData as any).reschedulePolicy || "12시간 전 일정 변경 가능"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
 
                   </div>
                 )}
@@ -875,17 +904,17 @@ export default function ExpertProfileDetail({
                             <Calendar className="h-5 w-5 text-blue-600 mr-2" />
                             <h4 className="text-sm font-semibold text-blue-900">주간 예약 가능 시간</h4>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-7 gap-2">
                             {(() => {
                               // 요일별로 그룹화
                               const dayMapping: Record<string, string> = {
-                                'MONDAY': '월요일',
-                                'TUESDAY': '화요일',
-                                'WEDNESDAY': '수요일',
-                                'THURSDAY': '목요일',
-                                'FRIDAY': '금요일',
-                                'SATURDAY': '토요일',
-                                'SUNDAY': '일요일'
+                                'MONDAY': '월',
+                                'TUESDAY': '화',
+                                'WEDNESDAY': '수',
+                                'THURSDAY': '목',
+                                'FRIDAY': '금',
+                                'SATURDAY': '토',
+                                'SUNDAY': '일'
                               };
 
                               const availabilityByDay = (expertData as any).availabilitySlots.reduce((acc: any, slot: any) => {
@@ -895,30 +924,33 @@ export default function ExpertProfileDetail({
                                 return acc;
                               }, {});
 
-                              // 요일 순서 정렬
+                              // 요일 순서 정렬 (월~일)
                               const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-                              const sortedDays = dayOrder.filter(day => availabilityByDay[day]);
 
-                              return sortedDays.map(day => {
-                                const daySlots = availabilityByDay[day].sort((a: any, b: any) =>
+                              return dayOrder.map(day => {
+                                const daySlots = availabilityByDay[day]?.sort((a: any, b: any) =>
                                   a.startTime.localeCompare(b.startTime)
-                                );
+                                ) || [];
 
                                 return (
                                   <div key={day} className="space-y-2">
-                                    <h5 className="text-sm font-medium text-gray-900 flex items-center">
-                                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                                    <h5 className="text-xs font-semibold text-center text-gray-900 bg-blue-100 py-1 rounded">
                                       {dayMapping[day]}
                                     </h5>
                                     <div className="space-y-1">
-                                      {daySlots.map((slot: any, index: number) => (
-                                        <div key={index} className="text-sm text-gray-700 ml-4">
-                                          <span className="inline-flex items-center px-2 py-1 bg-white border border-gray-200 rounded text-xs">
-                                            <Clock className="h-3 w-3 mr-1 text-gray-500" />
-                                            {slot.startTime} - {slot.endTime}
-                                          </span>
+                                      {daySlots.length > 0 ? (
+                                        daySlots.map((slot: any, index: number) => (
+                                          <div key={index} className="text-xs text-gray-700 text-center">
+                                            <div className="bg-white border border-gray-200 rounded px-1 py-1">
+                                              {slot.startTime}<br/>-<br/>{slot.endTime}
+                                            </div>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <div className="text-xs text-gray-400 text-center py-1">
+                                          -
                                         </div>
-                                      ))}
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -928,17 +960,47 @@ export default function ExpertProfileDetail({
                         </div>
 
                         {/* 공휴일 상담 안내 */}
-                        {(expertData as any).holidaySettings?.acceptHolidayConsultations && (
+                        {(() => {
+                          const shouldShow = (expertData as any).holidaySettings?.acceptHolidayConsultations;
+                          console.log('🎄 공휴일 상담 섹션 표시 조건:', {
+                            shouldShow,
+                            holidaySettings: (expertData as any).holidaySettings,
+                            acceptHolidayConsultations: (expertData as any).holidaySettings?.acceptHolidayConsultations,
+                          });
+                          return shouldShow;
+                        })() && (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                             <div className="flex items-center mb-2">
                               <Calendar className="h-5 w-5 text-green-600 mr-2" />
-                              <h4 className="text-sm font-semibold text-green-900">공휴일 상담 가능</h4>
+                              <h4 className="text-sm font-semibold text-green-900">공휴일 상담 설정</h4>
                             </div>
-                            {(expertData as any).holidaySettings?.holidayNote && (
-                              <p className="text-sm text-green-700 ml-7">
-                                {(expertData as any).holidaySettings.holidayNote}
-                              </p>
-                            )}
+                            <p className="text-sm text-green-700 ml-7">
+                              {(expertData as any).holidaySettings?.holidayNote || '공휴일에도 예약을 받습니다.'}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* 휴식시간 설정 */}
+                        {((expertData as any).restTimeSettings?.enableLunchBreak || (expertData as any).restTimeSettings?.enableDinnerBreak) && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                            <div className="flex items-center mb-2">
+                              <Clock className="h-5 w-5 text-orange-600 mr-2" />
+                              <h4 className="text-sm font-semibold text-orange-900">휴식 시간 설정</h4>
+                            </div>
+                            <div className="space-y-2 ml-7">
+                              {(expertData as any).restTimeSettings?.enableLunchBreak && (
+                                <div className="flex items-center text-sm text-orange-700">
+                                  <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                                  점심시간: {(expertData as any).restTimeSettings.lunchStartTime} - {(expertData as any).restTimeSettings.lunchEndTime}
+                                </div>
+                              )}
+                              {(expertData as any).restTimeSettings?.enableDinnerBreak && (
+                                <div className="flex items-center text-sm text-orange-700">
+                                  <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                                  저녁시간: {(expertData as any).restTimeSettings.dinnerStartTime} - {(expertData as any).restTimeSettings.dinnerEndTime}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
 

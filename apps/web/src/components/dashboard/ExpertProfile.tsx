@@ -336,7 +336,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
         {/* 기본 정보 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start space-x-6 mb-6">
-            <div className="w-32 h-40 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
+            <div className="w-40 h-60 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
               {formData.profileImage ? (
                 <img
                   src={formData.profileImage}
@@ -436,7 +436,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
           <div className="flex items-center space-x-4">
             <div className="relative">
               {formData.profileImage ? (
-                <div className="w-32 h-40 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
+                <div className="w-40 h-60 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
                   <img
                     src={formData.profileImage}
                     alt={formData.name}
@@ -444,7 +444,7 @@ const ExpertProfile = forwardRef<any, ExpertProfileProps>(({
                   />
                 </div>
               ) : (
-                <div className="w-32 h-40 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <div className="w-40 h-60 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
                   <User className="h-20 w-20 text-blue-600" />
                 </div>
               )}
