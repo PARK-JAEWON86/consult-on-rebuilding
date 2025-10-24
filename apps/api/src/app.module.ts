@@ -27,6 +27,7 @@ import { ChatModule } from './chat/chat.module'
 import { SettlementsModule } from './settlements/settlements.module'
 import { AdminModule } from './admin/admin.module'
 import { NotificationsModule } from './notifications/notifications.module'
+import { InquiryModule } from './inquiry/inquiry.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -61,6 +62,7 @@ import { validateEnv } from './config/env.schema'
     ChatModule,
     SettlementsModule,
     NotificationsModule,
+    InquiryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

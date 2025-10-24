@@ -231,32 +231,37 @@ export default function ExpertPayoutsPage() {
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
         {/* 헤더 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">정산/출금</h1>
-            <p className="text-gray-600 mt-1">
-              완료된 상담 기준 정산 내역과 출금 요청을 관리합니다.
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={downloadCSV}
-              className="flex items-center h-10 px-4 rounded-md border text-sm hover:bg-gray-50"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              CSV 다운로드
-            </button>
-            <button
-              onClick={() => {
-                if (currentExpertId) {
-                  loadSettlementData(currentExpertId);
-                }
-              }}
-              className="flex items-center h-10 px-4 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              새로고침
-            </button>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-8 w-8 text-blue-600" />
+                <h1 className="text-3xl font-bold text-blue-900">정산/출금</h1>
+              </div>
+              <p className="text-blue-700 mt-1">
+                완료된 상담 기준 정산 내역과 출금 요청을 관리합니다.
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={downloadCSV}
+                className="flex items-center h-10 px-4 rounded-md border text-sm hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                CSV 다운로드
+              </button>
+              <button
+                onClick={() => {
+                  if (currentExpertId) {
+                    loadSettlementData(currentExpertId);
+                  }
+                }}
+                className="flex items-center h-10 px-4 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                새로고침
+              </button>
+            </div>
           </div>
         </div>
 

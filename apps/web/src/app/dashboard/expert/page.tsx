@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { api } from '@/lib/api';
+import { LayoutDashboard } from 'lucide-react';
 
 interface ExpertStats {
   totalConsultations: number;
@@ -113,15 +114,16 @@ export default function ExpertDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <LayoutDashboard className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold text-blue-900">
             환영합니다, {user.name} 전문가님!
           </h1>
-          <p className="text-blue-700 mt-1">
-            전문가 대시보드에서 상담 일정과 수익을 관리하세요
-          </p>
         </div>
+        <p className="text-blue-700 mt-1">
+          전문가 대시보드에서 상담 일정과 수익을 관리하세요
+        </p>
       </div>
 
       {/* 통계 카드들 */}

@@ -39,6 +39,7 @@ model User {
   chatSessions          ChatSession[]
   aiUsage               AIUsage?
   creditTransactions    CreditTransaction[]
+  clientInquiries       Inquiry[]            @relation("ClientInquiries")
 
   @@unique([provider, providerId])
 }
@@ -98,6 +99,7 @@ model Expert {
   categoryLinks      ExpertCategory[]
   reservations       Reservation[]
   reviews            Review[]
+  expertInquiries    Inquiry[]            @relation("ExpertInquiries")
 
   @@index([ratingAvg], map: "idx_expert_ratingAvg")
   @@index([reviewCount], map: "idx_expert_reviewCount")
@@ -703,4 +705,58 @@ enum AdminRole {
   ADMIN
   MODERATOR
   ANALYST
+}
+
+// ==========================================
+// Inquiry System
+// ==========================================
+
+model Inquiry {
+  id          String   @id @default(uuid())
+
+  // 관계
+  clientId    Int
+  client      User     @relation("ClientInquiries", fields: [clientId], references: [id], onDelete: Cascade)
+
+  expertId    Int
+  expert      Expert   @relation("ExpertInquiries", fields: [expertId], references: [id], onDelete: Cascade)
+
+  // 문의 내용
+  subject     String   @db.VarChar(200)
+  content     String   @db.Text
+  category    InquiryCategory
+
+  // 상태
+  isRead      Boolean  @default(false)
+
+  // 답변 관계
+  reply       InquiryReply?
+
+  // 타임스탬프
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId, createdAt])
+  @@index([expertId, isRead, createdAt])
+  @@index([expertId, createdAt])
+}
+
+model InquiryReply {
+  id          String   @id @default(uuid())
+
+  inquiryId   String   @unique
+  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  content     String   @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum InquiryCategory {
+  SCHEDULE
+  TIME
+  PRICE
+  METHOD
+  OTHER
 }

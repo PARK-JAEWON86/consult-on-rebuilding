@@ -147,20 +147,30 @@ export default function ExpertReservationManager({ expertId }: ExpertReservation
   return (
     <div className="space-y-6">
       {/* 헤더 및 필터 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">예약 관리</h2>
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="ALL">전체 ({reservations.length})</option>
-            <option value="PENDING">승인 대기 ({statusCounts.pending})</option>
-            <option value="CONFIRMED">확정 ({statusCounts.confirmed})</option>
-            <option value="CANCELED">취소됨 ({statusCounts.canceled})</option>
-          </select>
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <MessageCircle className="h-8 w-8 text-blue-600" />
+              <h1 className="text-3xl font-bold text-blue-900">예약 요청 관리</h1>
+            </div>
+            <p className="text-blue-700 mt-1">
+              클라이언트의 예약 요청을 확인하고 승인 또는 거절할 수 있습니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">전체 ({reservations.length})</option>
+              <option value="PENDING">승인 대기 ({statusCounts.pending})</option>
+              <option value="CONFIRMED">확정 ({statusCounts.confirmed})</option>
+              <option value="CANCELED">취소됨 ({statusCounts.canceled})</option>
+            </select>
+          </div>
         </div>
       </div>
 

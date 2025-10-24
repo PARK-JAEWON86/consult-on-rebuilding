@@ -156,9 +156,12 @@ export default function ExpertReviewsPage() {
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
       {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">리뷰 관리</h1>
-        <p className="text-gray-600">
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <Star className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-blue-900">리뷰 관리</h1>
+        </div>
+        <p className="text-blue-700 mt-1">
           고객들이 작성한 리뷰를 확인하고 관리하세요.
         </p>
       </div>

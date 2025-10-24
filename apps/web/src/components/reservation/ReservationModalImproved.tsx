@@ -8,14 +8,12 @@ import { useToast } from '@/hooks/useToast';
 import Button from '@/components/ui/Button';
 import EnhancedReservationCalendar from './EnhancedReservationCalendar';
 import {
-  CreditCard,
   X,
-  AlertTriangle,
-  CheckCircle,
   ArrowLeft,
   ArrowRight,
   Clock,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Send
 } from 'lucide-react';
 
 interface Expert {
@@ -63,15 +61,15 @@ export default function ReservationModalImproved({
   const [note, setNote] = useState('');
   const [alternativeTimes, setAlternativeTimes] = useState<Array<{ startAt: string; endAt: string }>>([]);
 
-  // 사용자 크레딧 잔액 조회 (props로 전달받지 못한 경우에만 조회)
-  const { data: creditsData } = useQuery({
-    queryKey: ['user-credits', user?.id],
-    queryFn: async () => {
-      const response = await api.get(`http://localhost:4000/v1/credits/balance?userId=${user?.id}`);
-      return response.data;
-    },
-    enabled: !!user?.id && isOpen && propUserCredits === undefined
-  });
+  // 크레딧 시스템 제거 - 주석 처리
+  // const { data: creditsData } = useQuery({
+  //   queryKey: ['user-credits', user?.id],
+  //   queryFn: async () => {
+  //     const response = await api.get(`http://localhost:4000/v1/credits/balance?userId=${user?.id}`);
+  //     return response.data;
+  //   },
+  //   enabled: !!user?.id && isOpen && propUserCredits === undefined
+  // });
 
   // 전문가 공휴일 설정 조회
   const { data: availabilityData } = useQuery({
@@ -83,10 +81,10 @@ export default function ReservationModalImproved({
     enabled: isOpen
   });
 
-  // props로 받은 크레딧을 우선 사용하고, 없으면 조회한 데이터 사용
-  const userCredits = propUserCredits !== undefined ? propUserCredits : (creditsData?.data || 0);
-  const totalCost = Math.ceil(creditsPerMinute * duration);
-  const canAfford = userCredits >= totalCost;
+  // 크레딧 관련 변수 제거
+  // const userCredits = propUserCredits !== undefined ? propUserCredits : (creditsData?.data || 0);
+  // const totalCost = Math.ceil(creditsPerMinute * duration);
+  // const canAfford = userCredits >= totalCost;
 
   // 예약 생성 뮤테이션
   const { mutate: createReservation, isPending } = useMutation({
@@ -154,11 +152,6 @@ export default function ReservationModalImproved({
       return;
     }
 
-    if (!canAfford) {
-      showToast('크레딧이 부족합니다.', 'error');
-      return;
-    }
-
     setStep('confirm');
   };
 
@@ -170,14 +163,21 @@ export default function ReservationModalImproved({
     }
 
     const startDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
-    const endDateTime = new Date(startDateTime.getTime() + (duration * 60 * 1000));
+    // duration이 0이면 (전문가와 상의하여 결정) 기본 30분으로 설정하고 요청사항에 명시
+    const actualDuration = duration === 0 ? 30 : duration;
+    const endDateTime = new Date(startDateTime.getTime() + (actualDuration * 60 * 1000));
+
+    // duration이 0일 경우 요청사항에 상담 시간 협의 필요를 추가
+    const finalNote = duration === 0
+      ? `[상담 시간은 전문가와 상의하여 결정하겠습니다]\n\n${note.trim()}`
+      : note.trim();
 
     const reservationData: ReservationData = {
       userId: Number(user.id),
       expertId: expert.id,
       startAt: startDateTime.toISOString(),
       endAt: endDateTime.toISOString(),
-      note: note.trim() || undefined
+      note: finalNote || undefined
     };
 
     createReservation(reservationData);
@@ -189,7 +189,7 @@ export default function ReservationModalImproved({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <div>
             <h2 className="text-xl font-bold text-gray-900">상담 예약</h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -255,10 +255,11 @@ export default function ReservationModalImproved({
                   onChange={(e) => setDuration(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={30}>30분 ({Math.ceil(creditsPerMinute * 30).toLocaleString()} 크레딧)</option>
-                  <option value={60}>60분 ({Math.ceil(creditsPerMinute * 60).toLocaleString()} 크레딧)</option>
-                  <option value={90}>90분 ({Math.ceil(creditsPerMinute * 90).toLocaleString()} 크레딧)</option>
-                  <option value={120}>120분 ({Math.ceil(creditsPerMinute * 120).toLocaleString()} 크레딧)</option>
+                  <option value={30}>30분</option>
+                  <option value={60}>60분</option>
+                  <option value={90}>90분</option>
+                  <option value={120}>120분</option>
+                  <option value={0}>전문가와 상의하여 결정</option>
                 </select>
               </div>
 
@@ -293,29 +294,6 @@ export default function ReservationModalImproved({
                 </div>
               )}
 
-              {/* 크레딧 정보 */}
-              <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">내 크레딧</span>
-                  <span className="font-semibold text-gray-900">{userCredits.toLocaleString()} 크레딧</span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">예상 비용 ({duration}분)</span>
-                  <span className="font-bold text-blue-900">{totalCost.toLocaleString()} 크레딧</span>
-                </div>
-                {canAfford ? (
-                  <div className="flex items-center text-sm text-green-600 mt-2">
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    <span>예약 가능</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center text-sm text-red-600 mt-2">
-                    <AlertTriangle className="h-4 w-4 mr-1" />
-                    <span>크레딧이 부족합니다</span>
-                  </div>
-                )}
-              </div>
-
               {/* 다음 버튼 */}
               <div className="flex gap-3 mt-6">
                 <Button
@@ -329,7 +307,7 @@ export default function ReservationModalImproved({
                 <Button
                   type="button"
                   onClick={handleNext}
-                  disabled={!selectedDate || !selectedTime || !canAfford}
+                  disabled={!selectedDate || !selectedTime}
                   className="flex-1"
                 >
                   다음
@@ -355,29 +333,13 @@ export default function ReservationModalImproved({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">시간</span>
-                      <span className="font-medium text-gray-900">{selectedTime} ({duration}분)</span>
+                      <span className="font-medium text-gray-900">
+                        {selectedTime} ({duration === 0 ? '전문가와 상의하여 결정' : `${duration}분`})
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 크레딧 정보 */}
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <h4 className="font-semibold text-gray-900 mb-3">결제 정보</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">현재 보유 크레딧</span>
-                      <span className="font-semibold text-gray-900">{userCredits.toLocaleString()} 크레딧</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">예상 차감 금액</span>
-                      <span className="font-semibold text-blue-900">{totalCost.toLocaleString()} 크레딧</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-blue-300">
-                      <span className="text-gray-700 font-medium">예약 후 잔액</span>
-                      <span className="font-bold text-blue-900">{(userCredits - totalCost).toLocaleString()} 크레딧</span>
-                    </div>
-                  </div>
-                </div>
 
                 {/* 요청사항 */}
                 <div>
@@ -409,9 +371,9 @@ export default function ReservationModalImproved({
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-900 font-medium mb-2">ℹ️ 예약 전 확인사항</p>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• 예약 시 크레딧이 즉시 차감됩니다</li>
                     <li>• 전문가 승인 후 예약이 확정됩니다</li>
                     <li>• 예약 시간 5분 전까지 입장해주세요</li>
+                    <li>• 상담 요청사항을 구체적으로 작성해주세요</li>
                   </ul>
                 </div>
               </div>
@@ -437,7 +399,7 @@ export default function ReservationModalImproved({
                     '예약 중...'
                   ) : (
                     <>
-                      <CreditCard className="h-4 w-4 mr-1" />
+                      <Send className="h-4 w-4 mr-1" />
                       예약 확정
                     </>
                   )}

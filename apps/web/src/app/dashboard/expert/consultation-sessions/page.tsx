@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { Calendar } from 'lucide-react'
+import { Calendar, Video } from 'lucide-react'
 
 // New components
 import { SessionProvider, useSession } from '@/features/sessions/SessionContext'
@@ -187,24 +187,29 @@ function ExpertSessionsContent() {
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-900">상담 세션</h1>
-          <p className="text-blue-700 mt-1">
-            예정된 상담 세션을 관리하고 참여하세요
-          </p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">전체</option>
-            <option value="upcoming">예정</option>
-            <option value="ongoing">진행중</option>
-            <option value="completed">완료</option>
-          </select>
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <Video className="h-8 w-8 text-blue-600" />
+              <h1 className="text-3xl font-bold text-blue-900">상담 세션</h1>
+            </div>
+            <p className="text-blue-700 mt-1">
+              예정된 상담 세션을 관리하고 참여하세요
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">전체</option>
+              <option value="upcoming">예정</option>
+              <option value="ongoing">진행중</option>
+              <option value="completed">완료</option>
+            </select>
+          </div>
         </div>
       </div>
 

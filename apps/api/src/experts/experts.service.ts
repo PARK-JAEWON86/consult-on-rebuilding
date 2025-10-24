@@ -962,6 +962,7 @@ export class ExpertsService {
       portfolioItems: expert.portfolioItems,
       cancellationPolicy: expert.cancellationPolicy,
       isProfileComplete: expert.isProfileComplete,
+      isProfilePublic: expert.isProfilePublic,  // 프로필 공개 여부 추가
       totalSessions: expert.totalSessions,
       ratingAvg: expert.ratingAvg,
       reviewCount: expert.reviewCount,
@@ -1069,10 +1070,14 @@ export class ExpertsService {
    * @returns 예약 가능한 타임슬롯 목록
    */
   async getAvailableTimeSlots(displayId: string, targetDate: Date) {
-    // 1. 전문가 조회
+    // 1. 전문가 조회 (availability JSON 필드 포함)
     const expert = await this.prisma.expert.findUnique({
       where: { displayId },
-      select: { id: true, name: true }
+      select: {
+        id: true,
+        name: true,
+        availability: true
+      }
     });
 
     if (!expert) {
@@ -1100,6 +1105,27 @@ export class ExpertsService {
         message: '해당 날짜에 예약 가능한 시간이 없습니다.'
       };
     }
+
+    // availability JSON에서 휴식시간 설정 추출
+    const availabilityData = expert.availability as any;
+    const restTimeSettings = availabilityData?.restTimeSettings || {
+      enableLunchBreak: false,
+      lunchStartTime: '12:00',
+      lunchEndTime: '13:00',
+      enableDinnerBreak: false,
+      dinnerStartTime: '18:00',
+      dinnerEndTime: '19:00'
+    };
+
+    // 휴식시간 파싱
+    const lunchBreak = restTimeSettings.enableLunchBreak ? {
+      start: this.parseTime(restTimeSettings.lunchStartTime),
+      end: this.parseTime(restTimeSettings.lunchEndTime)
+    } : null;
+    const dinnerBreak = restTimeSettings.enableDinnerBreak ? {
+      start: this.parseTime(restTimeSettings.dinnerStartTime),
+      end: this.parseTime(restTimeSettings.dinnerEndTime)
+    } : null;
 
     // 4. 해당 날짜의 기존 예약 조회
     const startOfDay = new Date(targetDate);
@@ -1137,6 +1163,11 @@ export class ExpertsService {
         // 현재 시간보다 이전인지 체크 (과거 시간은 예약 불가)
         const isPast = slotDateTime < new Date();
 
+        // 휴식시간과 겹치는지 체크
+        const isInRestTime =
+          (lunchBreak && currentTime >= lunchBreak.start && currentTime < lunchBreak.end) ||
+          (dinnerBreak && currentTime >= dinnerBreak.start && currentTime < dinnerBreak.end);
+
         // 기존 예약과 겹치는지 체크
         const slotEndDateTime = this.combineDateAndTime(targetDate, slotEndTime);
         const slotEndTimeMs = slotEndDateTime.getTime();
@@ -1151,7 +1182,7 @@ export class ExpertsService {
 
         slots.push({
           time: timeString,
-          available: !isPast && !isReserved,
+          available: !isPast && !isReserved && !isInRestTime,
           reserved: isReserved
         });
 

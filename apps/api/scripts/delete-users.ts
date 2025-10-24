@@ -38,6 +38,9 @@ async function deleteUsers(userIds: number[]) {
             });
           }
 
+          // Delete inquiries sent to this expert
+          await tx.inquiry.deleteMany({ where: { expertId } });
+
           await tx.expertAvailability.deleteMany({ where: { expertId } });
           await tx.expertCategory.deleteMany({ where: { expertId } });
           await tx.review.deleteMany({ where: { expertId } });
@@ -59,6 +62,7 @@ async function deleteUsers(userIds: number[]) {
         }
 
         // Delete user records in correct order
+        await tx.inquiry.deleteMany({ where: { clientId: userId } });
         await tx.userNotificationSetting.deleteMany({ where: { userId } });
         await tx.review.deleteMany({ where: { userId } });
         await tx.reservation.deleteMany({ where: { userId } });
@@ -91,7 +95,7 @@ async function deleteUsers(userIds: number[]) {
 
 async function main() {
   try {
-    await deleteUsers([124, 125, 126, 127]);
+    await deleteUsers([167, 168, 169, 170]);
     console.log('✅ All users deleted successfully');
   } catch (error) {
     console.error('❌ Deletion failed:', error);

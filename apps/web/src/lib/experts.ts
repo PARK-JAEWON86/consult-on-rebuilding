@@ -18,6 +18,8 @@ export interface Expert {
   totalSessions?: number; // 총 상담 수
   repeatClients?: number; // 재방문 고객
   experience?: number; // 경력 년수
+  // 프로필 공개 설정
+  isProfilePublic?: boolean; // 프로필 공개 여부
 }
 
 export interface ExpertListResponse {

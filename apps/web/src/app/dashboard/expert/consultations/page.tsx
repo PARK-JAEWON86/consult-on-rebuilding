@@ -214,8 +214,11 @@ export default function ExpertConsultationsPage() {
   return (
     <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">상담내역</h1>
-        <p className="text-gray-600 mt-1">
+        <div className="flex items-center gap-3">
+          <FileText className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold text-blue-900">상담 내역</h1>
+        </div>
+        <p className="text-blue-700 mt-1">
           상담 날짜, 고객, 주제, 정산 크레딧을 한눈에 확인하세요.
         </p>
       </div>

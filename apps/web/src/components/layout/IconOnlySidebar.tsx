@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Trash2,
+  Mail,
 } from "lucide-react";
 
 interface User {
@@ -313,6 +314,12 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
       return [
         { id: "home", name: "대시보드", icon: Home, path: "/dashboard/expert" },
         {
+          id: "messages",
+          name: "메시지 관리",
+          icon: Mail,
+          path: "/dashboard/expert/messages",
+        },
+        {
           id: "consultation-requests",
           name: "예약 요청 관리",
           icon: MessageCircle,
@@ -348,7 +355,7 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
     // 클라이언트 모드 메뉴
     const clientMenu = [
       { id: "home", name: "대시보드", icon: Home, path: "/dashboard" },
-      { id: "experts", name: "전문가 찾기", icon: Users, path: "/experts" },
+      { id: "messages", name: "메시지 관리", icon: Mail, path: "/dashboard/client/messages" },
       { id: "expert-consultation", name: "전문가 상담", icon: Calendar, path: "/expert-consultation" },
       { id: "chat", name: "AI채팅 상담", icon: MessageCircle, path: "/chat" },
     ];

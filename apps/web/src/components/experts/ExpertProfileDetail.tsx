@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { fetchExpertById } from '@/lib/experts';
+import { createInquiry } from '@/lib/inquiries';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import Button from '@/components/ui/Button';
@@ -41,7 +42,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
-  Settings
+  Settings,
+  Mail,
+  Send,
+  DollarSign,
+  Tv,
+  HelpCircle,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 interface ExpertProfileDetailProps {
@@ -73,8 +81,15 @@ export default function ExpertProfileDetail({
   const [rankingTab, setRankingTab] = useState<'overall' | 'category'>('overall');
   const [isLiked, setIsLiked] = useState(false);
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
+  const [inquiryTab, setInquiryTab] = useState<'schedule' | 'time' | 'price' | 'method' | 'other'>('schedule');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentPortfolioIndex, setCurrentPortfolioIndex] = useState(0);
+  const [inquirySubject, setInquirySubject] = useState('');
+  const [inquiryContent, setInquiryContent] = useState('');
+  const [isSendingInquiry, setIsSendingInquiry] = useState(false);
+  const [isProfilePublic, setIsProfilePublic] = useState(true);
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
   // 사용자 크레딧 잔액 조회
   const { data: creditsData } = useQuery({
@@ -92,6 +107,13 @@ export default function ExpertProfileDetail({
     queryFn: () => fetchExpertById(displayId),
     enabled: !!displayId,
   });
+
+  // expert 데이터가 로드되면 isProfilePublic 상태 업데이트
+  useEffect(() => {
+    if (expert?.data?.isProfilePublic !== undefined) {
+      setIsProfilePublic(expert.data.isProfilePublic);
+    }
+  }, [expert]);
 
   // 전문가 랭킹 정보 조회
   const { data: rankingData, isLoading: isRankingLoading } = useQuery({
@@ -164,12 +186,153 @@ export default function ExpertProfileDetail({
     }
   };
 
+  const handleInquiryOpen = () => {
+    if (isOwner) {
+      showToast('본인에게 문의할 수 없습니다.', 'warning');
+      return;
+    }
+    if (!user) {
+      showToast('로그인이 필요합니다.', 'warning');
+      router.push('/auth/login');
+      return;
+    }
+    setIsInquiryModalOpen(true);
+  };
+
+  const getInquiryPlaceholder = () => {
+    const placeholders = {
+      schedule: `상담 일정에 대해 문의하고 싶은 내용을 작성해주세요.
+
+예시:
+- 다음 주 월요일 오후 2시에 상담이 가능한가요?
+- 평일 저녁 시간대에 상담 가능하신지 궁금합니다.
+- 주말 상담도 가능한가요?`,
+      time: `상담 시간에 대해 문의하고 싶은 내용을 작성해주세요.
+
+예시:
+- 30분 상담으로 충분할까요, 아니면 60분이 필요할까요?
+- 첫 상담은 보통 얼마나 걸리나요?
+- 상담 시간 연장이 가능한가요?`,
+      price: `상담 비용에 대해 문의하고 싶은 내용을 작성해주세요.
+
+예시:
+- 패키지 할인이 있나요?
+- 여러 회차를 묶어서 결제하면 할인이 되나요?
+- 장기 상담 계약 시 특별 요금이 있나요?
+- 상담 시간에 따른 비용 차이가 어떻게 되나요?`,
+      method: `상담 방식에 대해 문의하고 싶은 내용을 작성해주세요.
+
+예시:
+- 화상 상담과 음성 상담 중 어떤 것을 추천하시나요?
+- 텍스트 상담도 가능한가요?
+- 상담 전 준비해야 할 자료가 있나요?
+- 화면 공유가 필요한 상담도 가능한가요?`,
+      other: `기타 문의하고 싶은 내용을 자유롭게 작성해주세요.
+
+예시:
+- 전문가님의 주요 상담 분야가 궁금합니다.
+- 특정 주제에 대한 전문성이 있으신지 확인하고 싶습니다.
+- 상담 후 추가 지원이나 피드백을 받을 수 있나요?`
+    };
+    return placeholders[inquiryTab];
+  };
+
+  const getInquiryTitle = () => {
+    const titles = {
+      schedule: '상담 일정 문의',
+      time: '상담 시간 문의',
+      price: '상담 비용 문의',
+      method: '상담 방식 문의',
+      other: '기타 문의'
+    };
+    return titles[inquiryTab];
+  };
+
+  const handleSendInquiry = async () => {
+    if (!inquirySubject.trim() || !inquiryContent.trim()) {
+      alert('제목과 내용을 모두 입력해주세요.');
+      return;
+    }
+
+    if (!expertData) {
+      alert('전문가 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    setIsSendingInquiry(true);
+
+    try {
+      await createInquiry({
+        expertId: expertData.id,
+        subject: inquirySubject,
+        content: inquiryContent,
+        category: inquiryTab as 'schedule' | 'time' | 'price' | 'method' | 'other'
+      });
+
+      // 성공 시 모달과 토스트 모두 표시
+      alert('✅ 문의가 성공적으로 전송되었습니다!\n\n전문가가 확인 후 답변드리겠습니다.\n답변은 대시보드 > 메시지 관리에서 확인하실 수 있습니다.');
+      showToast('문의가 전송되었습니다.', 'success');
+
+      // 모달 닫기 및 입력 내용 초기화
+      setIsInquiryModalOpen(false);
+      setInquirySubject('');
+      setInquiryContent('');
+      setInquiryTab('schedule');
+    } catch (error: any) {
+      console.error('문의 전송 실패:', error);
+
+      // 오류 메시지 상세하게 표시
+      const errorMessage = error?.response?.data?.error?.message || '알 수 없는 오류가 발생했습니다.';
+      const errorCode = error?.response?.data?.error?.code || 'UNKNOWN_ERROR';
+      const statusCode = error?.response?.status || '알 수 없음';
+
+      alert(`❌ 문의 전송에 실패했습니다.\n\n오류 메시지: ${errorMessage}\n오류 코드: ${errorCode}\nHTTP 상태: ${statusCode}\n\n다시 시도해주세요. 문제가 계속되면 고객센터로 문의해주세요.`);
+      showToast(errorMessage, 'error');
+    } finally {
+      setIsSendingInquiry(false);
+    }
+  };
+
   const handleEditProfile = () => {
     router.push(`/dashboard/expert/profile/edit`);
   };
 
   const handleProfileSettings = () => {
     router.push(`/dashboard/expert/settings`);
+  };
+
+  const handleToggleProfilePublic = async () => {
+    if (!expert?.data?.id) {
+      showToast('전문가 정보를 찾을 수 없습니다.', 'error');
+      return;
+    }
+
+    setIsTogglingPublic(true);
+
+    try {
+      const newPublicState = !isProfilePublic;
+
+      const response = await api.put(`/experts/${displayId}/profile`, {
+        isProfilePublic: newPublicState
+      });
+
+      if (response.success) {
+        setIsProfilePublic(newPublicState);
+        showToast(
+          newPublicState
+            ? '프로필이 공개되었습니다. 이제 전문가 찾기 페이지에 표시됩니다.'
+            : '프로필이 비공개되었습니다. 전문가 찾기 페이지에 표시되지 않습니다.',
+          'success'
+        );
+      } else {
+        throw new Error(response.error?.message || '프로필 공개 상태 변경 실패');
+      }
+    } catch (error) {
+      console.error('프로필 공개 상태 변경 중 오류:', error);
+      showToast('프로필 공개 상태 변경에 실패했습니다.', 'error');
+    } finally {
+      setIsTogglingPublic(false);
+    }
   };
 
   if (isLoading) {
@@ -295,13 +458,37 @@ export default function ExpertProfileDetail({
               </p>
             </div>
             {isOwner && showEditMode && !hideActions && (
-              <button
-                onClick={handleEditProfile}
-                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                프로필 편집하기
-              </button>
+              <div className="flex items-center gap-3">
+                {/* 프로필 공개/비공개 토글 버튼 */}
+                <button
+                  onClick={handleToggleProfilePublic}
+                  disabled={isTogglingPublic}
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors font-medium border-2 ${
+                    isProfilePublic
+                      ? 'bg-green-50 border-green-500 text-green-700 hover:bg-green-100'
+                      : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                  } ${isTogglingPublic ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isProfilePublic ? '프로필 비공개로 전환' : '프로필 공개로 전환'}
+                >
+                  {isTogglingPublic ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                  ) : isProfilePublic ? (
+                    <Eye className="h-4 w-4 mr-2" />
+                  ) : (
+                    <EyeOff className="h-4 w-4 mr-2" />
+                  )}
+                  {isProfilePublic ? '프로필 공개 중' : '프로필 비공개'}
+                </button>
+
+                {/* 프로필 편집하기 버튼 */}
+                <button
+                  onClick={handleEditProfile}
+                  className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  프로필 편집하기
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1149,6 +1336,15 @@ export default function ExpertProfileDetail({
                     >
                       상담 예약하기
                     </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleInquiryOpen}
+                    >
+                      문의하기
+                    </Button>
+
                     <p className="text-xs text-gray-500 text-center">
                       상담 시간에 따라 크레딧이 차감됩니다
                     </p>
@@ -1394,6 +1590,180 @@ export default function ExpertProfileDetail({
           creditsPerMinute={creditsPerMinute}
           userCredits={creditsData?.data}
         />
+      )}
+
+      {/* 문의하기 모달 */}
+      {isInquiryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setIsInquiryModalOpen(false)}
+        >
+          <div
+            className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Mail className="h-6 w-6 text-blue-600" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">전문가에게 문의하기</h2>
+                  <p className="text-sm text-gray-600">
+                    {expertData?.name} 전문가에게 문의를 보냅니다
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsInquiryModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-6 space-y-4">
+              {/* 문의 카테고리 탭 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  문의 카테고리
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setInquiryTab('schedule')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      inquiryTab === 'schedule'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    상담 일정
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('time')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      inquiryTab === 'time'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" />
+                    상담 시간
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('price')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      inquiryTab === 'price'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    상담 비용
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('method')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      inquiryTab === 'method'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Video className="h-4 w-4" />
+                    상담 방식
+                  </button>
+                  <button
+                    onClick={() => setInquiryTab('other')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      inquiryTab === 'other'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    기타 문의
+                  </button>
+                </div>
+              </div>
+
+              {/* 제목 입력 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  제목 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={inquirySubject}
+                  onChange={(e) => setInquirySubject(e.target.value)}
+                  placeholder={getInquiryTitle()}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  maxLength={100}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {inquirySubject.length}/100
+                </p>
+              </div>
+
+              {/* 내용 입력 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  문의 내용 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={inquiryContent}
+                  onChange={(e) => setInquiryContent(e.target.value)}
+                  placeholder={getInquiryPlaceholder()}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={10}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {inquiryContent.length}/1000
+                </p>
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <MessageCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">문의 답변 안내</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-700">
+                      <li>전문가가 확인 후 답변을 보내드립니다</li>
+                      <li>답변은 등록하신 이메일로 전송됩니다</li>
+                      <li>평균 답변 시간: {(expertData as any).responseTime || '24시간 이내'}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsInquiryModalOpen(false)}
+                disabled={isSendingInquiry}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleSendInquiry}
+                disabled={!inquirySubject.trim() || !inquiryContent.trim() || isSendingInquiry}
+              >
+                {isSendingInquiry ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    전송 중...
+                  </div>
+                ) : (
+                  '문의 보내기'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 이미지 확대 모달 */}
