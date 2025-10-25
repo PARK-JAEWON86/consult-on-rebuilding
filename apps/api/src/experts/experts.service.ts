@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpertStatsService } from './expert-stats.service';
 import { CreateExpertApplicationDto } from './dto/expert-application.dto';
 import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ulid } from 'ulid';
@@ -19,6 +20,7 @@ export class ExpertsService {
   constructor(
     private prisma: PrismaService,
     private expertLevelsService: ExpertLevelsService,
+    private expertStatsService: ExpertStatsService
   ) {}
 
   async list(params: ListParams) {
@@ -206,34 +208,49 @@ export class ExpertsService {
     };
 
     // Transform data to include category information
-    const transformedItems = items.map(expert => ({
-      ...expert,
-      // 기존 카테고리 정보
-      categories: expert.categoryLinks.map((link: any) => link.category.nameKo),
-      categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
-      recentReviews: expert.reviews,
-      // JSON 문자열로 저장된 필드들을 실제 배열로 변환
-      keywords: parseJsonField(expert.keywords),
-      certifications: parseJsonField(expert.certifications),
-      consultationTypes: parseJsonField(expert.consultationTypes),
-      languages: parseJsonField(expert.languages),
-      education: parseJsonField(expert.education),
-      portfolioFiles: parseJsonField(expert.portfolioFiles),
-      portfolioItems: parseJsonField(expert.portfolioItems),
-      // 객체 필드들을 실제 객체로 변환
-      availability: parseJsonObject(expert.availability),
-      contactInfo: parseJsonObject(expert.contactInfo),
-      socialProof: parseJsonObject(expert.socialProof),
-      socialLinks: parseJsonObject(expert.socialLinks),
-      // Calculate ranking score (calculatedRankingScore가 있으면 사용, 없으면 ExpertLevelsService로 계산)
-      rankingScore: (expert as any).calculatedRankingScore ?? this.expertLevelsService.calculateRankingScore({
-        totalSessions: expert.totalSessions,
-        avgRating: expert.ratingAvg,
-        reviewCount: expert.reviewCount,
-        repeatClients: expert.repeatClients,
-        likeCount: 0,
-      }),
-    }));
+    const transformedItems = items.map(expert => {
+      const parsedKeywords = parseJsonField(expert.keywords);
+      const parsedConsultationTypes = parseJsonField(expert.consultationTypes);
+
+      // 디버깅: 첫 번째 전문가의 keywords와 consultationTypes 파싱 결과 확인
+      if (expert.id) {
+        console.log(`[ExpertList Debug] Expert ${expert.name} (ID: ${expert.id}):`, {
+          keywords_raw: expert.keywords,
+          keywords_parsed: parsedKeywords,
+          consultationTypes_raw: expert.consultationTypes,
+          consultationTypes_parsed: parsedConsultationTypes,
+        });
+      }
+
+      return {
+        ...expert,
+        // 기존 카테고리 정보
+        categories: expert.categoryLinks.map((link: any) => link.category.nameKo),
+        categorySlugs: expert.categoryLinks.map((link: any) => link.category.slug),
+        recentReviews: expert.reviews,
+        // JSON 문자열로 저장된 필드들을 실제 배열로 변환
+        keywords: parsedKeywords,
+        certifications: parseJsonField(expert.certifications),
+        consultationTypes: parsedConsultationTypes,
+        languages: parseJsonField(expert.languages),
+        education: parseJsonField(expert.education),
+        portfolioFiles: parseJsonField(expert.portfolioFiles),
+        portfolioItems: parseJsonField(expert.portfolioItems),
+        // 객체 필드들을 실제 객체로 변환
+        availability: parseJsonObject(expert.availability),
+        contactInfo: parseJsonObject(expert.contactInfo),
+        socialProof: parseJsonObject(expert.socialProof),
+        socialLinks: parseJsonObject(expert.socialLinks),
+        // Calculate ranking score (calculatedRankingScore가 있으면 사용, 없으면 ExpertLevelsService로 계산)
+        rankingScore: (expert as any).calculatedRankingScore ?? this.expertLevelsService.calculateRankingScore({
+          totalSessions: expert.totalSessions,
+          avgRating: expert.ratingAvg,
+          reviewCount: expert.reviewCount,
+          repeatClients: expert.repeatClients,
+          likeCount: 0,
+        }),
+      };
+    });
 
     return { total, items: transformedItems };
   }
@@ -346,6 +363,11 @@ export class ExpertsService {
     const parsedPortfolioFiles = parseJsonField(expert.portfolioFiles);
     console.log('📁 [Backend] portfolioFiles 파싱 결과:', parsedPortfolioFiles);
 
+    // 응답시간 포맷팅
+    const formattedResponseTime = expert.avgResponseTimeMinutes
+      ? this.expertStatsService.formatResponseTime(expert.avgResponseTimeMinutes)
+      : expert.responseTime;
+
     return {
       ...expert,
       // specialty 파싱하여 카테고리명만 반환
@@ -378,6 +400,14 @@ export class ExpertsService {
       creditsPerMinute,
       // 레거시 호환성을 위해 level 필드에 티어 이름 설정
       level: tierInfo.name,
+      // 응답시간 정보 추가
+      responseTime: formattedResponseTime,
+      responseTimeStats: {
+        avgMinutes: expert.avgResponseTimeMinutes,
+        calculatedAt: expert.responseTimeCalculatedAt,
+        sampleSize: expert.responseTimeSampleSize,
+        isCalculated: expert.avgResponseTimeMinutes !== null
+      }
     };
   }
 

@@ -2,6 +2,8 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { PrismaService } from '../prisma/prisma.service';
 import { CreditsService } from '../credits/credits.service';
 import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
+import { ExpertStatsService } from '../experts/expert-stats.service';
+import { MailService } from '../mail/mail.service';
 import { ulid } from 'ulid';
 
 @Injectable()
@@ -10,6 +12,8 @@ export class ReservationsService {
     private prisma: PrismaService,
     private creditsService: CreditsService,
     private expertLevelsService: ExpertLevelsService,
+    private expertStatsService: ExpertStatsService,
+    private mailService: MailService
   ) {}
 
   async create(dto: { userId: number; expertId: number; startAt: string; endAt: string; note?: string }) {
@@ -23,16 +27,20 @@ export class ReservationsService {
       });
     }
 
-    // 전문가 정보 조회
+    // 전문가 정보 조회 (user 정보 포함)
     const expert = await this.prisma.expert.findUnique({
       where: { id: dto.expertId },
       select: {
+        name: true,
         hourlyRate: true,
         totalSessions: true,
         ratingAvg: true,
         experience: true,
         reviewCount: true,
-        repeatClients: true
+        repeatClients: true,
+        user: {
+          select: { email: true, name: true }
+        }
       }
     });
 
@@ -78,6 +86,12 @@ export class ReservationsService {
       });
     }
 
+    // 클라이언트 정보 조회
+    const client = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+      select: { name: true }
+    });
+
     const displayId = ulid();
 
     try {
@@ -118,6 +132,24 @@ export class ReservationsService {
 
         return created;
       });
+
+      // 전문가에게 이메일 알림 (비동기, non-blocking)
+      if (expert.user?.email) {
+        this.mailService
+          .sendNewReservationNotification(
+            expert.user.email,
+            expert.name,
+            client?.name || '고객',
+            displayId,
+            start,
+            end,
+            dto.note || null,
+            cost
+          )
+          .catch(err => {
+            console.error('[ReservationsService] 예약 알림 이메일 발송 실패:', err);
+          });
+      }
 
       return result;
     } catch (e: any) {
@@ -606,6 +638,12 @@ export class ReservationsService {
 
       return result;
     });
+
+    // 트랜잭션 완료 후 응답시간 통계 업데이트 (비동기)
+    this.expertStatsService.calculateAndUpdateResponseTime(expertId)
+      .catch(err => {
+        console.error('[ReservationsService] 응답시간 계산 실패:', err);
+      });
 
     return updated;
   }

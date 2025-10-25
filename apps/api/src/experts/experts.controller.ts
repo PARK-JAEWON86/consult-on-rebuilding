@@ -1,5 +1,6 @@
 import { Controller, Get, Query, Param, NotFoundException, Post, Body, UseGuards, Request, Put, Delete } from '@nestjs/common';
 import { ExpertsService } from './experts.service';
+import { ExpertStatsService } from './expert-stats.service';
 import { JwtGuard } from '../auth/jwt.guard';
 import { CreateExpertApplicationDto, CreateExpertApplicationSchema } from './dto/expert-application.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -8,7 +9,10 @@ import { UpdateExpertProfileDto } from './dto/update-expert-profile.dto';
 
 @Controller('experts')
 export class ExpertsController {
-  constructor(private readonly svc: ExpertsService) {}
+  constructor(
+    private readonly svc: ExpertsService,
+    private readonly expertStatsService: ExpertStatsService
+  ) {}
 
   @Get()
   async list(@Query() q: any) {
@@ -302,6 +306,17 @@ export class ExpertsController {
       success: true,
       data,
       message: data.message
+    };
+  }
+
+  @Get(':displayId/stats/response-time')
+  async getResponseTimeStats(@Param('displayId') displayId: string) {
+    const expert = await this.svc.findByDisplayId(displayId);
+    const stats = await this.expertStatsService.getResponseTimeStats((expert as any).id);
+
+    return {
+      success: true,
+      data: stats
     };
   }
 }

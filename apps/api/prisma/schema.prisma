@@ -87,6 +87,12 @@ model Expert {
   repeatClients      Int                  @default(0)
   reschedulePolicy   String?
   responseTime       String               @default("2시간 내")
+
+  // Response time tracking fields
+  avgResponseTimeMinutes    Int?      // 평균 응답시간 (분 단위)
+  responseTimeCalculatedAt  DateTime? // 마지막 계산 시간
+  responseTimeSampleSize    Int       @default(0) // 샘플 수 (통계 신뢰도)
+
   socialLinks        Json
   socialProof        Json
   keywords           Json
@@ -106,6 +112,7 @@ model Expert {
   @@index([experienceYears], map: "idx_expert_experienceYears")
   @@index([rankingScore], map: "idx_expert_rankingScore")
   @@index([totalSessions], map: "idx_expert_totalSessions")
+  @@index([avgResponseTimeMinutes], map: "idx_expert_avgResponseTime")
 }
 
 model Category {

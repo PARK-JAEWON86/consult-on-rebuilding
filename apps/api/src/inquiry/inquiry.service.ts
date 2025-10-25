@@ -1,24 +1,42 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpertStatsService } from '../experts/expert-stats.service';
+import { MailService } from '../mail/mail.service';
 import { InquiryCategory } from '@prisma/client';
 import { CreateInquiryDto, CreateReplyDto, QueryInquiryDto } from './dto';
 
 @Injectable()
 export class InquiryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private expertStatsService: ExpertStatsService,
+    private mailService: MailService
+  ) {}
 
   // ==========================================
   // 클라이언트용 메서드
   // ==========================================
 
   async createInquiry(clientId: number, dto: CreateInquiryDto) {
+    // 전문가 정보 조회 (user 정보 포함)
     const expert = await this.prisma.expert.findUnique({
-      where: { id: dto.expertId }
+      where: { id: dto.expertId },
+      include: {
+        user: {
+          select: { email: true, name: true }
+        }
+      }
     });
 
     if (!expert) {
       throw new NotFoundException('전문가를 찾을 수 없습니다.');
     }
+
+    // 클라이언트 정보 조회
+    const client = await this.prisma.user.findUnique({
+      where: { id: clientId },
+      select: { name: true }
+    });
 
     const prismaCategory = this.toPrismaCategory(dto.category);
 
@@ -36,6 +54,23 @@ export class InquiryService {
         }
       }
     });
+
+    // 전문가에게 이메일 알림 (비동기, non-blocking)
+    if (expert.user?.email) {
+      this.mailService
+        .sendNewInquiryNotification(
+          expert.user.email,
+          expert.name,
+          client?.name || '고객',
+          dto.subject,
+          dto.content,
+          inquiry.id,
+          dto.category
+        )
+        .catch(err => {
+          console.error('[InquiryService] 문의 알림 이메일 발송 실패:', err);
+        });
+    }
 
     return this.formatInquiryResponse(inquiry, 'client');
   }
@@ -269,6 +304,12 @@ export class InquiryService {
       where: { id: inquiryId },
       data: { isRead: true, updatedAt: new Date() }
     });
+
+    // 응답시간 통계 업데이트 (비동기, 실패해도 메인 작업에 영향 없음)
+    this.expertStatsService.calculateAndUpdateResponseTime(expert.id)
+      .catch(err => {
+        console.error('[InquiryService] 응답시간 계산 실패:', err);
+      });
 
     return {
       replyId: reply.id,

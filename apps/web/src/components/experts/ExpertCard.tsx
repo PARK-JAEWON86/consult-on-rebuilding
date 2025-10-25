@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Users, Star, Award, Clock, MessageCircle, Video, Heart, Calendar } from "lucide-react";
+import { Users, Star, Award, Clock, MessageCircle, Video, Phone, Heart, Calendar } from "lucide-react";
 // ExpertProfile 타입 정의
 interface ExpertProfile {
   id: number;
@@ -108,6 +108,8 @@ const getConsultationTypeIcon = (type: string) => {
       return Video;
     case "chat":
       return MessageCircle;
+    case "voice":
+      return Phone;
     default:
       return MessageCircle;
   }
@@ -193,6 +195,17 @@ export default function ExpertCard({
 
   // 전문가 데이터 정규화
   const expert = normalizeExpert(rawExpert);
+
+  // 디버깅: 정규화 전후 데이터 확인
+  useEffect(() => {
+    console.log('[ExpertCard Debug] Raw vs Normalized:', {
+      name: expert.name,
+      raw_keywords: rawExpert.keywords,
+      normalized_keywords: expert.keywords,
+      raw_consultationTypes: rawExpert.consultationTypes,
+      normalized_consultationTypes: expert.consultationTypes,
+    });
+  }, [rawExpert, expert]);
 
   // 전문가 레벨과 요금 정보 로드
   useEffect(() => {
@@ -338,15 +351,20 @@ export default function ExpertCard({
           {/* 전문 분야 */}
           <div className="mb-3">
             <div className="flex gap-1.5 overflow-hidden">
-              {(expert.keywords || ["전문분야1", "전문분야2"]).map(
-                (keyword: string, index: number) => (
+              {(expert.keywords || ["전문분야1", "전문분야2"])
+                .slice(0, 4)
+                .map((keyword: string, index: number) => (
                   <span
                     key={index}
                     className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0 whitespace-nowrap"
                   >
                     {keyword}
                   </span>
-                ),
+                ))}
+              {(expert.keywords || []).length > 4 && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100 flex-shrink-0 whitespace-nowrap">
+                  +{(expert.keywords || []).length - 4}
+                </span>
               )}
             </div>
           </div>
@@ -505,15 +523,16 @@ export default function ExpertCard({
           <div className="flex items-center space-x-2">
             {(expert.consultationTypes || []).map((type) => {
               const Icon = getConsultationTypeIcon(type);
+              const typeLabel = type === "video" ? "화상" : type === "chat" ? "채팅" : type === "voice" ? "음성" : type;
+              const typeTitle = type === "video" ? "화상 상담" : type === "chat" ? "채팅 상담" : type === "voice" ? "음성 상담" : type;
               return (
                 <div
                   key={type}
                   className="flex items-center text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded"
-                  title={type === "video" ? "화상 상담" : "채팅 상담"}
+                  title={typeTitle}
                 >
                   <Icon className="h-3 w-3 mr-1" />
-                  {type === "video" && "화상"}
-                  {type === "chat" && "채팅"}
+                  {typeLabel}
                 </div>
               );
             })}

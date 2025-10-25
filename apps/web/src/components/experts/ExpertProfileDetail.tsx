@@ -577,6 +577,14 @@ export default function ExpertProfileDetail({
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-1" />
                       <span>{(expertData as any).responseTime || "2시간 내"} 응답</span>
+                      {(expertData as any).responseTimeStats?.isCalculated && (
+                        <span
+                          className="ml-2 text-xs text-gray-500"
+                          title={`최근 ${(expertData as any).responseTimeStats.sampleSize}건 응답 기준`}
+                        >
+                          (실제 데이터)
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1585,7 +1593,11 @@ export default function ExpertProfileDetail({
             displayId: expertData.displayId,
             totalSessions: (expertData as any).totalSessions || 0,
             ratingAvg: expertData.ratingAvg || 0,
-            experience: (expertData as any).experience || 0
+            experience: (expertData as any).experience || 0,
+            avatarUrl: expertData.avatarUrl,
+            specialty: (expertData as any).specialty || null,
+            level: expertData.level,
+            consultationStyle: (expertData as any).consultationStyle || null
           }}
           creditsPerMinute={creditsPerMinute}
           userCredits={creditsData?.data}

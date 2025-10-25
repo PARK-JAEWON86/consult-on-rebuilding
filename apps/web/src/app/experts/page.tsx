@@ -53,6 +53,7 @@ interface ExpertProfile {
   reviewCount: number;
   experience: number;
   description: string;
+  keywords?: string[]; // ExpertCard가 기대하는 필드
   specialties: string[];
   consultationTypes: string[];
   languages?: string[];
@@ -292,6 +293,7 @@ const ExpertSearch = () => {
               specialty: apiExpert.title || apiExpert.specialty || '전문가',
               experience: apiExpert.experienceYears || apiExpert.experience || 0,
               description: apiExpert.bio || apiExpert.description || '',
+              keywords: parseJsonField(apiExpert.keywords, apiExpert.categories || [], 'keywords'), // ExpertCard가 기대하는 필드
               specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'specialties'),
               consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat'], 'consultationTypes'),
               languages: parseJsonField(apiExpert.languages, ['한국어'], 'languages'),
@@ -570,6 +572,7 @@ const ExpertSearch = () => {
             specialty: apiExpert.title || apiExpert.specialty || '전문가',
             experience: apiExpert.experience || 0,
             description: apiExpert.bio || apiExpert.description || '',
+            keywords: parseJsonField(apiExpert.keywords, apiExpert.categories || [], 'keywords'), // ExpertCard가 기대하는 필드
             specialties: apiExpert.categories || parseJsonField(apiExpert.specialties, [], 'specialties'),
             consultationTypes: parseJsonField(apiExpert.consultationTypes, ['video', 'chat'], 'consultationTypes'),
             languages: parseJsonField(apiExpert.languages, ['한국어'], 'languages'),

@@ -23,6 +23,10 @@ interface Expert {
   totalSessions: number;
   ratingAvg: number;
   experience: number;
+  avatarUrl?: string | null;
+  specialty?: string | null;
+  level?: string | null;
+  consultationStyle?: string | null;
 }
 
 interface ReservationModalImprovedProps {
@@ -205,20 +209,6 @@ export default function ReservationModalImproved({
         </div>
 
         <div className="p-6">
-          {/* 전문가 정보 */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-6 border border-blue-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">{expert.name}</h3>
-                <p className="text-sm text-gray-600">전문가</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-blue-900">{creditsPerMinute} 크레딧</p>
-                <p className="text-xs text-blue-700">분당</p>
-              </div>
-            </div>
-          </div>
-
           {/* 공휴일 상담 안내 */}
           {availabilityData?.holidaySettings?.acceptHolidayConsultations && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
@@ -310,35 +300,65 @@ export default function ReservationModalImproved({
                   disabled={!selectedDate || !selectedTime}
                   className="flex-1"
                 >
-                  다음
-                  <ArrowRight className="h-4 w-4 ml-1" />
+                  <span className="inline-flex items-center">
+                    다음 <ArrowRight className="h-4 w-4 ml-1" />
+                  </span>
                 </Button>
               </div>
             </>
           ) : (
             // 2단계: 예약 확인
             <>
-              {/* 예약 요약 */}
-              <div className="space-y-4">
+              {/* 예약 정보 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  예약 정보
+                </label>
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <h4 className="font-semibold text-gray-900 mb-3">예약 정보</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">전문가</span>
-                      <span className="font-medium text-gray-900">{expert.name}</span>
+                      <span className="font-bold text-gray-900">{expert.name}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">날짜</span>
-                      <span className="font-medium text-gray-900">{selectedDate}</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(selectedDate).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          weekday: 'short'
+                        })}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">시간</span>
                       <span className="font-medium text-gray-900">
-                        {selectedTime} ({duration === 0 ? '전문가와 상의하여 결정' : `${duration}분`})
+                        {(() => {
+                          const [hours, minutes] = selectedTime.split(':').map(Number);
+                          const period = hours < 12 ? '오전' : '오후';
+                          const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+                          return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
+                        })()} ({duration === 0 ? '전문가와 상의하여 결정' : `${duration}분`})
                       </span>
                     </div>
+                    <div className="border-t border-gray-300 my-2 pt-2"></div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">분당 요금</span>
+                      <span className="font-semibold text-blue-900">{creditsPerMinute} 크레딧</span>
+                    </div>
+                    {duration > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">예상 비용</span>
+                        <span className="font-bold text-lg text-blue-900">{creditsPerMinute * duration} 크레딧</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+
+              {/* 요청사항 */}
+              <div className="space-y-4 mt-4">
 
 
                 {/* 요청사항 */}
@@ -386,8 +406,9 @@ export default function ReservationModalImproved({
                   onClick={() => setStep('select')}
                   className="flex-1"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  이전
+                  <span className="inline-flex items-center">
+                    <ArrowLeft className="h-4 w-4 mr-1" /> 이전
+                  </span>
                 </Button>
                 <Button
                   type="button"
@@ -398,10 +419,9 @@ export default function ReservationModalImproved({
                   {isPending ? (
                     '예약 중...'
                   ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      예약 확정
-                    </>
+                    <span className="inline-flex items-center">
+                      <Send className="h-4 w-4 mr-1" /> 예약 요청
+                    </span>
                   )}
                 </Button>
               </div>

@@ -11,6 +11,9 @@ export interface Expert {
   ratingAvg: number;
   reviewCount: number;
   createdAt: string;
+  // 전문가 프로필 필드 (백엔드 API 제공)
+  keywords?: string[]; // 전문 키워드
+  consultationTypes?: string[]; // 상담 방식 (video, chat, voice)
   // 레벨 관련 필드 추가
   level?: string; // 티어 이름 (예: "Gold (골드)")
   calculatedLevel?: number; // 실제 계산된 레벨 (1-999)

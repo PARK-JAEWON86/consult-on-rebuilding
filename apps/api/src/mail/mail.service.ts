@@ -655,4 +655,286 @@ ${requestNotes}
 
     return this.sendMail(to, subject, html, text)
   }
+
+  // 새 문의 알림 이메일 전송
+  async sendNewInquiryNotification(
+    expertEmail: string,
+    expertName: string,
+    clientName: string,
+    inquirySubject: string,
+    inquiryContent: string,
+    inquiryId: string,
+    category: string
+  ) {
+    const subject = '[Consult-On] 새로운 문의가 도착했습니다';
+
+    // 내용 미리보기 (200자 제한)
+    const contentPreview = inquiryContent.length > 200
+      ? inquiryContent.substring(0, 200) + '...'
+      : inquiryContent;
+
+    // 카테고리 한글 변환
+    const categoryMap: Record<string, string> = {
+      'schedule': '일정 문의',
+      'time': '시간 문의',
+      'price': '가격 문의',
+      'method': '방식 문의',
+      'other': '기타'
+    };
+    const categoryKo = categoryMap[category] || category;
+
+    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard/expert/inquiries`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>새로운 문의</title>
+      </head>
+      <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
+        <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header & Content Wrapper -->
+          <div style="display: flex; align-items: stretch;">
+
+            <!-- Left Side: Header -->
+            <div style="background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; width: 280px;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.5px; white-space: nowrap;">Consult-On</h1>
+              <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">새로운 문의가<br/>도착했습니다</p>
+            </div>
+
+            <!-- Right Side: Main Content -->
+            <div style="flex: 1; padding: 40px 35px;">
+
+              <!-- Title -->
+              <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">📩 새로운 문의</h2>
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">안녕하세요, ${expertName}님!</p>
+
+              <!-- Inquiry Info -->
+              <div style="background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 11px; font-weight: 600; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">클라이언트</span>
+                  <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-top: 4px;">${clientName}</div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 11px; font-weight: 600; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">카테고리</span>
+                  <div style="font-size: 14px; color: #475569; margin-top: 4px;">${categoryKo}</div>
+                </div>
+                <div>
+                  <span style="font-size: 11px; font-weight: 600; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">제목</span>
+                  <div style="font-size: 14px; color: #475569; margin-top: 4px; font-weight: 500;">${inquirySubject}</div>
+                </div>
+              </div>
+
+              <!-- Content Preview -->
+              <div style="background: #f8fafc; border-left: 3px solid #cbd5e1; border-radius: 4px; padding: 16px 20px; margin-bottom: 20px;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">문의 내용</p>
+                <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.6;">${contentPreview}</p>
+              </div>
+
+              <!-- Response Reminder -->
+              <div style="background: #fef3c7; border-left: 3px solid #fbbf24; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                  <span style="color: #f59e0b; font-size: 14px;">💡</span>
+                  <p style="color: #92400e; margin: 0; font-size: 13px; line-height: 1.5; font-weight: 500;">빠른 응답이 고객 만족도를 높입니다</p>
+                </div>
+              </div>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                  문의 확인하기 →
+                </a>
+              </div>
+
+              <!-- Inquiry ID -->
+              <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 20px;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px;">문의 ID</p>
+                <div style="font-size: 16px; font-weight: 700; color: #1e293b; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; margin: 0;">${inquiryId}</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">본 메일은 발신 전용입니다 · © 2024 Consult-On. All rights reserved.</p>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+[Consult-On] 새로운 문의
+
+안녕하세요, ${expertName}님!
+
+클라이언트 ${clientName}님으로부터 새로운 문의가 도착했습니다.
+
+카테고리: ${categoryKo}
+제목: ${inquirySubject}
+
+문의 내용:
+${contentPreview}
+
+💡 빠른 응답이 고객 만족도를 높입니다
+
+문의 확인하기: ${dashboardUrl}
+
+문의 ID: ${inquiryId}
+
+© 2024 Consult-On. All rights reserved.
+    `;
+
+    return this.sendMail(expertEmail, subject, html, text);
+  }
+
+  // 새 예약 요청 알림 이메일 전송
+  async sendNewReservationNotification(
+    expertEmail: string,
+    expertName: string,
+    clientName: string,
+    reservationDisplayId: string,
+    startAt: Date,
+    endAt: Date,
+    note: string | null,
+    cost: number
+  ) {
+    const subject = '[Consult-On] 새로운 상담 예약 요청이 도착했습니다';
+
+    // 날짜 포맷팅
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`;
+    };
+
+    const startFormatted = formatDate(startAt);
+    const endFormatted = formatDate(endAt);
+
+    // 예약 시간 계산 (분)
+    const durationMinutes = Math.ceil((endAt.getTime() - startAt.getTime()) / 60000);
+
+    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard/expert/reservations`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>새로운 예약 요청</title>
+      </head>
+      <body style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.5; color: #1f2937; margin: 0; padding: 20px; background-color: #f8fafc;">
+        <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header & Content Wrapper -->
+          <div style="display: flex; align-items: stretch;">
+
+            <!-- Left Side: Header -->
+            <div style="background: linear-gradient(180deg, #10b981 0%, #059669 100%); padding: 40px 30px; width: 280px;">
+              <h1 style="font-size: 28px; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; letter-spacing: -0.5px; white-space: nowrap;">Consult-On</h1>
+              <p style="font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.6;">새로운 예약 요청이<br/>도착했습니다</p>
+            </div>
+
+            <!-- Right Side: Main Content -->
+            <div style="flex: 1; padding: 40px 35px;">
+
+              <!-- Title -->
+              <h2 style="font-size: 20px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">🗓 새로운 예약 요청</h2>
+              <p style="color: #64748b; margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;">안녕하세요, ${expertName}님!</p>
+
+              <!-- Reservation Info -->
+              <div style="background: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 11px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">클라이언트</span>
+                  <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-top: 4px;">${clientName}</div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 11px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">예약 일시</span>
+                  <div style="font-size: 14px; color: #475569; margin-top: 4px;">${startFormatted}</div>
+                  <div style="font-size: 14px; color: #475569;">~ ${endFormatted}</div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 11px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">예약 시간</span>
+                  <div style="font-size: 14px; color: #475569; margin-top: 4px; font-weight: 600;">${durationMinutes}분</div>
+                </div>
+                <div>
+                  <span style="font-size: 11px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">예약 금액</span>
+                  <div style="font-size: 16px; color: #10b981; margin-top: 4px; font-weight: 700;">${cost.toLocaleString()} 크레딧</div>
+                </div>
+              </div>
+
+              ${note ? `
+                <!-- Note -->
+                <div style="background: #f8fafc; border-left: 3px solid #cbd5e1; border-radius: 4px; padding: 16px 20px; margin-bottom: 20px;">
+                  <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">요청 사항</p>
+                  <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.6;">${note}</p>
+                </div>
+              ` : ''}
+
+              <!-- Approval Reminder -->
+              <div style="background: #fff7ed; border-left: 3px solid #fb923c; border-radius: 4px; padding: 16px 20px; margin-bottom: 24px;">
+                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                  <span style="color: #ea580c; font-size: 14px;">⏰</span>
+                  <p style="color: #9a3412; margin: 0; font-size: 13px; line-height: 1.5; font-weight: 500;">24시간 내 승인/거절이 필요합니다</p>
+                </div>
+              </div>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #10b981; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                  예약 확인하기 →
+                </a>
+              </div>
+
+              <!-- Reservation ID -->
+              <div style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 20px;">
+                <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 6px 0; text-transform: uppercase; letter-spacing: 0.5px;">예약 번호</p>
+                <div style="font-size: 16px; font-weight: 700; color: #1e293b; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; margin: 0;">${reservationDisplayId}</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f1f5f9; padding: 20px 35px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">본 메일은 발신 전용입니다 · © 2024 Consult-On. All rights reserved.</p>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+[Consult-On] 새로운 상담 예약 요청
+
+안녕하세요, ${expertName}님!
+
+클라이언트 ${clientName}님으로부터 새로운 예약 요청이 도착했습니다.
+
+예약 일시: ${startFormatted} ~ ${endFormatted}
+예약 시간: ${durationMinutes}분
+예약 금액: ${cost.toLocaleString()} 크레딧
+
+${note ? `요청 사항: ${note}\n` : ''}
+⏰ 24시간 내 승인/거절이 필요합니다
+
+예약 확인하기: ${dashboardUrl}
+
+예약 번호: ${reservationDisplayId}
+
+© 2024 Consult-On. All rights reserved.
+    `;
+
+    return this.sendMail(expertEmail, subject, html, text);
+  }
 }

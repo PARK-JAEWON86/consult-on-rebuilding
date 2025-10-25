@@ -169,6 +169,21 @@ const ExpertList = ({
     onExpertSelect?.(expert);
   }, [onExpertSelect]);
 
+  // 디버깅: 첫 번째 전문가의 데이터 확인
+  React.useEffect(() => {
+    if (currentExperts.length > 0) {
+      const firstExpert = currentExperts[0];
+      console.log('[ExpertList Frontend Debug] First expert data:', {
+        name: firstExpert.name,
+        keywords: firstExpert.keywords,
+        categories: firstExpert.categories,
+        consultationTypes: firstExpert.consultationTypes,
+        keywords_type: typeof firstExpert.keywords,
+        consultationTypes_type: typeof firstExpert.consultationTypes,
+      });
+    }
+  }, [currentExperts]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -262,13 +277,13 @@ const ExpertList = ({
                   specialty: expert.title || expert.categories[0] || "전문 분야",
                   rating: expert.ratingAvg,
                   reviewCount: expert.reviewCount,
-                  experience: 0, // API에서 제공하지 않음
+                  experience: expert.experience || 0,
                   description: expert.bio || "",
-                  keywords: expert.categories,
-                  consultationTypes: ["video", "chat"],
+                  keywords: expert.keywords || expert.categories, // keywords 우선, 없으면 categories 사용
+                  consultationTypes: expert.consultationTypes || ["video", "chat"], // 실제 데이터 사용, 없으면 기본값
                   profileImage: expert.avatarUrl,
-                  level: 1, // 기본값, ExpertCard에서 계산됨
-                  totalSessions: 0, // API에서 제공하지 않음
+                  level: expert.calculatedLevel || 1,
+                  totalSessions: expert.totalSessions || 0,
                   avgRating: expert.ratingAvg,
                 }}
                 mode={viewMode}
