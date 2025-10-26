@@ -6,7 +6,7 @@ export default function ChatLayout({
   children: React.ReactNode
 }) {
   return (
-    <DashboardLayout variant="user">
+    <DashboardLayout>
       {children}
     </DashboardLayout>
   )

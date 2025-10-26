@@ -40,7 +40,13 @@ export class JwtGuard implements CanActivate {
       }
 
       // Add complete user info to request object
-      ;(request as any).user = user
+      // userId 필드를 추가하여 Controller 호환성 유지
+      const userWithId = {
+        ...user,
+        userId: user.id,  // id를 userId로도 제공
+      }
+      console.log('[JwtGuard] Setting req.user:', { id: userWithId.id, userId: userWithId.userId, email: userWithId.email })
+      ;(request as any).user = userWithId
       return true
     } catch (error: any) {
       // Log error details for debugging

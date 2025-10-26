@@ -29,16 +29,26 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
       const storedViewMode = localStorage.getItem('consulton-viewMode');
       const isExpertUser = user?.roles?.includes('EXPERT');
 
-      // 전문가 사용자이고 인증된 경우, 항상 expert 모드로 시작
-      if (isAuthenticated && isExpertUser) {
-        setViewModeState('expert');
-        // localStorage에 저장된 값이 없거나 'user'인 경우에만 업데이트
-        if (storedViewMode !== '"expert"') {
-          localStorage.setItem('consulton-viewMode', JSON.stringify('expert'));
+      // localStorage에 저장된 사용자 선택을 최우선으로 존중
+      if (storedViewMode) {
+        const mode = JSON.parse(storedViewMode) as ViewMode;
+
+        // 보안 검증: 전문가가 아닌 사용자가 expert 모드에 있으면 user 모드로 수정
+        if (mode === 'expert' && !isExpertUser) {
+          setViewModeState('user');
+          localStorage.setItem('consulton-viewMode', JSON.stringify('user'));
+        } else {
+          // 유효한 모드면 그대로 사용
+          setViewModeState(mode);
         }
-      } else if (storedViewMode) {
-        // 일반 사용자는 저장된 값 사용
-        setViewModeState(JSON.parse(storedViewMode));
+      } else if (isAuthenticated && isExpertUser) {
+        // 저장된 값이 없는 경우에만: 전문가는 기본값으로 expert 모드
+        setViewModeState('expert');
+        localStorage.setItem('consulton-viewMode', JSON.stringify('expert'));
+      } else if (isAuthenticated) {
+        // 저장된 값이 없는 경우에만: 일반 사용자는 기본값으로 user 모드
+        setViewModeState('user');
+        localStorage.setItem('consulton-viewMode', JSON.stringify('user'));
       }
     }
   }, [user, isAuthenticated]);
@@ -46,23 +56,42 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   // URL 기반으로 viewMode 자동 설정
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const isExpertUser = user?.roles?.includes('EXPERT');
+
       if (pathname.startsWith('/dashboard/expert')) {
-        setViewModeState('expert');
-        localStorage.setItem('consulton-viewMode', JSON.stringify('expert'));
-      } else if (pathname.startsWith('/dashboard')) {
+        // 보안 검증: 전문가 대시보드는 전문가만 접근 가능
+        if (isAuthenticated && isExpertUser) {
+          setViewModeState('expert');
+          localStorage.setItem('consulton-viewMode', JSON.stringify('expert'));
+        } else if (isAuthenticated) {
+          // 전문가가 아닌 사용자가 전문가 대시보드 접근 시도 → user 모드로 전환
+          setViewModeState('user');
+          localStorage.setItem('consulton-viewMode', JSON.stringify('user'));
+        }
+      } else if (pathname.startsWith('/dashboard') && !pathname.startsWith('/dashboard/expert')) {
         setViewModeState('user');
         localStorage.setItem('consulton-viewMode', JSON.stringify('user'));
-      } else {
-        // 다른 경로에서는 저장된 viewMode 사용
-        const storedViewMode = localStorage.getItem('consulton-viewMode');
-        if (storedViewMode) {
-          setViewModeState(JSON.parse(storedViewMode));
-        }
       }
+      // 다른 경로(/experts, /community 등)에서는 viewMode를 변경하지 않음
+      // 현재 상태가 자동으로 유지되어 사용자 선택을 존중함
     }
-  }, [pathname]);
+  }, [pathname, user, isAuthenticated]);
 
   const setViewMode = (mode: ViewMode) => {
+    // 보안 검증: expert 모드로 전환 시 권한 확인
+    if (mode === 'expert') {
+      const isExpertUser = user?.roles?.includes('EXPERT');
+      if (!isExpertUser) {
+        console.warn('[ViewMode] Cannot set expert mode: User does not have EXPERT role');
+        // 권한이 없으면 user 모드로 강제 설정
+        setViewModeState('user');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('consulton-viewMode', JSON.stringify('user'));
+        }
+        return;
+      }
+    }
+
     setViewModeState(mode);
     if (typeof window !== 'undefined') {
       localStorage.setItem('consulton-viewMode', JSON.stringify(mode));
@@ -75,6 +104,13 @@ export function ViewModeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const switchToExpertMode = () => {
+    // 보안 검증: 전문가 권한이 있는 사용자만 expert 모드로 전환 가능
+    const isExpertUser = user?.roles?.includes('EXPERT');
+    if (!isExpertUser) {
+      console.warn('[ViewMode] Expert mode switch blocked: User does not have EXPERT role');
+      return;
+    }
+
     setViewMode('expert');
     router.push('/dashboard/expert');
   };

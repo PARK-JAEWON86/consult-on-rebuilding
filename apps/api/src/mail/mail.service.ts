@@ -793,6 +793,47 @@ ${contentPreview}
     return this.sendMail(expertEmail, subject, html, text);
   }
 
+  // 구조화된 note 파싱 함수
+  private parseStructuredNote(note: string | null): {
+    topic?: string;
+    type?: string;
+    situation?: string;
+    expectations?: string;
+    raw: string;
+  } {
+    if (!note) {
+      return { raw: '' };
+    }
+
+    const result: any = { raw: note };
+
+    // [상담 주제] 추출
+    const topicMatch = note.match(/\[상담 주제\]\s*\n([\s\S]*?)(?=\n\[|$)/);
+    if (topicMatch) {
+      result.topic = topicMatch[1].trim();
+    }
+
+    // [상담 유형] 추출
+    const typeMatch = note.match(/\[상담 유형\]\s*\n([\s\S]*?)(?=\n\[|$)/);
+    if (typeMatch) {
+      result.type = typeMatch[1].trim();
+    }
+
+    // [현재 상황 및 고민사항] 추출
+    const situationMatch = note.match(/\[현재 상황 및 고민사항\]\s*\n([\s\S]*?)(?=\n\[|$)/);
+    if (situationMatch) {
+      result.situation = situationMatch[1].trim();
+    }
+
+    // [기대사항] 추출
+    const expectationsMatch = note.match(/\[기대사항\]\s*\n([\s\S]*?)$/);
+    if (expectationsMatch) {
+      result.expectations = expectationsMatch[1].trim();
+    }
+
+    return result;
+  }
+
   // 새 예약 요청 알림 이메일 전송
   async sendNewReservationNotification(
     expertEmail: string,
@@ -823,6 +864,9 @@ ${contentPreview}
     const durationMinutes = Math.ceil((endAt.getTime() - startAt.getTime()) / 60000);
 
     const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard/expert/reservations`;
+
+    // 구조화된 note 파싱
+    const parsedNote = this.parseStructuredNote(note);
 
     const html = `
       <!DOCTYPE html>
@@ -873,10 +917,37 @@ ${contentPreview}
               </div>
 
               ${note ? `
-                <!-- Note -->
-                <div style="background: #f8fafc; border-left: 3px solid #cbd5e1; border-radius: 4px; padding: 16px 20px; margin-bottom: 20px;">
-                  <p style="font-size: 11px; font-weight: 600; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">요청 사항</p>
-                  <p style="color: #475569; margin: 0; font-size: 13px; line-height: 1.6;">${note}</p>
+                <!-- 상담 정보 -->
+                <div style="background: #f0f9ff; border: 2px solid #bae6fd; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                  <p style="font-size: 13px; font-weight: 700; color: #0369a1; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">📋 상담 정보</p>
+
+                  ${parsedNote.topic ? `
+                    <div style="margin-bottom: 14px;">
+                      <span style="font-size: 11px; font-weight: 600; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">상담 주제</span>
+                      <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-top: 4px;">${parsedNote.topic}</div>
+                    </div>
+                  ` : ''}
+
+                  ${parsedNote.type ? `
+                    <div style="margin-bottom: 14px;">
+                      <span style="font-size: 11px; font-weight: 600; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">상담 유형</span>
+                      <div style="font-size: 14px; color: #475569; margin-top: 4px;">${parsedNote.type}</div>
+                    </div>
+                  ` : ''}
+
+                  ${parsedNote.situation ? `
+                    <div style="margin-bottom: 14px;">
+                      <span style="font-size: 11px; font-weight: 600; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">현재 상황 및 고민사항</span>
+                      <div style="font-size: 13px; color: #1e293b; margin-top: 6px; line-height: 1.6; white-space: pre-wrap;">${parsedNote.situation}</div>
+                    </div>
+                  ` : ''}
+
+                  ${parsedNote.expectations ? `
+                    <div>
+                      <span style="font-size: 11px; font-weight: 600; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">기대사항</span>
+                      <div style="font-size: 13px; color: #1e293b; margin-top: 6px; line-height: 1.6; white-space: pre-wrap;">${parsedNote.expectations}</div>
+                    </div>
+                  ` : ''}
                 </div>
               ` : ''}
 
@@ -925,7 +996,20 @@ ${contentPreview}
 예약 시간: ${durationMinutes}분
 예약 금액: ${cost.toLocaleString()} 크레딧
 
-${note ? `요청 사항: ${note}\n` : ''}
+${note ? `
+📋 상담 정보
+${parsedNote.topic ? `
+상담 주제: ${parsedNote.topic}
+` : ''}${parsedNote.type ? `
+상담 유형: ${parsedNote.type}
+` : ''}${parsedNote.situation ? `
+현재 상황 및 고민사항:
+${parsedNote.situation}
+` : ''}${parsedNote.expectations ? `
+기대사항:
+${parsedNote.expectations}
+` : ''}
+` : ''}
 ⏰ 24시간 내 승인/거절이 필요합니다
 
 예약 확인하기: ${dashboardUrl}

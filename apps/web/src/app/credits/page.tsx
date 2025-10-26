@@ -34,7 +34,7 @@ export default function CreditsPage() {
   }
 
   return (
-    <DashboardLayout variant="user">
+    <DashboardLayout>
       <CreditsClient />
     </DashboardLayout>
   );

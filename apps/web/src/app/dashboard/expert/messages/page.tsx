@@ -10,7 +10,7 @@ import {
   deleteExpertInquiry,
   type Inquiry
 } from '@/lib/inquiries';
-import { Mail, Search, Clock, CheckCircle, Circle, Reply, Trash2 } from 'lucide-react';
+import { Mail, Search, CheckCircle, Circle, Reply, Trash2 } from 'lucide-react';
 
 export default function ExpertMessagesPage() {
   const { isAuthenticated } = useAuth();
@@ -254,43 +254,43 @@ export default function ExpertMessagesPage() {
                     <button
                       key={message.id}
                       onClick={() => handleSelectMessage(message)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
+                      className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
                         selectedMessage?.id === message.id ? 'bg-blue-50' : ''
                       } ${!message.isRead ? 'bg-blue-50/30' : ''}`}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {!message.isRead ? (
-                            <Circle className="h-2 w-2 text-blue-600 fill-current" />
-                          ) : message.reply ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Circle className="h-2 w-2 text-gray-300" />
-                          )}
-                          <span
-                            className={`text-sm font-medium ${
-                              !message.isRead ? 'text-gray-900' : 'text-gray-700'
-                            }`}
-                          >
-                            {message.clientName}
-                          </span>
-                        </div>
-                        <Clock className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <p
-                        className={`text-sm mb-1 ${
-                          !message.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'
-                        }`}
-                      >
-                        {message.subject}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                      <div className="flex items-center gap-2">
+                        {/* 읽음 상태 */}
+                        {!message.isRead ? (
+                          <Circle className="h-2 w-2 text-blue-600 fill-current flex-shrink-0" />
+                        ) : message.reply ? (
+                          <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <Circle className="h-2 w-2 text-gray-300 flex-shrink-0" />
+                        )}
+
+                        {/* 이름 */}
+                        <span className={`text-xs font-medium min-w-[60px] ${
+                          !message.isRead ? 'text-gray-900' : 'text-gray-600'
+                        }`}>
+                          {message.clientName}
+                        </span>
+
+                        {/* 문의 내용 */}
+                        <span className={`text-xs flex-1 truncate ${
+                          !message.isRead ? 'font-medium text-gray-900' : 'text-gray-600'
+                        }`}>
+                          {message.subject}
+                        </span>
+
+                        {/* 문의 유형 */}
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded flex-shrink-0">
                           {getCategoryLabel(message.category)}
                         </span>
-                        <p className="text-xs text-gray-400">
+
+                        {/* 시간 */}
+                        <span className="text-xs text-gray-400 flex-shrink-0 min-w-[50px] text-right">
                           {formatDate(message.createdAt)}
-                        </p>
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -376,7 +376,7 @@ export default function ExpertMessagesPage() {
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="답장 내용을 입력하세요..."
-                      className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
                     />
 
                     <div className="flex justify-end gap-3 mt-4">

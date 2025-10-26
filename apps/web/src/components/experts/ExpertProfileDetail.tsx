@@ -96,7 +96,7 @@ export default function ExpertProfileDetail({
     queryKey: ['user-credits', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const response = await api.get(`http://localhost:4000/v1/credits/balance?userId=${user?.id}`);
+      const response = await api.get(`/credits/balance?userId=${user?.id}`);
       return response.data;
     },
     enabled: !!user?.id && !isOwner
@@ -1597,7 +1597,11 @@ export default function ExpertProfileDetail({
             avatarUrl: expertData.avatarUrl,
             specialty: (expertData as any).specialty || null,
             level: expertData.level,
-            consultationStyle: (expertData as any).consultationStyle || null
+            consultationStyle: (expertData as any).consultationStyle || null,
+            // Availability 관련 필드 전달 (profile API에서 제공)
+            availabilitySlots: (expertData as any).availabilitySlots,
+            holidaySettings: (expertData as any).holidaySettings,
+            restTimeSettings: (expertData as any).restTimeSettings
           }}
           creditsPerMinute={creditsPerMinute}
           userCredits={creditsData?.data}

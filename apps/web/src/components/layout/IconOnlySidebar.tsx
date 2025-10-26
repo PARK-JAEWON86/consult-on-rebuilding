@@ -356,15 +356,17 @@ const IconOnlySidebar: React.FC<IconOnlySidebarProps> = ({
     const clientMenu = [
       { id: "home", name: "대시보드", icon: Home, path: "/dashboard" },
       { id: "messages", name: "메시지 관리", icon: Mail, path: "/dashboard/client/messages" },
-      { id: "expert-consultation", name: "전문가 상담", icon: Calendar, path: "/expert-consultation" },
+      { id: "expert-consultation", name: "상담 세션", icon: Video, path: "/expert-consultation" },
       { id: "chat", name: "AI채팅 상담", icon: MessageCircle, path: "/chat" },
     ];
 
     // 로그인된 사용자에게만 추가 메뉴 표시
     if (user && isAuthenticated) {
+      clientMenu.splice(2, 0,
+        { id: "my-reservations", name: "내 예약 관리", icon: Calendar, path: "/dashboard/reservations" }
+      );
       clientMenu.push(
         { id: "consultations", name: "상담 내역", icon: FileText, path: "/dashboard/consultations" },
-        { id: "my-reservations", name: "내 예약", icon: Calendar, path: "/dashboard/reservations" },
         { id: "my-reviews", name: "내 리뷰", icon: Star, path: "/dashboard/reviews" }
       );
     }

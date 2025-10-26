@@ -101,7 +101,18 @@ export class NotificationsController {
   // 알림 설정 조회
   @Get('settings')
   async getSettings(@Req() req: Request & { user: any }) {
-    const userId = req.user.userId;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          code: 'E_USER_NOT_AUTHENTICATED',
+          message: '인증된 사용자만 알림 설정을 조회할 수 있습니다.',
+        },
+      };
+    }
+
     const settings = await this.notificationsService.getUserSettings(userId);
 
     return {

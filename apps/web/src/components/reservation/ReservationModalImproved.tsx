@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/useToast';
@@ -12,8 +12,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Clock,
-  Calendar as CalendarIcon,
-  Send
+  Send,
+  CheckCircle
 } from 'lucide-react';
 
 interface Expert {
@@ -27,6 +27,27 @@ interface Expert {
   specialty?: string | null;
   level?: string | null;
   consultationStyle?: string | null;
+  // Availability 관련 필드 추가 (profile API에서 이미 제공됨)
+  availabilitySlots?: Array<{
+    id: number;
+    expertId: number;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    isAvailable: boolean;
+  }>;
+  holidaySettings?: {
+    acceptHolidayConsultations: boolean;
+    holidayNote: string;
+  };
+  restTimeSettings?: {
+    enableLunchBreak: boolean;
+    lunchStartTime: string;
+    lunchEndTime: string;
+    enableDinnerBreak: boolean;
+    dinnerStartTime: string;
+    dinnerEndTime: string;
+  };
 }
 
 interface ReservationModalImprovedProps {
@@ -45,14 +66,13 @@ interface ReservationData {
   note?: string;
 }
 
-type Step = 'select' | 'confirm';
+type Step = 'select' | 'confirm' | 'success';
 
 export default function ReservationModalImproved({
   isOpen,
   onClose,
   expert,
-  creditsPerMinute,
-  userCredits: propUserCredits
+  creditsPerMinute
 }: ReservationModalImprovedProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -62,8 +82,69 @@ export default function ReservationModalImproved({
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [duration, setDuration] = useState(30);
-  const [note, setNote] = useState('');
   const [alternativeTimes, setAlternativeTimes] = useState<Array<{ startAt: string; endAt: string }>>([]);
+  const [reservationDisplayId, setReservationDisplayId] = useState('');
+
+  // 구조화된 상담 정보
+  const [consultationTopic, setConsultationTopic] = useState('');
+  const [consultationType, setConsultationType] = useState('');
+  const [currentSituation, setCurrentSituation] = useState('');
+
+  // 전문가 전문분야에 따른 플레이스홀더 생성
+  const getPlaceholders = () => {
+    const specialty = expert.specialty?.toLowerCase() || '';
+
+    // 전문분야별 맞춤 플레이스홀더
+    const placeholders: Record<string, { topic: string; situation: string }> = {
+      '마케팅': {
+        topic: '예: 브랜드 포지셔닝 전략, SNS 마케팅 방법',
+        situation: '예: 신규 제품 출시를 앞두고 있는데, 어떤 마케팅 채널이 효과적일지 고민입니다.'
+      },
+      '창업': {
+        topic: '예: 초기 비즈니스 모델 검증, 투자 유치 전략',
+        situation: '예: 아이디어는 있지만 어떻게 시작해야 할지, 초기 자금을 어떻게 마련해야 할지 막막합니다.'
+      },
+      '경력': {
+        topic: '예: 이직 준비 전략, 커리어 전환 방법',
+        situation: '예: 현재 직무에서 다른 분야로 전환을 고민 중인데, 어떤 준비가 필요한지 모르겠습니다.'
+      },
+      '재무': {
+        topic: '예: 투자 포트폴리오 구성, 재무 계획 수립',
+        situation: '예: 목돈이 생겼는데 어떻게 관리하고 투자해야 할지 결정하기 어렵습니다.'
+      },
+      '심리': {
+        topic: '예: 직장 내 스트레스 관리, 대인관계 고민',
+        situation: '예: 최근 업무 스트레스로 인해 번아웃이 오는 것 같고, 동료들과의 관계도 어렵습니다.'
+      },
+      '법률': {
+        topic: '예: 계약서 검토, 법적 분쟁 대응 방법',
+        situation: '예: 비즈니스 계약을 앞두고 있는데, 불리한 조항이 있을까 걱정됩니다.'
+      },
+      'it': {
+        topic: '예: 기술 스택 선택, 아키텍처 설계',
+        situation: '예: 새로운 프로젝트를 시작하는데, 어떤 기술을 사용하는 것이 적합할지 고민입니다.'
+      },
+      '디자인': {
+        topic: '예: UI/UX 개선, 브랜드 아이덴티티 구축',
+        situation: '예: 서비스의 사용자 경험을 개선하고 싶은데, 어디서부터 손대야 할지 모르겠습니다.'
+      }
+    };
+
+    // 전문분야 키워드 매칭
+    for (const [key, value] of Object.entries(placeholders)) {
+      if (specialty.includes(key)) {
+        return value;
+      }
+    }
+
+    // 기본 플레이스홀더
+    return {
+      topic: '예: 창업 초기 마케팅 전략, 경력 전환 상담',
+      situation: '현재 어떤 상황이신가요? 어떤 점이 고민되시나요?'
+    };
+  };
+
+  const placeholders = getPlaceholders();
 
   // 크레딧 시스템 제거 - 주석 처리
   // const { data: creditsData } = useQuery({
@@ -74,16 +155,6 @@ export default function ReservationModalImproved({
   //   },
   //   enabled: !!user?.id && isOpen && propUserCredits === undefined
   // });
-
-  // 전문가 공휴일 설정 조회
-  const { data: availabilityData } = useQuery({
-    queryKey: ['expert-availability', expert.displayId],
-    queryFn: async () => {
-      const response = await api.get(`/experts/${expert.displayId}/availability`);
-      return response.data;
-    },
-    enabled: isOpen
-  });
 
   // 크레딧 관련 변수 제거
   // const userCredits = propUserCredits !== undefined ? propUserCredits : (creditsData?.data || 0);
@@ -96,27 +167,38 @@ export default function ReservationModalImproved({
       // Idempotency Key 생성 (UUID v4 형식)
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
-      const response = await api.post('http://localhost:4000/v1/reservations', data, {
+      const response = await api.post('/reservations', data, {
         headers: {
           'Idempotency-Key': idempotencyKey
         }
       });
-      return response.data;
+      return response;  // ✅ api.post()가 이미 response.data를 반환하므로 그대로 사용
     },
     onSuccess: (data) => {
       if (data.success) {
-        showToast('상담 예약이 완료되었습니다!', 'success');
+        // 예약 번호 저장
+        if (data.data?.displayId) {
+          setReservationDisplayId(data.data.displayId);
+        }
+        setStep('success');  // 성공 단계로 이동
         queryClient.invalidateQueries({ queryKey: ['reservations'] });
         queryClient.invalidateQueries({ queryKey: ['credits'] });
-        handleClose();
+        // handleClose()는 사용자가 "확인" 버튼을 클릭할 때 호출
       } else {
         showToast(data.error?.message || '예약에 실패했습니다.', 'error');
       }
     },
     onError: (error: any) => {
       console.error('Reservation error:', error);
-      const errorMessage = error?.response?.data?.error?.message || '예약에 실패했습니다.';
+      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || '예약에 실패했습니다.';
       const errorCode = error?.response?.data?.error?.code;
+      const statusCode = error?.response?.status;
+
+      // 409 Conflict - 중복 요청 처리 중
+      if (statusCode === 409) {
+        showToast('예약 요청이 이미 처리 중입니다. 잠시만 기다려주세요.', 'warning');
+        return;
+      }
 
       // 시간 충돌 에러인 경우 대체 시간 제안 표시
       if (errorCode === 'E_TIME_CONFLICT') {
@@ -139,7 +221,11 @@ export default function ReservationModalImproved({
     setSelectedDate('');
     setSelectedTime('');
     setDuration(30);
-    setNote('');
+    setConsultationTopic('');
+    setConsultationType('');
+    setCurrentSituation('');
+    setAlternativeTimes([]);
+    setReservationDisplayId('');
     onClose();
   };
 
@@ -149,13 +235,28 @@ export default function ReservationModalImproved({
     setSelectedTime(time);
   };
 
+  // 구조화된 상담 정보를 포맷팅
+  const formatConsultationNote = (): string => {
+    let formattedNote = `[상담 주제]\n${consultationTopic.trim()}\n\n`;
+
+    if (consultationType) {
+      formattedNote += `[상담 유형]\n${consultationType}\n\n`;
+    }
+
+    formattedNote += `[현재 상황 및 고민사항]\n${currentSituation.trim()}`;
+
+    return formattedNote;
+  };
+
   // 다음 단계로
   const handleNext = () => {
+    // 1단계에서는 날짜/시간만 검증
     if (!selectedDate || !selectedTime) {
       showToast('날짜와 시간을 선택해주세요.', 'error');
       return;
     }
 
+    // 2단계로 이동 (상담 정보는 2단계에서 입력)
     setStep('confirm');
   };
 
@@ -166,22 +267,36 @@ export default function ReservationModalImproved({
       return;
     }
 
+    // 상담 정보 검증 (2단계에서 필수)
+    if (!consultationTopic.trim()) {
+      showToast('상담 주제를 입력해주세요.', 'error');
+      return;
+    }
+
+    if (currentSituation.trim().length < 10) {
+      showToast('현재 상황을 최소 10자 이상 작성해주세요.', 'error');
+      return;
+    }
+
     const startDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
     // duration이 0이면 (전문가와 상의하여 결정) 기본 30분으로 설정하고 요청사항에 명시
     const actualDuration = duration === 0 ? 30 : duration;
     const endDateTime = new Date(startDateTime.getTime() + (actualDuration * 60 * 1000));
 
-    // duration이 0일 경우 요청사항에 상담 시간 협의 필요를 추가
+    // 구조화된 상담 정보 포맷팅
+    const formattedNote = formatConsultationNote();
+
+    // duration이 0일 경우 상담 시간 협의 메시지 추가
     const finalNote = duration === 0
-      ? `[상담 시간은 전문가와 상의하여 결정하겠습니다]\n\n${note.trim()}`
-      : note.trim();
+      ? `[상담 시간은 전문가와 상의하여 결정하겠습니다]\n\n${formattedNote}`
+      : formattedNote;
 
     const reservationData: ReservationData = {
       userId: Number(user.id),
       expertId: expert.id,
       startAt: startDateTime.toISOString(),
       endAt: endDateTime.toISOString(),
-      note: finalNote || undefined
+      note: finalNote
     };
 
     createReservation(reservationData);
@@ -197,7 +312,9 @@ export default function ReservationModalImproved({
           <div>
             <h2 className="text-xl font-bold text-gray-900">상담 예약</h2>
             <p className="text-sm text-gray-600 mt-1">
-              {step === 'select' ? '1단계: 날짜와 시간 선택' : '2단계: 예약 정보 확인'}
+              {step === 'select' && '1단계: 날짜와 시간 선택'}
+              {step === 'confirm' && '2단계: 예약 정보 확인'}
+              {step === 'success' && '예약 요청 완료'}
             </p>
           </div>
           <button
@@ -209,22 +326,96 @@ export default function ReservationModalImproved({
         </div>
 
         <div className="p-6">
-          {/* 공휴일 상담 안내 */}
-          {availabilityData?.holidaySettings?.acceptHolidayConsultations && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center mb-2">
-                <CalendarIcon className="h-5 w-5 text-green-600 mr-2" />
-                <h4 className="text-sm font-semibold text-green-900">공휴일 상담 가능</h4>
+          {step === 'success' ? (
+            // 3단계: 성공 화면
+            <div className="text-center py-12">
+              {/* 성공 아이콘 */}
+              <div className="flex justify-center mb-6">
+                <div className="rounded-full bg-green-100 p-6">
+                  <CheckCircle className="h-16 w-16 text-green-600" />
+                </div>
               </div>
-              {availabilityData.holidaySettings.holidayNote && (
-                <p className="text-sm text-green-700 ml-7">
-                  {availabilityData.holidaySettings.holidayNote}
-                </p>
-              )}
-            </div>
-          )}
 
-          {step === 'select' ? (
+              {/* 성공 메시지 */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                예약 요청이 완료되었습니다!
+              </h3>
+
+              <p className="text-gray-600 mb-6">
+                전문가가 요청을 확인한 후 승인 여부를 알려드립니다.
+              </p>
+
+              {/* 예약 정보 요약 */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6 text-left max-w-md mx-auto">
+                <h4 className="font-semibold text-gray-900 mb-3">예약 정보</h4>
+                <div className="space-y-2 text-sm">
+                  {reservationDisplayId && (
+                    <div className="flex justify-between pb-2 border-b border-gray-300">
+                      <span className="text-gray-600">예약 번호</span>
+                      <span className="font-bold text-blue-900">{reservationDisplayId}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">전문가</span>
+                    <span className="font-medium text-gray-900">{expert.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">날짜</span>
+                    <span className="font-medium text-gray-900">
+                      {new Date(selectedDate).toLocaleDateString('ko-KR', {
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'short'
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">시간</span>
+                    <span className="font-medium text-gray-900">
+                      {(() => {
+                        const [hours, minutes] = selectedTime.split(':').map(Number);
+                        const period = hours < 12 ? '오전' : '오후';
+                        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+                        return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
+                      })()} ({duration === 0 ? '전문가와 협의' : `${duration}분`})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 다음 단계 안내 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left max-w-md mx-auto">
+                <h4 className="font-semibold text-blue-900 mb-3">다음 단계</h4>
+                <ul className="space-y-2 text-sm text-blue-800">
+                  <li className="flex items-start">
+                    <span className="font-bold mr-2">1.</span>
+                    <span>전문가가 예약 요청을 확인합니다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-bold mr-2">2.</span>
+                    <span>전문가가 승인하면 알림을 보내드립니다.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-bold mr-2">3.</span>
+                    <span>예약 관리 페이지에서 상태를 확인할 수 있습니다.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-8">
+                예약 상태는 <strong>대시보드 &gt; 예약 관리</strong>에서 확인하실 수 있습니다.
+              </p>
+
+              {/* 확인 버튼 */}
+              <Button
+                type="button"
+                onClick={handleClose}
+                className="px-8 py-3"
+              >
+                확인
+              </Button>
+            </div>
+          ) : step === 'select' ? (
             // 1단계: 날짜 및 시간 선택
             <>
               <EnhancedReservationCalendar
@@ -357,34 +548,56 @@ export default function ReservationModalImproved({
                 </div>
               </div>
 
-              {/* 요청사항 */}
+              {/* 상담 정보 */}
               <div className="space-y-4 mt-4">
-
-
-                {/* 요청사항 */}
+                {/* 1. 상담 주제 (필수) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    요청사항 (선택)
+                    상담 주제 <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="상담받고 싶은 내용이나 궁금한 점을 적어주세요"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    rows={4}
-                    maxLength={500}
+                  <input
+                    type="text"
+                    value={consultationTopic}
+                    onChange={(e) => setConsultationTopic(e.target.value)}
+                    placeholder={placeholders.topic}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    maxLength={100}
                   />
-                  <p className="text-xs text-gray-500 mt-1">{note.length}/500</p>
+                  <p className="text-xs text-gray-500 mt-1">{consultationTopic.length}/100</p>
                 </div>
 
-                {/* 취소 정책 안내 */}
-                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                  <p className="text-sm text-amber-900 font-medium mb-2">📋 취소 정책</p>
-                  <ul className="text-sm text-amber-800 space-y-1">
-                    <li>• <strong>24시간 이전 취소:</strong> 전액 환불 (100%)</li>
-                    <li>• <strong>24시간 이내 취소:</strong> 50% 환불</li>
-                    <li>• <strong>예약 시작 후:</strong> 취소 불가</li>
-                  </ul>
+                {/* 2. 상담 유형 (선택) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    상담 유형
+                  </label>
+                  <select
+                    value={consultationType}
+                    onChange={(e) => setConsultationType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">선택하지 않음</option>
+                    <option value="초기 상담">초기 상담 (처음 받는 상담)</option>
+                    <option value="후속 상담">후속 상담 (이전 상담 연장)</option>
+                    <option value="긴급 상담">긴급 상담 (빠른 의사결정 필요)</option>
+                    <option value="일반 상담">일반 상담</option>
+                  </select>
+                </div>
+
+                {/* 3. 현재 상황 및 고민사항 (필수) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    현재 상황 및 고민사항 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={currentSituation}
+                    onChange={(e) => setCurrentSituation(e.target.value)}
+                    placeholder={placeholders.situation}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows={4}
+                    maxLength={300}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{currentSituation.length}/300</p>
                 </div>
 
                 {/* 안내사항 */}
@@ -413,7 +626,7 @@ export default function ReservationModalImproved({
                 <Button
                   type="button"
                   onClick={handleConfirm}
-                  disabled={isPending}
+                  disabled={isPending || !consultationTopic.trim() || currentSituation.trim().length < 10}
                   className="flex-1"
                 >
                   {isPending ? (

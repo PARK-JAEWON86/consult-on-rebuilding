@@ -532,12 +532,12 @@ function ExpertSessionsContent() {
 
                               <button
                                 onClick={() => {
-                                  const actionMap = {
+                                  const actionMap: Record<string, 'prepare' | 'join' | 'start' | 'manage'> = {
                                     '준비': 'prepare',
                                     '참여': 'join',
                                     '관리': 'manage',
                                     '보기': 'start'
-                                  } as const
+                                  }
                                   handleSessionAction(session, actionMap[config.button] || 'prepare')
                                 }}
                                 className={`px-4 py-2 text-white text-sm rounded-lg transition-colors ${config.buttonColor}`}

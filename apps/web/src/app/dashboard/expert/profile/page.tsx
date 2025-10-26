@@ -296,7 +296,7 @@ export default function ExpertProfileEditPage() {
             ? expertProfile.education
             : [""],
           certifications: expertProfile.certifications && Array.isArray(expertProfile.certifications) && expertProfile.certifications.length > 0
-            ? expertProfile.certifications.map(cert => ({
+            ? expertProfile.certifications.map((cert: any) => ({
                 name: cert?.name || '',
                 issuer: cert?.issuer || '',
                 year: cert?.year || ''  // year 필드 추가

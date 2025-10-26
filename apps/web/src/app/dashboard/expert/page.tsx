@@ -58,11 +58,11 @@ export default function ExpertDashboardPage() {
         api.get<{ success: boolean; data: TodayScheduleItem[] }>('/experts/schedule/today'),
       ]);
 
-      if (statsResponse.data.success) {
+      if (statsResponse.data?.success && statsResponse.data.data) {
         setStats(statsResponse.data.data);
       }
 
-      if (scheduleResponse.data.success) {
+      if (scheduleResponse.data?.success && scheduleResponse.data.data) {
         setSchedule(scheduleResponse.data.data);
       }
     } catch (error) {

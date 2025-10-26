@@ -139,18 +139,37 @@ export class ExpertsService {
       // 페이지네이션 적용
       items = itemsWithScore.slice((page - 1) * size, page * size);
     } else {
-      // 기존 DB 정렬 방식
-      const orderBy = sortMap[sort || 'recent'] || { createdAt: 'desc' };
+      // ✅ 쿼리 최적화: MySQL sort buffer 문제 해결
+      // orderBy를 제거하고 메모리에서 정렬 (대용량 JSON 필드 때문에 sort buffer 초과)
 
-      const [countResult, dbItems] = await this.prisma.$transaction([
+      // 1단계: 전체 데이터 조회 (orderBy 없이, join 없이)
+      const [countResult, allExperts] = await this.prisma.$transaction([
         this.prisma.expert.count({ where }),
         this.prisma.expert.findMany({
           where,
-          orderBy,
-          skip: (page - 1) * size,
-          take: size,
-          include: {
-            categoryLinks: {
+          // orderBy 제거 - 메모리에서 정렬
+        }),
+      ]);
+
+      // 2단계: 메모리에서 정렬
+      const sortKey = sort || 'recent';
+      if (sortKey === 'recent') {
+        allExperts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      } else if (sortKey === 'reviews') {
+        allExperts.sort((a, b) => b.reviewCount - a.reviewCount);
+      } else if (sortKey === 'rating') {
+        allExperts.sort((a, b) => b.ratingAvg - a.ratingAvg);
+      }
+
+      // 3단계: 페이지네이션 적용
+      const paginatedExperts = allExperts.slice((page - 1) * size, page * size);
+
+      // 4단계: 필요한 관계 데이터를 별도로 로드 (병렬 처리)
+      const expertsWithDetails = await Promise.all(
+        paginatedExperts.map(async (expert) => {
+          const [categoryLinks, reviews] = await Promise.all([
+            this.prisma.expertCategory.findMany({
+              where: { expertId: expert.id },
               include: {
                 category: {
                   select: {
@@ -160,8 +179,9 @@ export class ExpertsService {
                   }
                 }
               }
-            },
-            reviews: {
+            }),
+            this.prisma.review.findMany({
+              where: { expertId: expert.id },
               take: 5,
               orderBy: { createdAt: 'desc' },
               include: {
@@ -171,13 +191,19 @@ export class ExpertsService {
                   }
                 }
               }
-            }
-          }
-        }),
-      ]);
+            })
+          ]);
+
+          return {
+            ...expert,
+            categoryLinks,
+            reviews,
+          };
+        })
+      );
 
       total = countResult;
-      items = dbItems;
+      items = expertsWithDetails;
     }
 
     // JSON 문자열을 배열/객체로 파싱하는 헬퍼 함수들
@@ -363,9 +389,10 @@ export class ExpertsService {
     const parsedPortfolioFiles = parseJsonField(expert.portfolioFiles);
     console.log('📁 [Backend] portfolioFiles 파싱 결과:', parsedPortfolioFiles);
 
-    // 응답시간 포맷팅
-    const formattedResponseTime = expert.avgResponseTimeMinutes
-      ? this.expertStatsService.formatResponseTime(expert.avgResponseTimeMinutes)
+    // 응답시간 포맷팅 (타입 단언 사용)
+    const expertWithResponseTime = expert as any;
+    const formattedResponseTime = expertWithResponseTime.avgResponseTimeMinutes
+      ? this.expertStatsService.formatResponseTime(expertWithResponseTime.avgResponseTimeMinutes)
       : expert.responseTime;
 
     return {
@@ -403,10 +430,10 @@ export class ExpertsService {
       // 응답시간 정보 추가
       responseTime: formattedResponseTime,
       responseTimeStats: {
-        avgMinutes: expert.avgResponseTimeMinutes,
-        calculatedAt: expert.responseTimeCalculatedAt,
-        sampleSize: expert.responseTimeSampleSize,
-        isCalculated: expert.avgResponseTimeMinutes !== null
+        avgMinutes: expertWithResponseTime.avgResponseTimeMinutes,
+        calculatedAt: expertWithResponseTime.responseTimeCalculatedAt,
+        sampleSize: expertWithResponseTime.responseTimeSampleSize,
+        isCalculated: expertWithResponseTime.avgResponseTimeMinutes !== null
       }
     };
   }
@@ -1166,7 +1193,8 @@ export class ExpertsService {
     const existingReservations = await this.prisma.reservation.findMany({
       where: {
         expertId: expert.id,
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        // 전문가가 승인하여 확정된 예약만 "예약됨"으로 표시
+        status: 'CONFIRMED',
         startAt: { gte: startOfDay, lte: endOfDay }
       },
       select: { startAt: true, endAt: true }

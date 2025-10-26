@@ -16,8 +16,8 @@ export class ReservationsController {
   }
 
   @Delete(':displayId')
-  async cancel(@Param('displayId') displayId: string, @Body() body?: { userId?: number }) {
-    const data = await this.svc.cancel(displayId, body?.userId);
+  async delete(@Param('displayId') displayId: string, @Body() body: { expertId: number }) {
+    const data = await this.svc.delete(displayId, body.expertId);
     return { success: true, data };
   }
 

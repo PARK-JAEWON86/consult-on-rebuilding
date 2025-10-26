@@ -4,7 +4,7 @@ import { CreditsService } from '../credits/credits.service';
 import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ExpertStatsService } from '../experts/expert-stats.service';
 import { MailService } from '../mail/mail.service';
-import { ulid } from 'ulid';
+import { generateReservationNumber, formatDateForReservationNumber } from '../utils/reservationNumber';
 
 @Injectable()
 export class ReservationsService {
@@ -27,7 +27,7 @@ export class ReservationsService {
       });
     }
 
-    // 전문가 정보 조회 (user 정보 포함)
+    // 전문가 정보 조회 (user 정보 및 카테고리 포함)
     const expert = await this.prisma.expert.findUnique({
       where: { id: dto.expertId },
       select: {
@@ -38,6 +38,7 @@ export class ReservationsService {
         experience: true,
         reviewCount: true,
         repeatClients: true,
+        categories: true,
         user: {
           select: { email: true, name: true }
         }
@@ -92,11 +93,32 @@ export class ReservationsService {
       select: { name: true }
     });
 
-    const displayId = ulid();
+    // 전문가 카테고리 추출 (첫 번째 카테고리 사용)
+    const categories = Array.isArray(expert.categories) ? expert.categories : [];
+    const primaryCategory = categories.length > 0 && typeof categories[0] === 'string'
+      ? categories[0]
+      : '기타';
+
+    // 예약번호는 트랜잭션 외부에서 미리 생성 (scope 문제 해결)
+    let displayId = '';
 
     try {
       // 트랜잭션으로 예약 생성 + 크레딧 차감
       const result = await this.prisma.$transaction(async (tx) => {
+        // 해당 날짜의 예약 순차 번호 계산
+        const dateStr = formatDateForReservationNumber(start);
+        const todayReservationCount = await tx.reservation.count({
+          where: {
+            displayId: {
+              startsWith: `RE-${dateStr}-`
+            }
+          }
+        });
+        const sequenceNumber = todayReservationCount + 1;
+
+        // 예약번호 생성
+        displayId = generateReservationNumber(start, sequenceNumber, primaryCategory);
+
         // 1. 예약 생성
         const created = await tx.reservation.create({
           data: {
@@ -109,14 +131,14 @@ export class ReservationsService {
             note: dto.note ?? null,
             status: 'PENDING',
           },
-          select: { 
-            displayId: true, 
-            userId: true, 
-            expertId: true, 
-            startAt: true, 
-            endAt: true, 
+          select: {
+            displayId: true,
+            userId: true,
+            expertId: true,
+            startAt: true,
+            endAt: true,
             cost: true,
-            status: true 
+            status: true
           },
         });
 
@@ -519,7 +541,6 @@ export class ReservationsService {
     });
 
     const alternatives: Array<{ startAt: string; endAt: string }> = [];
-    const requestedHour = requestedStart.getHours();
     const requestedMinute = requestedStart.getMinutes();
 
     // 30분 단위로 가능한 시간대 탐색 (이전 3개, 이후 3개)
@@ -752,6 +773,37 @@ export class ReservationsService {
         createdAt: true
       }
     });
+  }
+
+  /**
+   * 예약 삭제 (완전 삭제)
+   * @param displayId 예약 displayId
+   * @param expertId 전문가 ID (권한 확인용)
+   */
+  async delete(displayId: string, expertId: number) {
+    const reservation = await this.findAndValidateExpertOwnership(displayId, expertId);
+
+    // CANCELED 상태인지 확인
+    if (reservation.status !== 'CANCELED') {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'E_NOT_CANCELED',
+          message: '취소된 예약만 삭제할 수 있습니다. 현재 상태: ' + reservation.status
+        }
+      });
+    }
+
+    // 예약 삭제 (ReservationHistory는 CASCADE로 자동 삭제)
+    await this.prisma.reservation.delete({
+      where: { displayId }
+    });
+
+    return {
+      displayId,
+      message: '예약이 삭제되었습니다.',
+      deletedAt: new Date().toISOString()
+    };
   }
 
   /**

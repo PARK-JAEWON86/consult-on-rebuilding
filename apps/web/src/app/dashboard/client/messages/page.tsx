@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { getClientInquiries, deleteClientInquiry, type Inquiry } from '@/lib/inquiries';
-import { Mail, Search, Clock, CheckCircle, Circle, ArrowLeft, Trash2 } from 'lucide-react';
+import { Mail, Search, CheckCircle, Circle, ArrowLeft, Trash2, Clock } from 'lucide-react';
 
 export default function ClientMessagesPage() {
   const { isAuthenticated } = useAuth();
@@ -14,7 +14,7 @@ export default function ClientMessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // 문의 목록 조회
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['client-inquiries', filterStatus, searchQuery],
     queryFn: () => getClientInquiries({
       status: filterStatus,
@@ -34,7 +34,6 @@ export default function ClientMessagesPage() {
   });
 
   const messages = data?.inquiries || [];
-  const summary = data?.summary || { total: 0, unread: 0, replied: 0 };
 
   const filteredMessages = messages.filter((msg) => {
     // 필터 적용
@@ -205,43 +204,43 @@ export default function ClientMessagesPage() {
                   <button
                     key={message.id}
                     onClick={() => handleSelectMessage(message)}
-                    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
+                    className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
                       selectedMessage?.id === message.id ? 'bg-blue-50' : ''
                     } ${!message.isRead ? 'bg-blue-50/30' : ''}`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {!message.isRead ? (
-                          <Circle className="h-2 w-2 text-blue-600 fill-current" />
-                        ) : message.reply ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Circle className="h-2 w-2 text-gray-300" />
-                        )}
-                        <span
-                          className={`text-sm font-medium ${
-                            !message.isRead ? 'text-gray-900' : 'text-gray-700'
-                          }`}
-                        >
-                          {message.expertName}
-                        </span>
-                      </div>
-                      <Clock className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <p
-                      className={`text-sm mb-1 ${
-                        !message.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      {message.subject}
-                    </p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                    <div className="flex items-center gap-2">
+                      {/* 읽음 상태 */}
+                      {!message.isRead ? (
+                        <Circle className="h-2 w-2 text-blue-600 fill-current flex-shrink-0" />
+                      ) : message.reply ? (
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                      ) : (
+                        <Circle className="h-2 w-2 text-gray-300 flex-shrink-0" />
+                      )}
+
+                      {/* 전문가 이름 */}
+                      <span className={`text-xs font-medium min-w-[60px] ${
+                        !message.isRead ? 'text-gray-900' : 'text-gray-600'
+                      }`}>
+                        {message.expertName}
+                      </span>
+
+                      {/* 문의 내용 */}
+                      <span className={`text-xs flex-1 truncate ${
+                        !message.isRead ? 'font-medium text-gray-900' : 'text-gray-600'
+                      }`}>
+                        {message.subject}
+                      </span>
+
+                      {/* 문의 유형 */}
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded flex-shrink-0">
                         {getCategoryLabel(message.category)}
                       </span>
-                      <p className="text-xs text-gray-400">
+
+                      {/* 시간 */}
+                      <span className="text-xs text-gray-400 flex-shrink-0 min-w-[50px] text-right">
                         {formatDate(message.createdAt)}
-                      </p>
+                      </span>
                     </div>
                   </button>
                 ))}

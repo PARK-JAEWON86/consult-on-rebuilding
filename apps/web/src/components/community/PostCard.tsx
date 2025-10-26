@@ -16,7 +16,7 @@ interface Post {
   author: {
     id: number;
     name: string;
-    avatar: string | null;
+    avatar?: string | null;
   };
   authorAvatar: string | null;
   title: string;

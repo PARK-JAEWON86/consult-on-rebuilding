@@ -32,6 +32,7 @@ export interface ParticipantState {
   userId: string
   role: ParticipantRole
   name: string
+  email?: string
   avatar?: string
   ready: boolean
   online: boolean

@@ -236,8 +236,8 @@ export default function Navbar() {
                         </div>
                       </div>
                       
-                      {/* 클라이언트 대시보드 - 클라이언트 또는 관리자만 표시 */}
-                      {(!user?.roles?.includes('EXPERT') || isAdmin) && (
+                      {/* 클라이언트 대시보드 - 클라이언트 모드이거나 관리자일 때 표시 */}
+                      {(viewMode === 'user' || isAdmin) && (
                         <Link
                           href="/dashboard"
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -249,8 +249,8 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
-                      {(user?.roles?.includes('EXPERT') || isAdmin) && (
+                      {/* 전문가 대시보드 - 전문가 모드이면서 전문가 권한이 있거나 관리자일 때 표시 */}
+                      {((viewMode === 'expert' && user?.roles?.includes('EXPERT')) || isAdmin) && (
                         <Link
                           href="/dashboard/expert"
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -559,8 +559,8 @@ export default function Navbar() {
                   </div>
                   
                   <div className="mt-2 space-y-1">
-                    {/* 클라이언트 대시보드 - 클라이언트 또는 관리자만 표시 */}
-                    {(!user?.roles?.includes('EXPERT') || isAdmin) && (
+                    {/* 클라이언트 대시보드 - 클라이언트 모드이거나 관리자일 때 표시 */}
+                    {(viewMode === 'user' || isAdmin) && (
                       <Link
                         href="/dashboard"
                         className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
@@ -571,8 +571,8 @@ export default function Navbar() {
                       </Link>
                     )}
 
-                    {/* 전문가 대시보드 - 전문가 또는 관리자만 표시 */}
-                    {(user?.roles?.includes('EXPERT') || isAdmin) && (
+                    {/* 전문가 대시보드 - 전문가 모드이면서 전문가 권한이 있거나 관리자일 때 표시 */}
+                    {((viewMode === 'expert' && user?.roles?.includes('EXPERT')) || isAdmin) && (
                       <Link
                         href="/dashboard/expert"
                         className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"

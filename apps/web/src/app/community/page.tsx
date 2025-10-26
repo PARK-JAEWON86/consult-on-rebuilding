@@ -17,7 +17,9 @@ interface Post {
     id: number;
     name: string;
     role?: string;
+    avatar?: string | null;
   };
+  authorAvatar: string | null;
   title: string;
   content: string;
   category: string;
@@ -30,6 +32,14 @@ interface Post {
   likes: number;
   comments: number;
   views: number;
+  isExpert?: boolean;
+  isAISummary?: boolean;
+  profileVisibility?: "public" | "experts" | "private";
+  consultationTopic?: string;
+  rating?: number;
+  expertName?: string;
+  isVerified?: boolean;
+  hasExpertReply?: boolean;
 }
 
 interface Category {

@@ -134,6 +134,11 @@ export class NotificationsService {
 
   // 사용자 알림 설정 조회
   async getUserSettings(userId: number) {
+    // ✅ userId 검증 - undefined나 null 방어
+    if (!userId || typeof userId !== 'number') {
+      throw new Error(`Invalid userId: ${userId}. Cannot retrieve notification settings.`);
+    }
+
     let settings = await this.prisma.userNotificationSetting.findUnique({
       where: { userId },
     });

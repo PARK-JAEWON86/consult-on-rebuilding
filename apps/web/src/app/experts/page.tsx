@@ -655,7 +655,7 @@ const ExpertSearch = () => {
   };
 
   return (
-    <DashboardLayout variant="user">
+    <DashboardLayout>
       <div className="w-full">
         <main className="w-full">
           <div className="max-w-7xl mx-auto px-10 py-10 space-y-6">

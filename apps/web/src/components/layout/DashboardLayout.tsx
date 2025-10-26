@@ -6,7 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  variant: 'user' | 'expert';
+  variant?: 'user' | 'expert'; // Optional: when not provided, IconOnlySidebar uses viewMode from context
 }
 
 export default function DashboardLayout({ children, variant }: DashboardLayoutProps) {

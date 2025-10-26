@@ -84,7 +84,7 @@ export default function UserDetailPage() {
     try {
       setIsLoading(true)
       const response = await api.get<UserDetailResponse>(`/admin/users/${userId}`)
-      setData(response.data)
+      setData(response.data || null)
     } catch (error) {
       console.error('Failed to load user detail:', error)
     } finally {
