@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { ExpertStatsService } from '../experts/expert-stats.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { InquiryCategory } from '@prisma/client';
 import { CreateInquiryDto, CreateReplyDto, QueryInquiryDto } from './dto';
 
@@ -10,7 +11,8 @@ export class InquiryService {
   constructor(
     private prisma: PrismaService,
     private expertStatsService: ExpertStatsService,
-    private mailService: MailService
+    private mailService: MailService,
+    private notificationsService: NotificationsService
   ) {}
 
   // ==========================================
@@ -21,7 +23,10 @@ export class InquiryService {
     // 전문가 정보 조회 (user 정보 포함)
     const expert = await this.prisma.expert.findUnique({
       where: { id: dto.expertId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        userId: true,
         user: {
           select: { email: true, name: true }
         }
@@ -69,6 +74,20 @@ export class InquiryService {
         )
         .catch(err => {
           console.error('[InquiryService] 문의 알림 이메일 발송 실패:', err);
+        });
+    }
+
+    // 전문가에게 시스템 알림 생성
+    if (expert.userId) {
+      this.notificationsService
+        .createInquiryReceivedNotification(
+          expert.userId,
+          inquiry.id,
+          client?.name || '고객',
+          dto.subject
+        )
+        .catch(err => {
+          console.error('[InquiryService] 문의 알림 생성 실패:', err);
         });
     }
 
@@ -309,6 +328,18 @@ export class InquiryService {
     this.expertStatsService.calculateAndUpdateResponseTime(expert.id)
       .catch(err => {
         console.error('[InquiryService] 응답시간 계산 실패:', err);
+      });
+
+    // 클라이언트에게 시스템 알림 생성
+    this.notificationsService
+      .createInquiryReplyNotification(
+        inquiry.clientId,
+        inquiryId,
+        expert.name,
+        inquiry.subject
+      )
+      .catch(err => {
+        console.error('[InquiryService] 답변 알림 생성 실패:', err);
       });
 
     return {

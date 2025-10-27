@@ -322,4 +322,191 @@ export class NotificationsService {
 
     return notifications;
   }
+
+  // ==========================================
+  // 문의 관련 알림
+  // ==========================================
+
+  /**
+   * 전문가: 새 문의 접수 알림
+   */
+  async createInquiryReceivedNotification(
+    expertUserId: number,
+    inquiryId: string,
+    clientName: string,
+    subject: string
+  ) {
+    const settings = await this.getUserSettings(expertUserId);
+    if (!settings.systemNotifications) return null;
+
+    return this.createNotification({
+      userId: expertUserId,
+      type: 'INQUIRY_RECEIVED',
+      title: '새로운 문의가 도착했습니다',
+      message: `${clientName}님이 "${subject}" 주제로 문의를 남겼습니다`,
+      data: { inquiryId },
+      priority: 'MEDIUM',
+      actionUrl: `/dashboard/expert/inquiries/${inquiryId}`,
+    });
+  }
+
+  /**
+   * 사용자: 문의 답변 알림
+   */
+  async createInquiryReplyNotification(
+    clientUserId: number,
+    inquiryId: string,
+    expertName: string,
+    subject: string
+  ) {
+    const settings = await this.getUserSettings(clientUserId);
+    if (!settings.systemNotifications) return null;
+
+    return this.createNotification({
+      userId: clientUserId,
+      type: 'INQUIRY_REPLY',
+      title: '문의에 대한 답변이 도착했습니다',
+      message: `${expertName}님이 "${subject}" 문의에 답변했습니다`,
+      data: { inquiryId },
+      priority: 'HIGH',
+      actionUrl: `/dashboard/inquiries/${inquiryId}`,
+    });
+  }
+
+  // ==========================================
+  // 예약 관련 알림
+  // ==========================================
+
+  /**
+   * 전문가: 새 예약 대기 알림
+   */
+  async createReservationPendingNotification(
+    expertUserId: number,
+    reservationId: string,
+    clientName: string,
+    startAt: Date
+  ) {
+    const settings = await this.getUserSettings(expertUserId);
+    if (!settings.upcomingReservations) return null;
+
+    return this.createNotification({
+      userId: expertUserId,
+      type: 'RESERVATION_PENDING',
+      title: '새로운 예약 요청',
+      message: `${clientName}님의 예약 요청이 있습니다 (${startAt.toLocaleString('ko-KR')})`,
+      data: { reservationId },
+      priority: 'HIGH',
+      actionUrl: `/dashboard/expert/reservations`,
+    });
+  }
+
+  /**
+   * 사용자: 예약 승인 알림
+   */
+  async createReservationApprovedNotification(
+    clientUserId: number,
+    reservationId: string,
+    expertName: string,
+    startAt: Date
+  ) {
+    const settings = await this.getUserSettings(clientUserId);
+    if (!settings.upcomingReservations) return null;
+
+    return this.createNotification({
+      userId: clientUserId,
+      type: 'RESERVATION_APPROVED',
+      title: '예약이 승인되었습니다',
+      message: `${expertName}님이 예약을 승인했습니다 (${startAt.toLocaleString('ko-KR')})`,
+      data: { reservationId },
+      priority: 'HIGH',
+      actionUrl: `/dashboard/consultations/${reservationId}`,
+    });
+  }
+
+  /**
+   * 사용자: 예약 거절 알림
+   */
+  async createReservationRejectedNotification(
+    clientUserId: number,
+    reservationId: string,
+    expertName: string,
+    reason?: string
+  ) {
+    const settings = await this.getUserSettings(clientUserId);
+    if (!settings.upcomingReservations) return null;
+
+    return this.createNotification({
+      userId: clientUserId,
+      type: 'RESERVATION_REJECTED',
+      title: '예약이 거절되었습니다',
+      message: `${expertName}님이 예약을 거절했습니다${reason ? `: ${reason}` : ''}`,
+      data: { reservationId },
+      priority: 'HIGH',
+      actionUrl: `/dashboard/consultations`,
+    });
+  }
+
+  // ==========================================
+  // 전문가 지원 관련 알림
+  // ==========================================
+
+  /**
+   * 사용자: 전문가 지원 상태 변경 알림
+   */
+  async createExpertApplicationUpdateNotification(
+    userId: number,
+    status: string,
+    message: string
+  ) {
+    return this.createNotification({
+      userId,
+      type: 'EXPERT_APPLICATION_UPDATE',
+      title: '전문가 지원 상태 업데이트',
+      message,
+      data: { status },
+      priority: status === 'APPROVED' ? 'HIGH' : 'MEDIUM',
+      actionUrl: status === 'APPROVED'
+        ? '/dashboard/expert'
+        : status === 'ADDITIONAL_INFO_REQUESTED'
+        ? '/experts/become'
+        : '/experts/application-status',
+    });
+  }
+
+  // ==========================================
+  // 관리자 시스템 알림
+  // ==========================================
+
+  /**
+   * 관리자: 모든 사용자에게 시스템 공지
+   */
+  async createSystemAdminNotification(
+    title: string,
+    message: string,
+    targetUserIds?: number[],
+    priority: NotificationPriority = 'MEDIUM',
+    actionUrl?: string
+  ) {
+    const userIds = targetUserIds || await this.getAllUserIds();
+
+    const notifications = userIds.map(userId =>
+      this.createNotification({
+        userId,
+        type: 'SYSTEM_ADMIN',
+        title,
+        message,
+        priority,
+        actionUrl,
+      })
+    );
+
+    return Promise.all(notifications);
+  }
+
+  private async getAllUserIds(): Promise<number[]> {
+    const users = await this.prisma.user.findMany({
+      select: { id: true }
+    });
+    return users.map(u => u.id);
+  }
 }

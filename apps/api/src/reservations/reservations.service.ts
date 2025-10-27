@@ -4,6 +4,7 @@ import { CreditsService } from '../credits/credits.service';
 import { ExpertLevelsService } from '../expert-levels/expert-levels.service';
 import { ExpertStatsService } from '../experts/expert-stats.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { generateReservationNumber, formatDateForReservationNumber } from '../utils/reservationNumber';
 
 @Injectable()
@@ -13,7 +14,8 @@ export class ReservationsService {
     private creditsService: CreditsService,
     private expertLevelsService: ExpertLevelsService,
     private expertStatsService: ExpertStatsService,
-    private mailService: MailService
+    private mailService: MailService,
+    private notificationsService: NotificationsService
   ) {}
 
   async create(dto: { userId: number; expertId: number; startAt: string; endAt: string; note?: string }) {
@@ -39,6 +41,7 @@ export class ReservationsService {
         reviewCount: true,
         repeatClients: true,
         categories: true,
+        userId: true,
         user: {
           select: { email: true, name: true }
         }
@@ -170,6 +173,20 @@ export class ReservationsService {
           )
           .catch(err => {
             console.error('[ReservationsService] 예약 알림 이메일 발송 실패:', err);
+          });
+      }
+
+      // 전문가에게 시스템 알림 생성
+      if (expert.userId) {
+        this.notificationsService
+          .createReservationPendingNotification(
+            expert.userId,
+            displayId,
+            client?.name || '고객',
+            start
+          )
+          .catch(err => {
+            console.error('[ReservationsService] 예약 알림 생성 실패:', err);
           });
       }
 
@@ -362,6 +379,8 @@ export class ReservationsService {
         status: true,
         cost: true,
         note: true,
+        cancelReason: true,
+        createdAt: true,
         expert: {
           select: {
             name: true,
@@ -666,6 +685,26 @@ export class ReservationsService {
         console.error('[ReservationsService] 응답시간 계산 실패:', err);
       });
 
+    // 전문가 정보 조회 (알림용)
+    const expert = await this.prisma.expert.findUnique({
+      where: { id: expertId },
+      select: { name: true }
+    });
+
+    // 클라이언트에게 시스템 알림 생성
+    if (expert) {
+      this.notificationsService
+        .createReservationApprovedNotification(
+          updated.userId,
+          displayId,
+          expert.name,
+          updated.startAt
+        )
+        .catch(err => {
+          console.error('[ReservationsService] 예약 승인 알림 생성 실패:', err);
+        });
+    }
+
     return updated;
   }
 
@@ -740,6 +779,26 @@ export class ReservationsService {
 
       return updated;
     });
+
+    // 전문가 정보 조회 (알림용)
+    const expert = await this.prisma.expert.findUnique({
+      where: { id: expertId },
+      select: { name: true }
+    });
+
+    // 클라이언트에게 시스템 알림 생성
+    if (expert) {
+      this.notificationsService
+        .createReservationRejectedNotification(
+          result.userId,
+          displayId,
+          expert.name,
+          reason
+        )
+        .catch(err => {
+          console.error('[ReservationsService] 예약 거절 알림 생성 실패:', err);
+        });
+    }
 
     return result;
   }

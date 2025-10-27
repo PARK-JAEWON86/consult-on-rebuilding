@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Bell, X, Calendar, CreditCard, Star, CheckCircle, Settings, AlertCircle, MessageCircle, UserCheck, UserX, FileText, Megaphone, Clock, RefreshCw } from 'lucide-react';
+import { Bell, X, Calendar, Settings, AlertCircle, MessageCircle, Clock, RefreshCw, Star } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useViewMode } from '@/contexts/ViewModeContext';
 import {
   getNotifications,
   getNotificationSettings,
@@ -16,28 +15,24 @@ import {
   type NotificationType,
 } from '@/lib/notifications';
 
-// 사용자 모드에서만 표시할 알림 타입
-const USER_NOTIFICATION_TYPES: NotificationType[] = [
-  'INQUIRY_REPLY',
-  'RESERVATION_APPROVED',
-  'RESERVATION_REJECTED',
+// 전문가 모드에서만 표시할 알림 타입
+const EXPERT_NOTIFICATION_TYPES: NotificationType[] = [
+  'INQUIRY_RECEIVED',
+  'RESERVATION_PENDING',
   'CONSULTATION_UPCOMING',
-  'CONSULTATION_COMPLETED',
-  'CREDIT_LOW',
-  'EXPERT_APPLICATION_UPDATE',
+  'REVIEW_REQUEST',
   'SYSTEM',
   'SYSTEM_ADMIN'
 ];
 
-export function NotificationBell() {
+export function ExpertNotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const queryClient = useQueryClient();
-  const { viewMode, isExpertMode } = useViewMode();
 
-  // 알림 목록 조회 - viewMode를 캐시 키에 포함
+  // 알림 목록 조회
   const { data: notificationsData, refetch } = useQuery({
-    queryKey: ['notifications', viewMode],
+    queryKey: ['notifications', 'expert'],
     queryFn: () => getNotifications({ limit: 50 }),
     refetchInterval: 10000, // ⚡ 10초마다 (빠른 알림 표시)
     refetchOnWindowFocus: true, // 탭 전환 시 자동 새로고침
@@ -82,17 +77,17 @@ export function NotificationBell() {
     },
   });
 
-  // 사용자 모드 알림 필터링
+  // 전문가 모드 알림 필터링
   const notifications = useMemo(() => {
     const allNotifications = notificationsData?.data || [];
 
-    // 사용자 타입 알림만 필터링
+    // 전문가 타입 알림만 필터링
     const filtered = allNotifications.filter(notification =>
-      USER_NOTIFICATION_TYPES.includes(notification.type)
+      EXPERT_NOTIFICATION_TYPES.includes(notification.type)
     );
 
     // 디버깅 로그
-    console.log('[NotificationBell] 사용자 알림 데이터:', {
+    console.log('[ExpertNotificationBell] 전문가 알림 데이터:', {
       total: allNotifications.length,
       filtered: filtered.length,
       types: filtered.map(n => n.type)
@@ -100,6 +95,7 @@ export function NotificationBell() {
 
     return filtered;
   }, [notificationsData]);
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const settings = settingsData?.data;
 
@@ -127,26 +123,14 @@ export function NotificationBell() {
     switch (type) {
       case 'CONSULTATION_UPCOMING':
         return <Calendar className="w-4 h-4 text-blue-600" />;
-      case 'CREDIT_LOW':
-        return <CreditCard className="w-4 h-4 text-purple-600" />;
       case 'REVIEW_REQUEST':
         return <Star className="w-4 h-4 text-yellow-600" />;
-      case 'CONSULTATION_COMPLETED':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'INQUIRY_RECEIVED':
         return <MessageCircle className="w-4 h-4 text-blue-600" />;
-      case 'INQUIRY_REPLY':
-        return <MessageCircle className="w-4 h-4 text-green-600" />;
       case 'RESERVATION_PENDING':
         return <Clock className="w-4 h-4 text-orange-600" />;
-      case 'RESERVATION_APPROVED':
-        return <UserCheck className="w-4 h-4 text-green-600" />;
-      case 'RESERVATION_REJECTED':
-        return <UserX className="w-4 h-4 text-red-600" />;
-      case 'EXPERT_APPLICATION_UPDATE':
-        return <FileText className="w-4 h-4 text-indigo-600" />;
       case 'SYSTEM_ADMIN':
-        return <Megaphone className="w-4 h-4 text-purple-600" />;
+        return <AlertCircle className="w-4 h-4 text-purple-600" />;
       case 'SYSTEM':
         return <AlertCircle className="w-4 h-4 text-gray-600" />;
       default:
@@ -190,21 +174,15 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
-      {/* 알림 벨 버튼 */}
+      {/* 알림 벨 버튼 - 전문가 모드 스타일 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative p-2 rounded-full transition-colors ${
-          isExpertMode
-            ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-        }`}
+        className="relative p-2 rounded-full transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
         aria-label="알림"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className={`absolute top-0 right-0 w-5 h-5 text-white text-xs font-semibold rounded-full flex items-center justify-center ${
-            isExpertMode ? 'bg-blue-500' : 'bg-red-500'
-          }`}>
+          <span className="absolute top-0 right-0 w-5 h-5 bg-blue-500 text-white text-xs font-semibold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -223,7 +201,7 @@ export function NotificationBell() {
           <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[600px] overflow-hidden flex flex-col">
             {/* 헤더 */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">알림</h3>
+              <h3 className="text-lg font-semibold text-gray-900">전문가 알림</h3>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => refetch()}
@@ -271,36 +249,12 @@ export function NotificationBell() {
                 </label>
 
                 <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">크레딧 부족</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.creditLow}
-                    onChange={(e) =>
-                      handleSettingChange('creditLow', e.target.checked)
-                    }
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between">
                   <span className="text-sm text-gray-700">리뷰 요청</span>
                   <input
                     type="checkbox"
                     checked={settings.reviewRequests}
                     onChange={(e) =>
                       handleSettingChange('reviewRequests', e.target.checked)
-                    }
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">상담 완료</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.consultationCompleted}
-                    onChange={(e) =>
-                      handleSettingChange('consultationCompleted', e.target.checked)
                     }
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />

@@ -11,7 +11,6 @@ import { reservationsToActivities, creditTransactionsToActivities, mergeActiviti
 import { UserCreditCard } from '@/components/dashboard/user/UserCreditCard';
 import { ReservationsCalendar } from '@/components/dashboard/user/ReservationsCalendar';
 import { CardSkeleton } from '@/components/ui/Skeleton';
-import { NotificationBell } from '@/components/dashboard/NotificationBell';
 
 // 동적 임포트로 초기 번들 크기 감소
 const AIUsageCard = dynamic(
@@ -116,18 +115,14 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10">
-      {/* 헤더 with 알림 */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            환영합니다, {user.name}님!
-          </h1>
-          <p className="text-gray-600">
-            상담 예약과 크레딧을 관리하세요
-          </p>
-        </div>
-        {/* 알림 벨 */}
-        <NotificationBell />
+      {/* 헤더 */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          환영합니다, {user.name}님!
+        </h1>
+        <p className="text-gray-600">
+          상담 예약과 크레딧을 관리하세요
+        </p>
       </div>
 
       {/* 상단: 크레딧, AI 토큰, 최근 활동 가로 배치 */}

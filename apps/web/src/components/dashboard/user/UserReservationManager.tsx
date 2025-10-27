@@ -6,15 +6,14 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/components/auth/AuthProvider';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Calendar, Clock, User, X, AlertCircle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Clock, X, CheckCircle, ChevronDown, ChevronUp, AlertCircle, User, MessageCircle } from 'lucide-react';
 import CancelReservationModal from './CancelReservationModal';
-import ViewModeSwitcher, { ViewMode } from '@/components/reservation/ViewModeSwitcher';
 import SearchBar from '@/components/reservation/SearchBar';
 import AdvancedFilter from '@/components/reservation/AdvancedFilter';
+import Pagination from '@/components/reservation/Pagination';
 
-type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'COMPLETED';
+type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'CANCELED' | 'REJECTED' | 'COMPLETED' | 'NO_SHOW';
 
 interface Reservation {
   id: number;
@@ -26,13 +25,16 @@ interface Reservation {
   duration: number;
   cost: number;
   status: ReservationStatus;
-  notes?: string;
+  subject?: string;
+  note?: string;
+  cancelReason?: string;
   canceledAt?: string;
   createdAt: string;
   expert: {
-    id: number;
+    id?: number;
     name: string;
     displayId: string;
+    avatarUrl?: string;
   };
 }
 
@@ -52,7 +54,13 @@ const statusConfig = {
   PENDING: { label: '승인 대기', variant: 'yellow' as const, icon: Clock },
   CONFIRMED: { label: '예약 확정', variant: 'green' as const, icon: CheckCircle },
   CANCELED: { label: '취소됨', variant: 'red' as const, icon: X },
-  COMPLETED: { label: '완료', variant: 'blue' as const, icon: CheckCircle }
+  REJECTED: { label: '거절됨', variant: 'red' as const, icon: X },
+  COMPLETED: { label: '완료', variant: 'blue' as const, icon: CheckCircle },
+  NO_SHOW: { label: '노쇼', variant: 'gray' as const, icon: X }
+};
+
+const getStatusConfig = (status: ReservationStatus) => {
+  return statusConfig[status] || { label: status, variant: 'gray' as const, icon: AlertCircle };
 };
 
 export default function UserReservationManager() {
@@ -61,43 +69,23 @@ export default function UserReservationManager() {
   const queryClient = useQueryClient();
 
   // UI 상태
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReservationStatus>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({});
   const [sortBy, setSortBy] = useState<'date' | 'price' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // 취소 관련 상태
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
-  // 키보드 단축키
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case '1':
-            e.preventDefault();
-            setViewMode('card');
-            break;
-          case '2':
-            e.preventDefault();
-            setViewMode('table');
-            break;
-          case '3':
-            e.preventDefault();
-            setViewMode('split');
-            break;
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  // 확장된 행 관리
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
 
   // 예약 목록 조회
   const { data: reservationsData, isLoading } = useQuery({
@@ -219,6 +207,27 @@ export default function UserReservationManager() {
     canceled: reservations.filter(r => r.status === 'CANCELED').length
   };
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedReservations = filteredReservations.slice(startIndex, endIndex);
+
+  // 필터/정렬 변경 시 첫 페이지로
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery, advancedFilters, sortBy, sortOrder]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
+
   const getRefundInfo = (reservation: Reservation) => {
     if (reservation.status !== 'PENDING' && reservation.status !== 'CONFIRMED') {
       return null;
@@ -268,12 +277,9 @@ export default function UserReservationManager() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">내 예약 관리</h2>
-          <p className="text-sm text-gray-600 mt-1">전문가 상담 예약 현황을 확인하고 관리할 수 있습니다</p>
-        </div>
-        <ViewModeSwitcher viewMode={viewMode} onViewModeChange={setViewMode} />
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">내 예약 관리</h2>
+        <p className="text-sm text-gray-600 mt-1">전문가 상담 예약 현황을 확인하고 관리할 수 있습니다</p>
       </div>
 
       {/* 통계 카드 - 클릭 가능하도록 개선 */}
@@ -346,150 +352,20 @@ export default function UserReservationManager() {
         />
       </div>
 
-      {/* 뷰 모드별 렌더링 */}
-      {viewMode === 'card' && (
-        <div className="space-y-4">
-          {filteredReservations.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
-                {statusFilter === 'ALL'
-                  ? '예약 내역이 없습니다'
-                  : `${statusConfig[statusFilter as ReservationStatus].label} 예약이 없습니다`}
-              </p>
-            </Card>
-          ) : (
-            filteredReservations.map((reservation) => {
-              const config = statusConfig[reservation.status];
-              const StatusIcon = config.icon;
-              const refundInfo = getRefundInfo(reservation);
-
-              return (
-                <Card key={reservation.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    {/* 예약 정보 */}
-                    <div className="flex-1 space-y-3">
-                      {/* 전문가 정보 */}
-                      <div className="flex items-center space-x-3">
-                        <User className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="font-medium text-gray-900">{reservation.expert.name}</p>
-                          <p className="text-sm text-gray-500">@{reservation.expert.displayId}</p>
-                        </div>
-                      </div>
-
-                      {/* 일정 정보 */}
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-900">
-                            {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              weekday: 'short'
-                            })}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })} - {new Date(reservation.endAt).toLocaleTimeString('ko-KR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })} ({reservation.duration}분)
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* 예상 비용 */}
-                      <div className="flex items-center space-x-3">
-                        <div className="text-sm">
-                          <span className="text-gray-600">예상 비용: </span>
-                          <span className="font-medium text-gray-900">{reservation.cost.toLocaleString()} 크레딧</span>
-                        </div>
-                      </div>
-
-                      {/* 메모 */}
-                      {reservation.notes && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <p className="text-sm text-gray-700">{reservation.notes}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 상태 및 액션 */}
-                    <div className="flex flex-col items-end space-y-3 min-w-[160px]">
-                      {/* 상태 배지 */}
-                      <Badge variant={config.variant} className="flex items-center space-x-1">
-                        <StatusIcon className="h-4 w-4" />
-                        <span>{config.label}</span>
-                      </Badge>
-
-                      {/* 환불 정보 */}
-                      {refundInfo && refundInfo.canCancel && (
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">취소 시</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {refundInfo.refundAmount?.toLocaleString()} 크레딧 환불
-                          </p>
-                          <p className="text-xs text-gray-500">({refundInfo.message})</p>
-                        </div>
-                      )}
-
-                      {/* 취소 버튼 */}
-                      {refundInfo && refundInfo.canCancel && (
-                        <Button
-                          variant="outline"
-                          onClick={() => handleCancelClick(reservation)}
-                          disabled={cancelingId === reservation.displayId}
-                          className="w-full text-sm"
-                        >
-                          {cancelingId === reservation.displayId ? '취소 중...' : '예약 취소'}
-                        </Button>
-                      )}
-
-                      {/* 취소 불가 안내 */}
-                      {refundInfo && !refundInfo.canCancel && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                          <p className="text-xs text-red-800 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {refundInfo.message}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* 예약 ID */}
-                      <p className="text-xs text-gray-400">#{reservation.displayId}</p>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {viewMode === 'table' && (
-        <Card className="overflow-hidden">
+      {/* 테이블 뷰 */}
+      <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('date')}
-                  >
-                    <div className="flex items-center gap-1">
-                      날짜
-                      {sortBy === 'date' && (sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
-                    </div>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                    번호
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    시간
+                    신청번호
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    전문가
+                    전문가 이름
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -502,10 +378,22 @@ export default function UserReservationManager() {
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('date')}
+                  >
+                    <div className="flex items-center gap-1">
+                      상담날짜
+                      {sortBy === 'date' && (sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    시간
+                  </th>
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('price')}
                   >
                     <div className="flex items-center gap-1">
-                      비용
+                      예상비용
                       {sortBy === 'price' && (sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />)}
                     </div>
                   </th>
@@ -517,238 +405,229 @@ export default function UserReservationManager() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                       예약 내역이 없습니다
                     </td>
                   </tr>
                 ) : (
-                  filteredReservations.map((reservation) => {
-                    const config = statusConfig[reservation.status];
+                  paginatedReservations.map((reservation, index) => {
                     const refundInfo = getRefundInfo(reservation);
+                    const isExpanded = expandedRowId === reservation.id;
+                    const rowNumber = startIndex + index + 1;
 
                     return (
-                      <tr key={reservation.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedId(reservation.id)}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
-                            month: 'numeric',
-                            day: 'numeric',
-                            weekday: 'short'
-                          })}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}-{new Date(reservation.endAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {reservation.expert.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant={config.variant} className="inline-flex">
-                            {config.label}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {reservation.cost.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {refundInfo && refundInfo.canCancel && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelClick(reservation);
-                              }}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              취소
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                      <>
+                        <tr
+                          key={reservation.id}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setExpandedRowId(isExpanded ? null : reservation.id)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            {rowNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4 text-gray-400 transform rotate-180" />
+                              )}
+                              {reservation.displayId}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {reservation.expert.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge variant={getStatusConfig(reservation.status).variant} className="inline-flex">
+                              {getStatusConfig(reservation.status).label}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })} - {new Date(reservation.endAt).toLocaleTimeString('ko-KR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {reservation.cost.toLocaleString()} 크레딧
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {refundInfo && refundInfo.canCancel && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelClick(reservation);
+                                }}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                취소
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${reservation.id}-details`}>
+                            <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                              <div className="grid grid-cols-2 gap-4">
+                                {/* 왼쪽: 전문가 정보 & 상담 정보 (위아래 배치) */}
+                                <div className="space-y-4">
+                                  {/* 전문가 정보 */}
+                                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <User className="h-5 w-5 text-gray-400" />
+                                      <h4 className="font-semibold text-gray-900">전문가 정보</h4>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                      {/* 프로필 사진 */}
+                                      <div className="flex-shrink-0">
+                                        {reservation.expert.avatarUrl ? (
+                                          <img
+                                            src={reservation.expert.avatarUrl}
+                                            alt={reservation.expert.name}
+                                            className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                                          />
+                                        ) : (
+                                          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                                            <User className="h-8 w-8 text-gray-500" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      {/* 정보 */}
+                                      <div className="flex-1 text-sm">
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <p className="text-gray-500">이름</p>
+                                            <p className="font-medium text-gray-900">{reservation.expert.name}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-gray-500">전문가 ID</p>
+                                            <p className="font-medium text-gray-900">@{reservation.expert.displayId}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* 상담 정보 */}
+                                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <Clock className="h-5 w-5 text-gray-400" />
+                                      <h4 className="font-semibold text-gray-900">상담 정보</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                      <div>
+                                        <p className="text-gray-500">상담 날짜</p>
+                                        <p className="font-medium text-gray-900">
+                                          {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            weekday: 'short'
+                                          })}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-500">상담 시간</p>
+                                        <p className="font-medium text-gray-900">
+                                          {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })} - {new Date(reservation.endAt).toLocaleTimeString('ko-KR', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-500">예상 청구 비용</p>
+                                        <p className="font-medium text-gray-900">{reservation.cost.toLocaleString()} 크레딧</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-500">상태</p>
+                                        <Badge variant={getStatusConfig(reservation.status).variant}>
+                                          {getStatusConfig(reservation.status).label}
+                                        </Badge>
+                                      </div>
+
+                                      {/* 거절 사유 표시 (REJECTED 상태일 때만) */}
+                                      {reservation.status === 'REJECTED' && reservation.cancelReason && (
+                                        <div className="col-span-2 mt-2 pt-4 border-t border-gray-200">
+                                          <p className="text-gray-500 mb-2 font-medium">거절 사유</p>
+                                          <div className="bg-red-50 p-3 rounded-lg border border-red-200 max-h-40 overflow-y-auto">
+                                            <p className="text-sm text-red-800 leading-relaxed whitespace-pre-wrap">
+                                              {reservation.cancelReason}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 오른쪽: 상담 요청 내용 */}
+                                <div className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col h-full">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <MessageCircle className="h-5 w-5 text-blue-500" />
+                                    <h4 className="font-semibold text-gray-900">상담 요청 내용</h4>
+                                  </div>
+                                  <div className="flex-1 flex flex-col gap-2">
+                                    {reservation.subject && (
+                                      <div className="flex items-start gap-2 text-sm">
+                                        <span className="font-bold text-gray-900 whitespace-nowrap">상담주제:</span>
+                                        <span className="text-gray-800">{reservation.subject}</span>
+                                      </div>
+                                    )}
+                                    {reservation.note && (
+                                      <div className="bg-gray-50 p-4 rounded-lg flex-1 overflow-y-auto min-h-[200px]">
+                                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{reservation.note}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 하단: 취소 불가 안내 */}
+                              {refundInfo && !refundInfo.canCancel && (
+                                <div className="mt-4 bg-red-50 p-3 rounded-lg border border-red-200">
+                                  <p className="text-sm text-red-800 flex items-center">
+                                    <AlertCircle className="h-4 w-4 mr-2" />
+                                    {refundInfo.message}
+                                  </p>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
                   })
                 )}
               </tbody>
             </table>
           </div>
+          {/* 페이지네이션 */}
+          {filteredReservations.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredReservations.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </Card>
-      )}
-
-      {viewMode === 'split' && (
-        <div className="grid grid-cols-12 gap-4 h-[600px]">
-          {/* 왼쪽: 목록 (40%) */}
-          <Card className="col-span-5 overflow-y-auto">
-            <div className="divide-y divide-gray-200">
-              {filteredReservations.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  예약 내역이 없습니다
-                </div>
-              ) : (
-                filteredReservations.map((reservation) => {
-                  const config = statusConfig[reservation.status];
-                  const isSelected = selectedId === reservation.id;
-
-                  return (
-                    <div
-                      key={reservation.id}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : 'hover:bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedId(reservation.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{reservation.expert.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
-                              month: 'numeric',
-                              day: 'numeric'
-                            })} {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                        <Badge variant={config.variant} className="ml-2">
-                          {config.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-
-          {/* 오른쪽: 상세 정보 (60%) */}
-          <Card className="col-span-7 p-6 overflow-y-auto">
-            {selectedId ? (
-              (() => {
-                const reservation = filteredReservations.find(r => r.id === selectedId);
-                if (!reservation) {
-                  return <div className="text-center text-gray-500">예약을 찾을 수 없습니다</div>;
-                }
-
-                const config = statusConfig[reservation.status];
-                const StatusIcon = config.icon;
-                const refundInfo = getRefundInfo(reservation);
-
-                return (
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">예약 상세 정보</h3>
-                        <Badge variant={config.variant} className="flex items-center space-x-1">
-                          <StatusIcon className="h-4 w-4" />
-                          <span>{config.label}</span>
-                        </Badge>
-                      </div>
-                      <div className="h-px bg-gray-200"></div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">전문가</label>
-                        <p className="mt-1 text-base text-gray-900">{reservation.expert.name}</p>
-                        <p className="text-sm text-gray-500">@{reservation.expert.displayId}</p>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">날짜</label>
-                        <p className="mt-1 text-base text-gray-900">
-                          {new Date(reservation.startAt).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            weekday: 'long'
-                          })}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">시간</label>
-                        <p className="mt-1 text-base text-gray-900">
-                          {new Date(reservation.startAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })} - {new Date(reservation.endAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                        <p className="text-sm text-gray-500">소요 시간: {reservation.duration}분</p>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">비용</label>
-                        <p className="mt-1 text-base text-gray-900">{reservation.cost.toLocaleString()} 크레딧</p>
-                      </div>
-
-                      {reservation.notes && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">메모</label>
-                          <div className="mt-1 bg-gray-50 p-3 rounded-lg">
-                            <p className="text-sm text-gray-700">{reservation.notes}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {refundInfo && refundInfo.canCancel && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">환불 정보</label>
-                          <div className="mt-1 bg-blue-50 p-3 rounded-lg">
-                            <p className="text-sm text-blue-900">
-                              취소 시 {refundInfo.refundAmount?.toLocaleString()} 크레딧 환불 ({refundInfo.message})
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">예약 ID</label>
-                        <p className="mt-1 text-sm text-gray-600">#{reservation.displayId}</p>
-                      </div>
-                    </div>
-
-                    {refundInfo && refundInfo.canCancel && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleCancelClick(reservation)}
-                          disabled={cancelingId === reservation.displayId}
-                          className="w-full"
-                        >
-                          {cancelingId === reservation.displayId ? '취소 중...' : '예약 취소'}
-                        </Button>
-                      </div>
-                    )}
-
-                    {refundInfo && !refundInfo.canCancel && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-sm text-red-800 flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                          {refundInfo.message}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-3" />
-                  <p>왼쪽 목록에서 예약을 선택하세요</p>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
 
       {/* 취소 확인 모달 */}
       {selectedReservation && (

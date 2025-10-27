@@ -5,9 +5,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useViewMode } from '@/contexts/ViewModeContext';
-import { Menu, X, User, LogOut, Settings, Bell, ArrowLeftRight, HelpCircle, MessageCircle, Home, BarChart3, Shield, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, ArrowLeftRight, HelpCircle, Home, BarChart3, Shield, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { getUserAvatarUrl, getUserDisplayName, getUserInitial } from '@/lib/user-avatar';
+import { NotificationBell } from '@/components/dashboard/NotificationBell';
+import { ExpertNotificationBell } from '@/components/dashboard/ExpertNotificationBell';
 
 interface NavItem {
   href: string;
@@ -25,6 +27,9 @@ export default function Navbar() {
 
   // 관리자 권한 확인 함수
   const isAdmin = user?.roles?.includes('ADMIN');
+
+  // 전문가 모드 여부 확인
+  const isExpertMode = viewMode === 'expert';
 
   // 디버깅: 인증 상태 변경 감지
   useEffect(() => {
@@ -146,16 +151,17 @@ export default function Navbar() {
 
             {/* 인증된 사용자 메뉴 */}
             {!isLoading && isAuthenticated && user && (
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowUserMenu(!showUserMenu);
-                  }}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors hover:text-blue-600"
-                  aria-expanded={showUserMenu}
-                  aria-haspopup="true"
-                >
+              <>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowUserMenu(!showUserMenu);
+                    }}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium transition-colors hover:text-blue-600"
+                    aria-expanded={showUserMenu}
+                    aria-haspopup="true"
+                  >
                   {/* 프로필 사진: 전문가 모드일 때만 블루 테두리 */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                     user.expert && viewMode === 'expert'
@@ -451,7 +457,11 @@ export default function Navbar() {
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+
+                {/* 알림 벨 - 프로필 메뉴 오른쪽 (역할별 다른 컴포넌트) */}
+                {isExpertMode ? <ExpertNotificationBell /> : <NotificationBell />}
+              </>
             )}
           </div>
 

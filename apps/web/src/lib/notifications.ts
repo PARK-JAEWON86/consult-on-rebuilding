@@ -1,10 +1,30 @@
 import { api } from './api';
 
+export type NotificationType =
+  | 'CONSULTATION_REQUEST'
+  | 'CONSULTATION_ACCEPTED'
+  | 'CONSULTATION_REJECTED'
+  | 'CONSULTATION_COMPLETED'
+  | 'CONSULTATION_UPCOMING'
+  | 'PAYMENT_COMPLETED'
+  | 'PAYMENT_FAILED'
+  | 'CREDIT_PURCHASE_COMPLETED'
+  | 'CREDIT_LOW'
+  | 'REVIEW_REQUEST'
+  | 'SYSTEM'
+  | 'INQUIRY_RECEIVED'
+  | 'INQUIRY_REPLY'
+  | 'RESERVATION_PENDING'
+  | 'RESERVATION_APPROVED'
+  | 'RESERVATION_REJECTED'
+  | 'EXPERT_APPLICATION_UPDATE'
+  | 'SYSTEM_ADMIN';
+
 export interface Notification {
   id: number;
   displayId: string;
   userId: number;
-  type: 'CONSULTATION_UPCOMING' | 'CONSULTATION_COMPLETED' | 'CREDIT_LOW' | 'REVIEW_REQUEST' | 'SYSTEM';
+  type: NotificationType;
   title: string;
   message: string;
   data?: any;

@@ -5,9 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { ExpertsModule } from '../experts/experts.module';
 import { MailModule } from '../mail/mail.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ExpertsModule, MailModule],
+  imports: [PrismaModule, AuthModule, ExpertsModule, MailModule, NotificationsModule],
   controllers: [InquiryController],
   providers: [InquiryService],
   exports: [InquiryService]
