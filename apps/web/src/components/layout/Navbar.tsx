@@ -9,7 +9,6 @@ import { Menu, X, User, LogOut, Settings, ArrowLeftRight, HelpCircle, Home, BarC
 import Button from '@/components/ui/Button';
 import { getUserAvatarUrl, getUserDisplayName, getUserInitial } from '@/lib/user-avatar';
 import { NotificationBell } from '@/components/dashboard/NotificationBell';
-import { ExpertNotificationBell } from '@/components/dashboard/ExpertNotificationBell';
 
 interface NavItem {
   href: string;
@@ -459,8 +458,8 @@ export default function Navbar() {
                 )}
                 </div>
 
-                {/* 알림 벨 - 프로필 메뉴 오른쪽 (역할별 다른 컴포넌트) */}
-                {isExpertMode ? <ExpertNotificationBell /> : <NotificationBell />}
+                {/* 알림 벨 - 프로필 메뉴 오른쪽 (모드별 자동 필터링) */}
+                <NotificationBell />
               </>
             )}
           </div>

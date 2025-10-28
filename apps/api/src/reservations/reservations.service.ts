@@ -182,8 +182,7 @@ export class ReservationsService {
           .createReservationPendingNotification(
             expert.userId,
             displayId,
-            client?.name || '고객',
-            start
+            client?.name || '고객'
           )
           .catch(err => {
             console.error('[ReservationsService] 예약 알림 생성 실패:', err);
@@ -697,8 +696,7 @@ export class ReservationsService {
         .createReservationApprovedNotification(
           updated.userId,
           displayId,
-          expert.name,
-          updated.startAt
+          expert.name
         )
         .catch(err => {
           console.error('[ReservationsService] 예약 승인 알림 생성 실패:', err);

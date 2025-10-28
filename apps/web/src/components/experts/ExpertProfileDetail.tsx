@@ -90,6 +90,9 @@ export default function ExpertProfileDetail({
   const [isSendingInquiry, setIsSendingInquiry] = useState(false);
   const [isProfilePublic, setIsProfilePublic] = useState(true);
   const [isTogglingPublic, setIsTogglingPublic] = useState(false);
+  const [isInquirySuccessModalOpen, setIsInquirySuccessModalOpen] = useState(false);
+  const [isInquiryErrorModalOpen, setIsInquiryErrorModalOpen] = useState(false);
+  const [inquiryErrorDetails, setInquiryErrorDetails] = useState({ message: '', code: '', status: '' });
 
   // 사용자 크레딧 잔액 조회
   const { data: creditsData } = useQuery({
@@ -250,12 +253,12 @@ export default function ExpertProfileDetail({
 
   const handleSendInquiry = async () => {
     if (!inquirySubject.trim() || !inquiryContent.trim()) {
-      alert('제목과 내용을 모두 입력해주세요.');
+      showToast('제목과 내용을 모두 입력해주세요.', 'error');
       return;
     }
 
     if (!expertData) {
-      alert('전문가 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      showToast('전문가 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'error');
       return;
     }
 
@@ -269,12 +272,11 @@ export default function ExpertProfileDetail({
         category: inquiryTab as 'schedule' | 'time' | 'price' | 'method' | 'other'
       });
 
-      // 성공 시 모달과 토스트 모두 표시
-      alert('✅ 문의가 성공적으로 전송되었습니다!\n\n전문가가 확인 후 답변드리겠습니다.\n답변은 대시보드 > 메시지 관리에서 확인하실 수 있습니다.');
+      // 성공 모달 표시
+      setIsInquirySuccessModalOpen(true);
       showToast('문의가 전송되었습니다.', 'success');
 
-      // 모달 닫기 및 입력 내용 초기화
-      setIsInquiryModalOpen(false);
+      // 입력 내용 초기화
       setInquirySubject('');
       setInquiryContent('');
       setInquiryTab('schedule');
@@ -284,9 +286,14 @@ export default function ExpertProfileDetail({
       // 오류 메시지 상세하게 표시
       const errorMessage = error?.response?.data?.error?.message || '알 수 없는 오류가 발생했습니다.';
       const errorCode = error?.response?.data?.error?.code || 'UNKNOWN_ERROR';
-      const statusCode = error?.response?.status || '알 수 없음';
+      const statusCode = String(error?.response?.status || '알 수 없음');
 
-      alert(`❌ 문의 전송에 실패했습니다.\n\n오류 메시지: ${errorMessage}\n오류 코드: ${errorCode}\nHTTP 상태: ${statusCode}\n\n다시 시도해주세요. 문제가 계속되면 고객센터로 문의해주세요.`);
+      setInquiryErrorDetails({
+        message: errorMessage,
+        code: errorCode,
+        status: statusCode
+      });
+      setIsInquiryErrorModalOpen(true);
       showToast(errorMessage, 'error');
     } finally {
       setIsSendingInquiry(false);
@@ -1802,6 +1809,121 @@ export default function ExpertProfileDetail({
               className="max-w-full max-h-full object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 문의 성공 모달 */}
+      {isInquirySuccessModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6">
+            {/* 성공 아이콘 */}
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-green-100 p-4">
+                <CheckCircle className="h-12 w-12 text-green-600" />
+              </div>
+            </div>
+
+            {/* 제목 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-3">
+              문의가 전송되었습니다!
+            </h3>
+
+            {/* 설명 */}
+            <div className="text-gray-600 text-center mb-6 space-y-2">
+              <p>전문가가 확인 후 답변드리겠습니다.</p>
+              <p className="text-sm">답변은 <strong>대시보드 &gt; 메시지 관리</strong>에서 확인하실 수 있습니다.</p>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsInquirySuccessModalOpen(false);
+                  setIsInquiryModalOpen(false);
+                }}
+                className="flex-1"
+              >
+                닫기
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsInquirySuccessModalOpen(false);
+                  setIsInquiryModalOpen(false);
+                  router.push('/dashboard/client/messages');
+                }}
+                className="flex-1"
+              >
+                메시지 관리로 이동
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 문의 실패 모달 */}
+      {isInquiryErrorModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6">
+            {/* 에러 아이콘 */}
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-red-100 p-4">
+                <X className="h-12 w-12 text-red-600" />
+              </div>
+            </div>
+
+            {/* 제목 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-3">
+              문의 전송 실패
+            </h3>
+
+            {/* 에러 상세 정보 */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-semibold text-red-900">오류 메시지:</span>
+                  <p className="text-red-700 mt-1">{inquiryErrorDetails.message}</p>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-red-200">
+                  <span className="text-red-600">오류 코드:</span>
+                  <span className="font-mono text-red-900">{inquiryErrorDetails.code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-red-600">HTTP 상태:</span>
+                  <span className="font-mono text-red-900">{inquiryErrorDetails.status}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 안내 메시지 */}
+            <p className="text-sm text-gray-600 text-center mb-6">
+              다시 시도해주세요. 문제가 계속되면 고객센터로 문의해주세요.
+            </p>
+
+            {/* 버튼 */}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInquiryErrorModalOpen(false)}
+                className="flex-1"
+              >
+                닫기
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsInquiryErrorModalOpen(false);
+                  // 다시 시도할 수 있도록 문의 모달은 열어둠
+                }}
+                className="flex-1"
+              >
+                다시 시도
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -16,17 +16,40 @@ import {
   type NotificationType,
 } from '@/lib/notifications';
 
-// 사용자 모드에서만 표시할 알림 타입
+// 사용자 모드에서 표시할 알림 타입
 const USER_NOTIFICATION_TYPES: NotificationType[] = [
-  'INQUIRY_REPLY',
-  'RESERVATION_APPROVED',
-  'RESERVATION_REJECTED',
-  'CONSULTATION_UPCOMING',
-  'CONSULTATION_COMPLETED',
-  'CREDIT_LOW',
-  'EXPERT_APPLICATION_UPDATE',
-  'SYSTEM',
-  'SYSTEM_ADMIN'
+  'INQUIRY_REPLY',              // 문의 답변
+  'RESERVATION_APPROVED',       // 예약 승인
+  'RESERVATION_REJECTED',       // 예약 거절
+  'CONSULTATION_REQUEST',       // 상담 요청
+  'CONSULTATION_ACCEPTED',      // 상담 수락
+  'CONSULTATION_REJECTED',      // 상담 거절
+  'CONSULTATION_UPCOMING',      // 다가오는 상담
+  'CONSULTATION_COMPLETED',     // 상담 완료
+  'PAYMENT_COMPLETED',          // 결제 완료
+  'PAYMENT_FAILED',             // 결제 실패
+  'CREDIT_PURCHASE_COMPLETED',  // 크레딧 구매 완료
+  'CREDIT_LOW',                 // 크레딧 부족
+  'REVIEW_REQUEST',             // 리뷰 요청
+  'EXPERT_APPLICATION_UPDATE',  // 전문가 지원 상태
+  'SYSTEM',                     // 시스템 알림
+  'SYSTEM_ADMIN'                // 관리자 알림
+];
+
+// 전문가 모드에서 표시할 알림 타입
+const EXPERT_NOTIFICATION_TYPES: NotificationType[] = [
+  'INQUIRY_RECEIVED',           // 문의 접수
+  'RESERVATION_PENDING',        // 예약 대기
+  'CONSULTATION_REQUEST',       // 상담 요청
+  'CONSULTATION_ACCEPTED',      // 상담 수락
+  'CONSULTATION_REJECTED',      // 상담 거절
+  'CONSULTATION_UPCOMING',      // 다가오는 상담
+  'CONSULTATION_COMPLETED',     // 상담 완료
+  'PAYMENT_COMPLETED',          // 결제 완료
+  'CREDIT_LOW',                 // 크레딧 부족
+  'REVIEW_REQUEST',             // 리뷰 요청
+  'SYSTEM',                     // 시스템 알림
+  'SYSTEM_ADMIN'                // 관리자 알림
 ];
 
 export function NotificationBell() {
@@ -36,18 +59,56 @@ export function NotificationBell() {
   const { viewMode, isExpertMode } = useViewMode();
 
   // 알림 목록 조회 - viewMode를 캐시 키에 포함
-  const { data: notificationsData, refetch } = useQuery({
+  const { data: notificationsData, refetch, isLoading, isError, error } = useQuery({
     queryKey: ['notifications', viewMode],
     queryFn: () => getNotifications({ limit: 50 }),
     refetchInterval: 10000, // ⚡ 10초마다 (빠른 알림 표시)
     refetchOnWindowFocus: true, // 탭 전환 시 자동 새로고침
     refetchOnMount: true, // 컴포넌트 마운트 시 자동 새로고침
+    staleTime: 0, // 항상 최신 데이터 요청
+    gcTime: 0, // 캐시 즉시 제거
   });
 
+  // 🔍 디버깅: useQuery 상태 확인
+  console.log('[NotificationBell] useQuery 상태:', {
+    isLoading,
+    isError,
+    error: error?.message,
+    hasData: !!notificationsData,
+    isArray: Array.isArray(notificationsData),
+    hasDataProperty: notificationsData && 'data' in notificationsData,
+    hasSuccessProperty: notificationsData && 'success' in notificationsData,
+    dataType: notificationsData ? typeof notificationsData : 'undefined',
+    viewMode,
+    isExpertMode
+  });
+
+  // 🔍 실제 데이터 구조 상세 로깅
+  if (notificationsData) {
+    console.log('[NotificationBell] 실제 데이터:', {
+      fullObject: notificationsData,
+      dotData: (notificationsData as any)?.data,
+      dotDataLength: Array.isArray((notificationsData as any)?.data)
+        ? (notificationsData as any).data.length
+        : 'not array'
+    });
+  }
+
   // 알림 설정 조회
-  const { data: settingsData } = useQuery({
+  const { data: settingsData, isLoading: isSettingsLoading, isError: isSettingsError, error: settingsError } = useQuery({
     queryKey: ['notificationSettings'],
     queryFn: getNotificationSettings,
+  });
+
+  // 🔍 설정 데이터 디버깅
+  console.log('[NotificationBell] 설정 데이터:', {
+    settingsData,
+    hasData: !!settingsData,
+    dotData: settingsData?.data,
+    type: typeof settingsData,
+    isSettingsLoading,
+    isSettingsError,
+    settingsError: settingsError?.message
   });
 
   // 알림 읽음 처리
@@ -82,31 +143,58 @@ export function NotificationBell() {
     },
   });
 
-  // 사용자 모드 알림 필터링
+  // 모드별 알림 필터링
   const notifications = useMemo(() => {
-    const allNotifications = notificationsData?.data || [];
+    // 🔧 수정: notificationsData가 배열일 수도 있고 객체일 수도 있음
+    let allNotifications: Notification[] = [];
 
-    // 사용자 타입 알림만 필터링
+    if (Array.isArray(notificationsData)) {
+      // 배열로 직접 온 경우
+      allNotifications = notificationsData;
+    } else if (notificationsData?.data) {
+      // 객체에서 .data 추출
+      allNotifications = notificationsData.data;
+    }
+
+    // 모드에 따라 다른 타입 필터 적용
+    const allowedTypes = isExpertMode ? EXPERT_NOTIFICATION_TYPES : USER_NOTIFICATION_TYPES;
+
     const filtered = allNotifications.filter(notification =>
-      USER_NOTIFICATION_TYPES.includes(notification.type)
+      allowedTypes.includes(notification.type)
     );
 
     // 디버깅 로그
-    console.log('[NotificationBell] 사용자 알림 데이터:', {
+    console.log('[NotificationBell] 알림 데이터:', {
+      mode: isExpertMode ? '전문가' : '사용자',
+      dataType: Array.isArray(notificationsData) ? 'array' : 'object',
       total: allNotifications.length,
       filtered: filtered.length,
-      types: filtered.map(n => n.type)
+      types: filtered.map(n => n.type),
+      unreadCount: filtered.filter(n => !n.isRead).length,
+      actionUrls: filtered.map(n => ({ id: n.id, type: n.type, actionUrl: n.actionUrl }))
     });
 
     return filtered;
-  }, [notificationsData]);
+  }, [notificationsData, isExpertMode]);
   const unreadCount = notifications.filter(n => !n.isRead).length;
-  const settings = settingsData?.data;
+
+  // 🔧 설정 데이터 파싱 (알림 데이터와 동일한 패턴)
+  const settings = settingsData?.data || settingsData;
+
+  console.log('[NotificationBell] 파싱된 설정:', {
+    settings,
+    showSettings,
+    hasSettings: !!settings
+  });
 
   const handleMarkAsRead = (notificationId: number, actionUrl?: string) => {
+    console.log('[NotificationBell] 알림 클릭:', { notificationId, actionUrl });
     markAsReadMutation.mutate(notificationId);
     if (actionUrl) {
+      console.log('[NotificationBell] 페이지 이동:', actionUrl);
       window.location.href = actionUrl;
+    } else {
+      console.warn('[NotificationBell] actionUrl이 없습니다');
     }
   };
 
@@ -123,56 +211,44 @@ export function NotificationBell() {
     updateSettingsMutation.mutate({ [key]: value });
   };
 
-  const getIcon = (type: Notification['type']) => {
+  const getIcon = (type: Notification['type'], priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
+    // 우선순위에 따른 컬러 결정
+    const priorityColor =
+      priority === 'HIGH' ? 'text-red-600' :
+      priority === 'MEDIUM' ? 'text-yellow-600' :
+      'text-blue-600';
+
     switch (type) {
+      case 'CONSULTATION_REQUEST':
+      case 'CONSULTATION_ACCEPTED':
+      case 'CONSULTATION_REJECTED':
       case 'CONSULTATION_UPCOMING':
-        return <Calendar className="w-4 h-4 text-blue-600" />;
-      case 'CREDIT_LOW':
-        return <CreditCard className="w-4 h-4 text-purple-600" />;
-      case 'REVIEW_REQUEST':
-        return <Star className="w-4 h-4 text-yellow-600" />;
       case 'CONSULTATION_COMPLETED':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <Calendar className={`w-4 h-4 ${priorityColor}`} />;
+      case 'PAYMENT_COMPLETED':
+      case 'PAYMENT_FAILED':
+      case 'CREDIT_PURCHASE_COMPLETED':
+      case 'CREDIT_LOW':
+        return <CreditCard className={`w-4 h-4 ${priorityColor}`} />;
+      case 'REVIEW_REQUEST':
+        return <Star className={`w-4 h-4 ${priorityColor}`} />;
       case 'INQUIRY_RECEIVED':
-        return <MessageCircle className="w-4 h-4 text-blue-600" />;
       case 'INQUIRY_REPLY':
-        return <MessageCircle className="w-4 h-4 text-green-600" />;
+        return <MessageCircle className={`w-4 h-4 ${priorityColor}`} />;
       case 'RESERVATION_PENDING':
-        return <Clock className="w-4 h-4 text-orange-600" />;
+        return <Clock className={`w-4 h-4 ${priorityColor}`} />;
       case 'RESERVATION_APPROVED':
-        return <UserCheck className="w-4 h-4 text-green-600" />;
+        return <UserCheck className={`w-4 h-4 ${priorityColor}`} />;
       case 'RESERVATION_REJECTED':
-        return <UserX className="w-4 h-4 text-red-600" />;
+        return <UserX className={`w-4 h-4 ${priorityColor}`} />;
       case 'EXPERT_APPLICATION_UPDATE':
-        return <FileText className="w-4 h-4 text-indigo-600" />;
+        return <FileText className={`w-4 h-4 ${priorityColor}`} />;
       case 'SYSTEM_ADMIN':
-        return <Megaphone className="w-4 h-4 text-purple-600" />;
+        return <Megaphone className={`w-4 h-4 ${priorityColor}`} />;
       case 'SYSTEM':
-        return <AlertCircle className="w-4 h-4 text-gray-600" />;
+        return <AlertCircle className={`w-4 h-4 ${priorityColor}`} />;
       default:
-        return <Bell className="w-4 h-4 text-gray-600" />;
-    }
-  };
-
-  const getPriorityColor = (priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
-    switch (priority) {
-      case 'HIGH':
-        return 'border-l-4 border-red-500';
-      case 'MEDIUM':
-        return 'border-l-4 border-yellow-500';
-      case 'LOW':
-        return 'border-l-4 border-blue-500';
-    }
-  };
-
-  const getPriorityLabel = (priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
-    switch (priority) {
-      case 'HIGH':
-        return '긴급';
-      case 'MEDIUM':
-        return '중요';
-      case 'LOW':
-        return '일반';
+        return <Bell className={`w-4 h-4 ${priorityColor}`} />;
     }
   };
 
@@ -226,7 +302,11 @@ export function NotificationBell() {
               <h3 className="text-lg font-semibold text-gray-900">알림</h3>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => refetch()}
+                  onClick={() => {
+                    console.log('[NotificationBell] 강제 새로고침 시작');
+                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                    refetch();
+                  }}
                   className="p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
                   aria-label="새로고침"
                   title="알림 새로고침"
@@ -340,12 +420,12 @@ export function NotificationBell() {
                     key={notification.id}
                     className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${
                       !notification.isRead ? 'bg-blue-50' : ''
-                    } ${getPriorityColor(notification.priority)}`}
+                    }`}
                     onClick={() => handleMarkAsRead(notification.id, notification.actionUrl || undefined)}
                   >
                     <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 mt-1">
-                        {getIcon(notification.type)}
+                      <div className="flex-shrink-0">
+                        {getIcon(notification.type, notification.priority)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
@@ -353,17 +433,6 @@ export function NotificationBell() {
                             <p className="text-sm font-medium text-gray-900">
                               {notification.title}
                             </p>
-                            <span
-                              className={`text-xs font-semibold ${
-                                notification.priority === 'HIGH'
-                                  ? 'text-red-600'
-                                  : notification.priority === 'MEDIUM'
-                                  ? 'text-yellow-600'
-                                  : 'text-blue-600'
-                              }`}
-                            >
-                              {getPriorityLabel(notification.priority)}
-                            </span>
                           </div>
                           <button
                             onClick={(e) => {

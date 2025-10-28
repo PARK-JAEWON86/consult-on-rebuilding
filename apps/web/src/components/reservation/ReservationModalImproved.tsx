@@ -164,15 +164,31 @@ export default function ReservationModalImproved({
   // 예약 생성 뮤테이션
   const { mutate: createReservation, isPending } = useMutation({
     mutationFn: async (data: ReservationData) => {
+      console.log('[예약 요청] 시작:', {
+        userId: data.userId,
+        expertId: data.expertId,
+        startAt: data.startAt,
+        endAt: data.endAt,
+        noteLength: data.note?.length || 0
+      });
+
       // Idempotency Key 생성 (UUID v4 형식)
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      console.log('[예약 요청] Idempotency Key:', idempotencyKey);
 
-      const response = await api.post('/reservations', data, {
-        headers: {
-          'Idempotency-Key': idempotencyKey
-        }
-      });
-      return response;  // ✅ api.post()가 이미 response.data를 반환하므로 그대로 사용
+      try {
+        const response = await api.post('/reservations', data, {
+          headers: {
+            'Idempotency-Key': idempotencyKey
+          }
+        });
+
+        console.log('[예약 요청] 응답 성공:', response);
+        return response;
+      } catch (error) {
+        console.error('[예약 요청] API 호출 실패:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       if (data.success) {
@@ -189,10 +205,25 @@ export default function ReservationModalImproved({
       }
     },
     onError: (error: any) => {
-      console.error('Reservation error:', error);
-      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || '예약에 실패했습니다.';
-      const errorCode = error?.response?.data?.error?.code;
-      const statusCode = error?.response?.status;
+      console.error('[예약 에러] Full error:', error);
+
+      // API 인터셉터 커스텀 에러 구조와 Axios 원본 구조 모두 지원 (하위 호환성)
+      const errorMessage =
+        error?.error?.message ||                      // API 인터셉터 커스텀 에러
+        error?.response?.data?.error?.message ||      // Axios 원본 에러
+        error?.response?.data?.message ||
+        error?.message ||
+        '예약에 실패했습니다.';
+
+      const errorCode =
+        error?.error?.code ||
+        error?.response?.data?.error?.code;
+
+      const statusCode =
+        error?.status ||
+        error?.response?.status;
+
+      console.error('[예약 에러] Parsed:', { errorMessage, errorCode, statusCode });
 
       // 409 Conflict - 중복 요청 처리 중
       if (statusCode === 409) {
@@ -262,21 +293,47 @@ export default function ReservationModalImproved({
 
   // 예약 확정
   const handleConfirm = () => {
+    console.log('[handleConfirm] 호출됨');
+    console.log('[handleConfirm] 검증 데이터:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userIdType: typeof user?.id,
+      consultationTopicLength: consultationTopic.trim().length,
+      currentSituationLength: currentSituation.trim().length,
+      selectedDate,
+      selectedTime,
+      duration
+    });
+
     if (!user?.id) {
+      console.error('[handleConfirm] 사용자 ID 없음:', user);
       showToast('로그인이 필요합니다.', 'error');
       return;
     }
 
     // 상담 정보 검증 (2단계에서 필수)
     if (!consultationTopic.trim()) {
+      console.error('[handleConfirm] 상담 주제 없음');
       showToast('상담 주제를 입력해주세요.', 'error');
       return;
     }
 
     if (currentSituation.trim().length < 10) {
+      console.error('[handleConfirm] 현재 상황 짧음:', currentSituation.trim().length);
       showToast('현재 상황을 최소 10자 이상 작성해주세요.', 'error');
       return;
     }
+
+    // userId 타입 안전성 강화
+    const userId = typeof user.id === 'number' ? user.id : parseInt(String(user.id), 10);
+
+    if (isNaN(userId) || userId <= 0) {
+      console.error('[handleConfirm] 잘못된 사용자 ID:', { original: user.id, converted: userId });
+      showToast('사용자 정보 오류입니다. 다시 로그인해주세요.', 'error');
+      return;
+    }
+
+    console.log('[handleConfirm] 검증 통과, 예약 데이터 생성 시작');
 
     const startDateTime = new Date(`${selectedDate}T${selectedTime}:00`);
     // duration이 0이면 (전문가와 상의하여 결정) 기본 30분으로 설정하고 요청사항에 명시
@@ -292,13 +349,14 @@ export default function ReservationModalImproved({
       : formattedNote;
 
     const reservationData: ReservationData = {
-      userId: Number(user.id),
+      userId: userId,
       expertId: expert.id,
       startAt: startDateTime.toISOString(),
       endAt: endDateTime.toISOString(),
       note: finalNote
     };
 
+    console.log('[handleConfirm] createReservation 호출');
     createReservation(reservationData);
   };
 
@@ -306,7 +364,7 @@ export default function ReservationModalImproved({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <div>
@@ -328,29 +386,29 @@ export default function ReservationModalImproved({
         <div className="p-6">
           {step === 'success' ? (
             // 3단계: 성공 화면
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               {/* 성공 아이콘 */}
-              <div className="flex justify-center mb-6">
-                <div className="rounded-full bg-green-100 p-6">
-                  <CheckCircle className="h-16 w-16 text-green-600" />
+              <div className="flex justify-center mb-4">
+                <div className="rounded-full bg-green-100 p-4">
+                  <CheckCircle className="h-12 w-12 text-green-600" />
                 </div>
               </div>
 
               {/* 성공 메시지 */}
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
                 예약 요청이 완료되었습니다!
               </h3>
 
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm text-gray-600 mb-5">
                 전문가가 요청을 확인한 후 승인 여부를 알려드립니다.
               </p>
 
               {/* 예약 정보 요약 */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6 text-left max-w-md mx-auto">
-                <h4 className="font-semibold text-gray-900 mb-3">예약 정보</h4>
-                <div className="space-y-2 text-sm">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 text-left max-w-md mx-auto">
+                <h4 className="font-semibold text-gray-900 mb-2 text-sm">예약 정보</h4>
+                <div className="space-y-1.5 text-sm">
                   {reservationDisplayId && (
-                    <div className="flex justify-between pb-2 border-b border-gray-300">
+                    <div className="flex justify-between pb-1.5 border-b border-gray-300">
                       <span className="text-gray-600">예약 번호</span>
                       <span className="font-bold text-blue-900">{reservationDisplayId}</span>
                     </div>
@@ -383,34 +441,20 @@ export default function ReservationModalImproved({
                 </div>
               </div>
 
-              {/* 다음 단계 안내 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left max-w-md mx-auto">
-                <h4 className="font-semibold text-blue-900 mb-3">다음 단계</h4>
-                <ul className="space-y-2 text-sm text-blue-800">
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">1.</span>
-                    <span>전문가가 예약 요청을 확인합니다.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">2.</span>
-                    <span>전문가가 승인하면 알림을 보내드립니다.</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="font-bold mr-2">3.</span>
-                    <span>예약 관리 페이지에서 상태를 확인할 수 있습니다.</span>
-                  </li>
+              {/* 다음 단계 안내 - 간소화 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left max-w-md mx-auto">
+                <p className="text-sm text-blue-900 font-medium mb-2">📋 다음 단계</p>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• 전문가 확인 후 승인 여부 알림</li>
+                  <li>• 대시보드에서 예약 상태 확인 가능</li>
                 </ul>
               </div>
-
-              <p className="text-sm text-gray-600 mb-8">
-                예약 상태는 <strong>대시보드 &gt; 예약 관리</strong>에서 확인하실 수 있습니다.
-              </p>
 
               {/* 확인 버튼 */}
               <Button
                 type="button"
                 onClick={handleClose}
-                className="px-8 py-3"
+                className="px-8 py-2.5 mt-2"
               >
                 확인
               </Button>

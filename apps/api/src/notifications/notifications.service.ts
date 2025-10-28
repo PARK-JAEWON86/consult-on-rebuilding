@@ -346,7 +346,7 @@ export class NotificationsService {
       message: `${clientName}님이 "${subject}" 주제로 문의를 남겼습니다`,
       data: { inquiryId },
       priority: 'MEDIUM',
-      actionUrl: `/dashboard/expert/inquiries/${inquiryId}`,
+      actionUrl: `/dashboard/expert/messages`,
     });
   }
 
@@ -369,7 +369,7 @@ export class NotificationsService {
       message: `${expertName}님이 "${subject}" 문의에 답변했습니다`,
       data: { inquiryId },
       priority: 'HIGH',
-      actionUrl: `/dashboard/inquiries/${inquiryId}`,
+      actionUrl: `/dashboard/client/messages`,
     });
   }
 
@@ -383,8 +383,7 @@ export class NotificationsService {
   async createReservationPendingNotification(
     expertUserId: number,
     reservationId: string,
-    clientName: string,
-    startAt: Date
+    clientName: string
   ) {
     const settings = await this.getUserSettings(expertUserId);
     if (!settings.upcomingReservations) return null;
@@ -393,10 +392,10 @@ export class NotificationsService {
       userId: expertUserId,
       type: 'RESERVATION_PENDING',
       title: '새로운 예약 요청',
-      message: `${clientName}님의 예약 요청이 있습니다 (${startAt.toLocaleString('ko-KR')})`,
+      message: `${clientName}님의 예약 요청이 있습니다`,
       data: { reservationId },
       priority: 'HIGH',
-      actionUrl: `/dashboard/expert/reservations`,
+      actionUrl: `/dashboard/expert/reservation-requests`,
     });
   }
 
@@ -406,8 +405,7 @@ export class NotificationsService {
   async createReservationApprovedNotification(
     clientUserId: number,
     reservationId: string,
-    expertName: string,
-    startAt: Date
+    expertName: string
   ) {
     const settings = await this.getUserSettings(clientUserId);
     if (!settings.upcomingReservations) return null;
@@ -416,10 +414,10 @@ export class NotificationsService {
       userId: clientUserId,
       type: 'RESERVATION_APPROVED',
       title: '예약이 승인되었습니다',
-      message: `${expertName}님이 예약을 승인했습니다 (${startAt.toLocaleString('ko-KR')})`,
+      message: `${expertName}님이 예약을 승인했습니다`,
       data: { reservationId },
       priority: 'HIGH',
-      actionUrl: `/dashboard/consultations/${reservationId}`,
+      actionUrl: `/dashboard/reservations`,
     });
   }
 
