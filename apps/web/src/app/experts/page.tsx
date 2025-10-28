@@ -307,12 +307,16 @@ const ExpertSearch = () => {
               responseTime: apiExpert.responseTime || '1시간 이내',
               profileImage: apiExpert.avatarUrl || null,
               level: (() => {
-                const levelStr = apiExpert.level?.toString() || '1';
+                // ✅ 백엔드는 calculatedLevel로 반환함
+                const levelStr = apiExpert.calculatedLevel?.toString() || '1';
                 const match = levelStr.match(/\d+/);
                 const parsed = match ? parseInt(match[0], 10) : 1;
                 return isNaN(parsed) ? 1 : parsed;
               })(),
               rankingScore: apiExpert.rankingScore || 0,
+              // ✅ ExpertCard와 ExpertLevelBadge가 필요로 하는 필드들
+              tierInfo: apiExpert.tierInfo,
+              creditsPerMinute: apiExpert.creditsPerMinute,
               recentReviews: apiExpert.recentReviews || [],
               categorySlugs: apiExpert.categorySlugs || [],
               // UI 표시용 필드들
@@ -586,7 +590,8 @@ const ExpertSearch = () => {
             responseTime: apiExpert.responseTime || '1시간 이내',
             profileImage: apiExpert.avatarUrl || null,
             level: (() => {
-              const levelStr = apiExpert.level?.toString() || '1';
+              // ✅ 백엔드는 calculatedLevel로 반환함
+              const levelStr = apiExpert.calculatedLevel?.toString() || '1';
               const match = levelStr.match(/\d+/);
               const parsed = match ? parseInt(match[0], 10) : 1;
               return isNaN(parsed) ? 1 : parsed;
@@ -598,6 +603,9 @@ const ExpertSearch = () => {
               repeatClients: apiExpert.repeatClients || 0,
               likeCount: 0
             }),
+            // ✅ ExpertCard와 ExpertLevelBadge가 필요로 하는 필드들
+            tierInfo: apiExpert.tierInfo,
+            creditsPerMinute: apiExpert.creditsPerMinute,
             recentReviews: apiExpert.recentReviews || [],
             categorySlugs: apiExpert.categorySlugs || [],
             // UI 표시용 필드들

@@ -15,6 +15,7 @@ import {
 
 interface RankingItem {
   expertId: string;
+  displayId?: string;
   expertName?: string;
   rankingScore?: number;
   totalSessions: number;
@@ -117,6 +118,7 @@ export default function ExpertRankingsPage() {
         const mergedRankings = apiRankings.map((apiData: any, index: number) => {
           return {
             expertId: apiData.expertId,
+            displayId: apiData.displayId,
             expertName: apiData.expertName || `전문가 ${apiData.expertId}`,
             rankingScore: apiData.rankingScore || 0,
             totalSessions: apiData.totalSessions || 0,
@@ -624,7 +626,14 @@ export default function ExpertRankingsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedRankings.map((item, index) => (
-                    <tr key={item.expertId} className="hover:bg-gray-50">
+                    <tr
+                      key={item.expertId}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        const targetId = item.displayId || item.expertId;
+                        router.push(`/experts/${targetId}`);
+                      }}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mx-auto ${
                           index < 3 

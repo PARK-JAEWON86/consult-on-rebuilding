@@ -238,13 +238,30 @@ export class ExpertsService {
       const parsedKeywords = parseJsonField(expert.keywords);
       const parsedConsultationTypes = parseJsonField(expert.consultationTypes);
 
-      // 디버깅: 첫 번째 전문가의 keywords와 consultationTypes 파싱 결과 확인
-      if (expert.id) {
-        console.log(`[ExpertList Debug] Expert ${expert.name} (ID: ${expert.id}):`, {
-          keywords_raw: expert.keywords,
-          keywords_parsed: parsedKeywords,
-          consultationTypes_raw: expert.consultationTypes,
-          consultationTypes_parsed: parsedConsultationTypes,
+      // 🎯 모든 전문가의 레벨 계산 보장 (일관된 백엔드 데이터 제공)
+      const stats = {
+        totalSessions: expert.totalSessions || 0,
+        avgRating: expert.ratingAvg || 0,
+        reviewCount: expert.reviewCount || 0,
+        repeatClients: expert.repeatClients || 0,
+        likeCount: 0,
+      };
+
+      // 랭킹 점수 계산
+      const rankingScore = (expert as any).calculatedRankingScore ?? this.expertLevelsService.calculateRankingScore(stats);
+
+      // 레벨 정보 계산 (전문가 상세 페이지, 랭킹 페이지와 동일하게)
+      const calculatedLevel = this.expertLevelsService.calculateLevelByScore(rankingScore);
+      const tierInfo = this.expertLevelsService.getTierInfo(calculatedLevel);
+      const creditsPerMinute = this.expertLevelsService.calculateCreditsByLevel(calculatedLevel);
+
+      // 디버그: 레벨 계산 검증 (개발 환경)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ [ExpertList] ${expert.name} (ID: ${expert.id}) 레벨 계산:`, {
+          stats,
+          rankingScore,
+          calculatedLevel,
+          tierName: tierInfo?.name,
         });
       }
 
@@ -267,14 +284,11 @@ export class ExpertsService {
         contactInfo: parseJsonObject(expert.contactInfo),
         socialProof: parseJsonObject(expert.socialProof),
         socialLinks: parseJsonObject(expert.socialLinks),
-        // Calculate ranking score (calculatedRankingScore가 있으면 사용, 없으면 ExpertLevelsService로 계산)
-        rankingScore: (expert as any).calculatedRankingScore ?? this.expertLevelsService.calculateRankingScore({
-          totalSessions: expert.totalSessions,
-          avgRating: expert.ratingAvg,
-          reviewCount: expert.reviewCount,
-          repeatClients: expert.repeatClients,
-          likeCount: 0,
-        }),
+        // 랭킹 및 레벨 정보 추가
+        rankingScore,
+        calculatedLevel,
+        tierInfo,
+        creditsPerMinute,
       };
     });
 
@@ -434,6 +448,7 @@ export class ExpertsService {
         calculatedAt: expertWithResponseTime.responseTimeCalculatedAt,
         sampleSize: expertWithResponseTime.responseTimeSampleSize,
         isCalculated: expertWithResponseTime.avgResponseTimeMinutes !== null
+
       }
     };
   }
@@ -1027,6 +1042,12 @@ export class ExpertsService {
       consultationStyle: expert.consultationStyle,
       workExperience: expert.workExperience,
       userId: (expert as any).userId, // userId 필드 추가
+      // 레벨 정보 추가 (findByDisplayId에서 계산된 값)
+      calculatedLevel: expert.calculatedLevel,
+      rankingScore: expert.rankingScore,
+      tierInfo: expert.tierInfo,
+      creditsPerMinute: expert.creditsPerMinute,
+      level: expert.level, // 티어 이름
       // 새로 추가: 예약 가능 시간, 공휴일 설정, 휴식시간 설정
       availabilitySlots: availabilitySlots,
       holidaySettings: holidaySettings,

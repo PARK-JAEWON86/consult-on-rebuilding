@@ -21,6 +21,7 @@ export class ExpertStatsService {
         },
         select: {
           id: true,
+          displayId: true,
           name: true,
           specialty: true,
           totalSessions: true,
@@ -67,6 +68,7 @@ export class ExpertStatsService {
           success: true,
           data: {
             expertId: expert.id.toString(),
+            displayId: expert.displayId,
             expertName: expert.name,
             specialty,
             totalSessions: expert.totalSessions,
@@ -102,6 +104,7 @@ export class ExpertStatsService {
 
             return {
               expertId: expert.id.toString(),
+              displayId: expert.displayId,
               expertName: expert.name,
               specialty,
               totalSessions: expert.totalSessions,
@@ -147,6 +150,7 @@ export class ExpertStatsService {
         where,
         select: {
           id: true,
+          displayId: true,
           name: true,
           specialty: true,
           totalSessions: true,
@@ -187,6 +191,7 @@ export class ExpertStatsService {
 
         return {
           expertId: expert.id.toString(),
+          displayId: expert.displayId,
           expertName: expert.name,
           specialty: specialtyName,
           totalSessions: expert.totalSessions,
@@ -245,6 +250,7 @@ export class ExpertStatsService {
         where: { isActive: true },
         select: {
           id: true,
+          displayId: true,
           name: true,
           specialty: true,
           totalSessions: true,
@@ -284,6 +290,7 @@ export class ExpertStatsService {
 
         return {
           expertId: expert.id.toString(),
+          displayId: expert.displayId,
           expertName: expert.name,
           specialty,
           currentLevel: level,

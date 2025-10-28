@@ -6,6 +6,8 @@ interface ExpertLevelBadgeProps {
   expertId: string;
   size?: 'sm' | 'md' | 'lg' | 'like';
   className?: string;
+  level?: number; // 백엔드에서 이미 계산된 레벨 (있으면 API 호출 생략)
+  tierInfo?: any; // 백엔드에서 제공하는 티어 정보 (선택적)
 }
 
 interface LevelData {
@@ -21,74 +23,54 @@ interface LevelData {
 export default function ExpertLevelBadge({
   expertId,
   size = 'md',
-  className = ''
+  className = '',
+  level: providedLevel,
+  tierInfo: providedTierInfo
 }: ExpertLevelBadgeProps) {
   const [levelData, setLevelData] = useState<LevelData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadExpertLevel = async () => {
-      try {
-        setIsLoading(true);
-        
-        // 새로운 API를 통해 전문가 레벨 정보를 가져옴
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
-        const response = await fetch(`${apiBaseUrl}/expert-levels?action=getExpertLevel&expertId=${expertId}`);
+    // 🎯 백엔드 레벨 데이터 필수 - API 폴백 제거
+    if (providedLevel) {
+      console.log('✅ [ExpertLevelBadge] Using backend level data:', {
+        expertId,
+        level: providedLevel,
+        tierName: providedTierInfo?.name,
+        source: 'BACKEND_ONLY'
+      });
 
-        if (!response.ok) {
-          console.warn('레벨 정보 API 응답 오류:', response.status);
-          throw new Error(`HTTP ${response.status}`);
+      setLevelData({
+        currentLevel: providedLevel,
+        levelTitle: providedTierInfo?.name || `Lv.${providedLevel}`,
+        levelProgress: {
+          current: providedLevel,
+          next: providedLevel + 1,
+          percentage: 0
         }
-
-        const result = await response.json();
-
-        // API 응답은 {success: true, data: {...}} 형태
-        const data = result.success && result.data ? result.data : result;
-
-        if (data.currentLevel && data.levelTitle) {
-          setLevelData({
-            currentLevel: data.currentLevel,
-            levelTitle: data.levelTitle,
-            levelProgress: data.levelProgress || {
-              current: data.currentLevel,
-              next: data.currentLevel + 1,
-              percentage: 0
-            }
-          });
-        } else {
-          console.warn('불완전한 레벨 데이터:', { result, data });
-          // API에서 데이터를 가져올 수 없는 경우 기본 레벨 표시
-          setLevelData({
-            currentLevel: 1,
-            levelTitle: "Iron (아이언)",
-            levelProgress: {
-              current: 1,
-              next: 2,
-              percentage: 0
-            }
-          });
-        }
-      } catch (error) {
-        console.error('전문가 레벨 로드 실패:', error);
-        // 에러 발생 시 기본 레벨 표시
-        setLevelData({
-          currentLevel: 1,
-          levelTitle: "Tier 1 (Lv.1-99)",
-          levelProgress: {
-            current: 1,
-            next: 2,
-            percentage: 0
-          }
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (expertId) {
-      loadExpertLevel();
+      });
+      setIsLoading(false);
+      return;
     }
-  }, [expertId]);
+
+    // 백엔드 데이터 누락 시 Lv.1로 표시 (API 폴백 제거)
+    console.error('❌ [ExpertLevelBadge] 백엔드 레벨 데이터 누락 - Lv.1 표시:', {
+      expertId,
+      message: '모든 전문가는 백엔드에서 calculatedLevel을 제공해야 합니다',
+      action: 'experts.service.ts의 레벨 계산 로직 확인 필요'
+    });
+
+    setLevelData({
+      currentLevel: 1,
+      levelTitle: "Iron (아이언)",
+      levelProgress: {
+        current: 1,
+        next: 2,
+        percentage: 0
+      }
+    });
+    setIsLoading(false);
+  }, [expertId, providedLevel, providedTierInfo]);
 
   if (isLoading) {
     return (

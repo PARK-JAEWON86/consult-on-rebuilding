@@ -178,8 +178,8 @@ export function NotificationBell() {
   }, [notificationsData, isExpertMode]);
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // 🔧 설정 데이터 파싱 (알림 데이터와 동일한 패턴)
-  const settings = settingsData?.data || settingsData;
+  // 🔧 설정 데이터 파싱 - SettingsResponse는 항상 { success, data } 구조
+  const settings = settingsData?.data;
 
   console.log('[NotificationBell] 파싱된 설정:', {
     settings,

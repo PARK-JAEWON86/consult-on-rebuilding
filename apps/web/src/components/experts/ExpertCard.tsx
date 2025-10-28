@@ -25,66 +25,6 @@ interface ExpertProfile {
 }
 import ExpertLevelBadge from "./ExpertLevelBadge";
 
-// API를 통해 전문가 레벨과 요금 정보를 가져오는 함수
-const getExpertLevelPricing = async (expertId: number, totalSessions: number = 0, avgRating: number = 0) => {
-  try {
-    // 유효성 검증
-    if (!expertId || expertId <= 0) {
-      console.warn('유효하지 않은 전문가 ID:', expertId);
-      throw new Error('Invalid expert ID');
-    }
-
-    // 전문가 레벨 정보를 가져옴 (NestJS 백엔드 API 호출)
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
-    const response = await fetch(`${apiBaseUrl}/expert-levels?action=getExpertLevel&expertId=${expertId}&totalSessions=${totalSessions}&avgRating=${avgRating}`);
-
-    // HTTP 오류 체크
-    if (!response.ok) {
-      console.warn(`API 응답 오류 (${response.status}):`, response.statusText);
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // API 응답은 {success: true, data: {...}} 형태
-    const data = result.success && result.data ? result.data : result;
-
-    // 응답 데이터 검증
-    if (data.currentLevel && data.pricing) {
-      return {
-        level: data.currentLevel,
-        creditsPerMinute: data.pricing.creditsPerMinute,
-        tierName: data.levelTitle,
-        tierInfo: data.tierInfo
-      };
-    }
-
-    console.warn('불완전한 API 응답 데이터:', { result, data });
-    // API에서 데이터를 가져올 수 없는 경우 기본값 반환
-    return {
-      level: 1,
-      creditsPerMinute: 100,
-      tierName: "Tier 1 (Lv.1-99)",
-      tierInfo: null
-    };
-  } catch (error) {
-    console.error('전문가 레벨 요금 정보 가져오기 실패:', {
-      expertId,
-      totalSessions,
-      avgRating,
-      error: error instanceof Error ? error.message : error
-    });
-    return {
-      level: 1,
-      creditsPerMinute: 100,
-      tierName: "Tier 1 (Lv.1-99)",
-      tierInfo: null
-    };
-  }
-};
-
-import { calculateCreditsByLevel } from "@/utils/expertLevels";
-
 interface ExpertCardProps {
   expert: ExpertProfile | any;
   mode?: 'default' | 'grid' | 'list' | 'hero';
@@ -150,8 +90,20 @@ const normalizeExpert = (raw: any) => {
   const consultationTypes: string[] = Array.isArray(raw.consultationTypes)
     ? raw.consultationTypes
     : ["video", "chat"]; // 기본값
-  // 공식 랭킹 점수 기반 레벨 사용 (API에서 제공)
-  const level = raw.level ?? 1;
+
+  // 🎯 레벨 데이터 우선순위: level (page.tsx 변환) → calculatedLevel (직접 API) → 1 (폴백)
+  // page.tsx에서 이미 calculatedLevel을 level로 변환해서 전달
+  const level = raw.level || raw.calculatedLevel || 1;
+
+  // 디버그: 백엔드 데이터 누락 감지
+  if (!raw.level && !raw.calculatedLevel && process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ [ExpertCard] 레벨 데이터 누락:', {
+      expertId: raw.id,
+      expertName: raw.name,
+      fallbackLevel: level,
+      message: 'level 또는 calculatedLevel 필드가 없음'
+    });
+  }
 
   return {
     id: raw.id,
@@ -171,6 +123,10 @@ const normalizeExpert = (raw: any) => {
     consultationCount: raw.consultationCount,
     totalSessions: raw.totalSessions,
     avgRating: raw.avgRating,
+    // 백엔드에서 제공하는 추가 레벨 정보
+    tierInfo: raw.tierInfo,
+    creditsPerMinute: raw.creditsPerMinute,
+    rankingScore: raw.rankingScore,
   };
 };
 
@@ -196,63 +152,63 @@ export default function ExpertCard({
   // 전문가 데이터 정규화
   const expert = normalizeExpert(rawExpert);
 
-  // 디버깅: 정규화 전후 데이터 확인
+  // 디버깅: 정규화 전후 데이터 확인 및 레벨 소스 확인
   useEffect(() => {
-    console.log('[ExpertCard Debug] Raw vs Normalized:', {
-      name: expert.name,
-      raw_keywords: rawExpert.keywords,
-      normalized_keywords: expert.keywords,
-      raw_consultationTypes: rawExpert.consultationTypes,
-      normalized_consultationTypes: expert.consultationTypes,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 [ExpertCard] Level calculation source:', {
+        name: expert.name,
+        source: rawExpert.calculatedLevel ? 'BACKEND' : 'CLIENT_ESTIMATED',
+        raw_calculatedLevel: rawExpert.calculatedLevel,
+        raw_rankingScore: rawExpert.rankingScore,
+        raw_tierInfo: rawExpert.tierInfo,
+        raw_creditsPerMinute: rawExpert.creditsPerMinute,
+        final_level: expert.level,
+        final_creditsPerMinute: expert.creditsPerMinute,
+        stats: {
+          totalSessions: expert.totalSessions,
+          avgRating: expert.avgRating,
+          reviewCount: rawExpert.reviewCount,
+        },
+        raw_keywords: rawExpert.keywords,
+        normalized_keywords: expert.keywords,
+        raw_consultationTypes: rawExpert.consultationTypes,
+        normalized_consultationTypes: expert.consultationTypes,
+      });
+    }
   }, [rawExpert, expert]);
 
-  // 전문가 레벨과 요금 정보 로드
+  // 🎯 백엔드에서 제공한 레벨 및 요금 정보 사용 (API 호출 제거)
   useEffect(() => {
-    const loadPricingInfo = async () => {
+    const loadPricingInfo = () => {
       try {
         setIsLoadingPricing(true);
 
-        // 먼저 로컬에서 계산 (API 호출 없이도 즉시 표시)
-        const localCredits = calculateCreditsByLevel(expert.level || 1);
+        // 백엔드에서 제공한 데이터 우선 사용
+        const level = expert.level || 1;
+        const creditsPerMinute = expert.creditsPerMinute || 100;
+        const tierInfo = expert.tierInfo;
 
-        // 임시로 로컬 계산 값 설정
         setPricingInfo({
-          level: expert.level || 1,
-          creditsPerMinute: localCredits,
-          tierName: `Level ${expert.level || 1}`,
-          tierInfo: null
+          level,
+          creditsPerMinute,
+          tierName: tierInfo?.name || `Level ${level}`,
+          tierInfo
         });
 
-        // 백그라운드에서 API 호출 시도
-        try {
-          const pricing = await getExpertLevelPricing(
-            expert.id,
-            expert.totalSessions || 0,
-            expert.avgRating || 0
-          );
-
-          // API 호출 성공 시 업데이트
-          if (pricing && pricing.creditsPerMinute) {
-            setPricingInfo(pricing);
-
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`✅ Expert ${expert.name} (ID: ${expert.id}) - API Level: ${pricing.level}, Credits: ${pricing.creditsPerMinute}/분`);
-            }
-          }
-        } catch (apiError) {
-          // API 호출 실패해도 로컬 계산 값 유지
-          if (process.env.NODE_ENV === 'development') {
-            console.warn(`⚠️ Expert ${expert.name} (ID: ${expert.id}) - API 실패, 로컬 계산 사용 (Level: ${expert.level}, Credits: ${localCredits}/분)`);
-          }
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ [ExpertCard] ${expert.name} (ID: ${expert.id}) 요금 정보:`, {
+            level,
+            creditsPerMinute,
+            tierName: tierInfo?.name,
+            source: 'BACKEND_DATA'
+          });
         }
       } catch (error) {
         console.error('요금 정보 로드 실패:', error);
-        // 최종 폴백
-        const fallbackCredits = calculateCreditsByLevel(expert.level || 1);
+        // 폴백
         setPricingInfo({
           level: expert.level || 1,
-          creditsPerMinute: fallbackCredits,
+          creditsPerMinute: 100,
           tierName: `Level ${expert.level || 1}`,
           tierInfo: null
         });
@@ -262,10 +218,10 @@ export default function ExpertCard({
     };
 
     loadPricingInfo();
-  }, [expert.id, expert.totalSessions, expert.avgRating, expert.level]);
+  }, [expert.id, expert.level, expert.creditsPerMinute, expert.tierInfo]);
 
-  // 요금 정보가 로딩 중이거나 없을 때 전문가 레벨 기반으로 계산
-  const creditsPerMinute = pricingInfo?.creditsPerMinute || calculateCreditsByLevel(expert.level || 1);
+  // 요금 정보: 백엔드 제공 데이터 사용
+  const creditsPerMinute = pricingInfo?.creditsPerMinute || expert.creditsPerMinute || 100;
 
   const handleProfileView = () => {
     // 프로필 보기는 로그인 없이도 가능하도록 수정
@@ -314,11 +270,20 @@ export default function ExpertCard({
         {/* 전문가 정보 */}
         <div className="p-4">
           <div className="mb-3">
+            {/* 레벨 배지 추가 */}
+            <div className="mb-2">
+              <ExpertLevelBadge
+                expertId={expert.id.toString()}
+                size="sm"
+                level={expert.level}
+                tierInfo={expert.tierInfo}
+              />
+            </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {expert.name || "전문가 이름"}
+              {expert.name || "이름 미등록"}
             </h3>
             <p className="text-sm text-gray-600 mb-2">
-              {expert.specialty || "전문 분야"}
+              {expert.specialty || "분야 미정"}
             </p>
 
             {/* 평점 */}
@@ -349,35 +314,37 @@ export default function ExpertCard({
           </div>
 
           {/* 전문 분야 */}
-          <div className="mb-3">
-            <div className="flex gap-1.5 overflow-hidden">
-              {(expert.keywords || ["전문분야1", "전문분야2"])
-                .slice(0, 4)
-                .map((keyword: string, index: number) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0 whitespace-nowrap"
-                  >
-                    {keyword}
+          {expert.keywords && expert.keywords.length > 0 && (
+            <div className="mb-3">
+              <div className="flex gap-1.5 overflow-hidden">
+                {expert.keywords
+                  .slice(0, 4)
+                  .map((keyword: string, index: number) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0 whitespace-nowrap"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                {expert.keywords.length > 4 && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100 flex-shrink-0 whitespace-nowrap">
+                    +{expert.keywords.length - 4}
                   </span>
-                ))}
-              {(expert.keywords || []).length > 4 && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100 flex-shrink-0 whitespace-nowrap">
-                  +{(expert.keywords || []).length - 4}
-                </span>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 상담 정보 */}
           <div className="grid grid-cols-2 gap-3 text-sm mb-4">
             <div className="flex items-center space-x-2 text-gray-600">
               <Calendar className="h-4 w-4" />
-              <span>{expert.experience || "5"}년 경력</span>
+              <span>{expert.experience || 0}년 경력</span>
             </div>
             <div className="flex items-center space-x-2 text-gray-600">
               <MessageCircle className="h-4 w-4" />
-              <span>{expert.consultationCount || expert.totalSessions || "50"}회 상담</span>
+              <span>{expert.consultationCount || expert.totalSessions || 0}회 상담</span>
             </div>
           </div>
 
@@ -431,6 +398,8 @@ export default function ExpertCard({
                 <ExpertLevelBadge
                   expertId={expert.id.toString()}
                   size="md"
+                  level={expert.level}
+                  tierInfo={expert.tierInfo}
                 />
               </div>
               <div className="flex items-center space-x-2 mb-2">

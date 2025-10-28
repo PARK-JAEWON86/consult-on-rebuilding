@@ -123,3 +123,6 @@ database/backups/
 # Test files with credentials (never commit)
 **/test-api-key.js
 **/test-*.js
+
+# Claude documentation and analysis
+claudedocs/

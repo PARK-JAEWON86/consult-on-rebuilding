@@ -154,6 +154,14 @@ export default function ExpertProfileDetail({
     holidaySettings: (expert?.data as any)?.holidaySettings,
     restTimeSettings: (expert?.data as any)?.restTimeSettings
   });
+  console.log('🎯 Level calculation debug:', {
+    calculatedLevel: (expert?.data as any)?.calculatedLevel,
+    rankingScore: (expert?.data as any)?.rankingScore,
+    tierInfo: (expert?.data as any)?.tierInfo,
+    creditsPerMinute: (expert?.data as any)?.creditsPerMinute,
+    totalSessions: (expert?.data as any)?.totalSessions,
+    avgRating: (expert?.data as any)?.ratingAvg,
+  });
 
   const handleBackClick = () => {
     if (onBackClick) {
@@ -426,13 +434,41 @@ export default function ExpertProfileDetail({
     'availability': (expertData as any).availability,
   });
 
+  // 백엔드에서 제공하는 calculatedLevel 우선 사용
   const expertLevel = (expertData as any).calculatedLevel || calculateExpertLevel(
     (expertData as any).totalSessions || 0,
     expertData.ratingAvg || 0,
     (expertData as any).experience || 0
   );
+
+  // 백엔드에서 제공하는 creditsPerMinute 우선 사용
   const creditsPerMinute = (expertData as any).creditsPerMinute || calculateCreditsByLevel(expertLevel);
+
+  // 백엔드에서 제공하는 tierInfo 우선 사용
   const tierInfo = (expertData as any).tierInfo;
+
+  // 레벨 계산 소스 로깅 (디버깅용)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🎯 [ExpertProfileDetail] Level calculation source:', {
+      source: (expertData as any).calculatedLevel ? 'BACKEND' : 'CLIENT_ESTIMATED',
+      calculatedLevel: (expertData as any).calculatedLevel,
+      clientCalculated: calculateExpertLevel(
+        (expertData as any).totalSessions || 0,
+        expertData.ratingAvg || 0,
+        (expertData as any).experience || 0
+      ),
+      finalLevel: expertLevel,
+      creditsSource: (expertData as any).creditsPerMinute ? 'BACKEND' : 'CLIENT_CALCULATED',
+      backendCredits: (expertData as any).creditsPerMinute,
+      finalCredits: creditsPerMinute,
+      tierInfo: tierInfo,
+      stats: {
+        totalSessions: (expertData as any).totalSessions,
+        avgRating: expertData.ratingAvg,
+        reviewCount: (expertData as any).reviewCount,
+      }
+    });
+  }
 
   // 메인 렌더링
   return (
@@ -1228,21 +1264,6 @@ export default function ExpertProfileDetail({
                           </div>
                         </div>
 
-                        {/* 즉시 상담 버튼 */}
-                        {!isOwner && (
-                          <div className="text-center pt-4">
-                            <Button
-                              onClick={handleConsultationRequest}
-                              className="px-8 py-3"
-                            >
-                              <Calendar className="h-4 w-4 mr-2" />
-                              상담 일정 예약하기
-                            </Button>
-                            <p className="text-xs text-gray-500 mt-2">
-                              위 시간대 중에서 원하는 시간을 선택하여 예약할 수 있습니다
-                            </p>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="bg-gray-50 p-6 rounded-lg text-center">
