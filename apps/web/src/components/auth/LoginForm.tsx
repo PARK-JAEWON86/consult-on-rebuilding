@@ -85,16 +85,21 @@ const LoginForm = () => {
       const redirectUrl = searchParams.get('redirect') || "/";
       router.push(redirectUrl as any);
     } catch (err: any) {
-      // 이메일 미인증 에러 처리
+      // 에러 코드 확인
       const errorCode = err.error?.code || err.code;
 
+      // 에러 코드별 한국어 메시지 매핑
       if (errorCode === 'E_EMAIL_NOT_VERIFIED') {
         setErrors({
-          general: err.message || '회원가입 인증 절차를 완료해주세요 (회원가입 탭)'
+          general: '회원가입 인증 절차를 완료해주세요 (회원가입 탭)'
+        });
+      } else if (errorCode === 'E_AUTH_INVALID') {
+        setErrors({
+          general: '이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해주세요.'
         });
       } else {
         setErrors({
-          general: err.message || "로그인에 실패했습니다."
+          general: err.message || "로그인에 실패했습니다. 잠시 후 다시 시도해주세요."
         });
       }
     }

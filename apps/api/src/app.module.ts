@@ -28,6 +28,7 @@ import { SettlementsModule } from './settlements/settlements.module'
 import { AdminModule } from './admin/admin.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { InquiryModule } from './inquiry/inquiry.module'
+import { AiPhotoStudioModule } from './ai-photo-studio/ai-photo-studio.module'
 import { validateEnv } from './config/env.schema'
 
 @Module({
@@ -42,6 +43,7 @@ import { validateEnv } from './config/env.schema'
     RedisModule,
     AuthModule,
     AdminModule,
+    AiPhotoStudioModule,
     CategoriesModule,
     CommunityModule,
     ConsultationsModule,

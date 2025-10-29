@@ -14,7 +14,7 @@ model User {
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   passwordHash          String?
-  avatarUrl             String?
+  avatarUrl             String?                  @db.Text
   provider              String                   @default("local")
   providerId            String?
   emailVerifiedAt       DateTime?
@@ -23,6 +23,21 @@ model User {
   phoneVerified         Boolean                  @default(false)
   phoneVerifiedAt       DateTime?
   onboardingCompletedAt DateTime?
+
+  // ========== 프로필 필드 ==========
+  bio                        String?  @db.Text // 자기소개
+  mbti                       String?  // MBTI 성격 유형
+
+  // ========== 매칭 프로필 필드 ==========
+  interestedCategories       Json?    // 관심 상담 분야 (category slugs)
+  preferredConsultationType  Json?    // 선호 상담 방식 ['video', 'voice', 'chat']
+  ageGroup                   String?  // 연령대 'teen', 'twenties', etc.
+  budgetMin                  Int?     @default(30000)  // 최소 예산 (시간당, 원)
+  budgetMax                  Int?     @default(100000) // 최대 예산 (시간당, 원)
+  consultationGoals          String?  @db.Text // 상담 고민/목표
+  preferredTimes             Json?    // 선호 시간대 ['morning', 'afternoon', 'evening', 'night']
+  matchingProfileUpdatedAt   DateTime? // 매칭 프로필 마지막 업데이트 시간
+  profileCompletionRewardClaimed Boolean @default(false) // 프로필 완성 보상 지급 여부
   adminUser             AdminUser?
   communityComments     CommunityComment[]
   communityLikes        CommunityLike[]

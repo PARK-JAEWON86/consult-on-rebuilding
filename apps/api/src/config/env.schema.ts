@@ -34,6 +34,9 @@ export const EnvSchema = z.object({
   // Email verification settings
   AUTH_CODE_EXPIRE_MIN: z.coerce.number().int().positive().default(60),
   AUTH_RESEND_COOLDOWN_SEC: z.coerce.number().int().positive().default(60),
+  // AI Photo Studio Configuration
+  AI_PHOTO_STUDIO_URL: z.string().url().optional(),
+  AI_PHOTO_STUDIO_TIMEOUT: z.coerce.number().int().positive().default(60000),
 })
 
 export type EnvVars = z.infer<typeof EnvSchema>

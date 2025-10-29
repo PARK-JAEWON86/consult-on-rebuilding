@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "dev": "concurrently \"pnpm dev:web\" \"pnpm dev:api\"",
+    "dev:clean": "bash scripts/dev-clean-start.sh",
+    "dev:stop": "bash scripts/dev-stop.sh",
     "dev:web": "pnpm --filter @consulton/web dev",
     "dev:api": "pnpm --filter @consulton/api start:dev",
     "build": "pnpm --filter @consulton/web build && pnpm --filter @consulton/api build",

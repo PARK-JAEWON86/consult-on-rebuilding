@@ -85,8 +85,10 @@ class APIClient {
           timestamp: new Date().toISOString(),
         };
 
-        // ✅ E_EMAIL_NOT_VERIFIED 특별 처리 (401보다 먼저)
-        if (error.response?.data?.error?.code === 'E_EMAIL_NOT_VERIFIED') {
+        // ✅ 인증 관련 특별 에러 코드 처리 (401 status보다 먼저)
+        const errorCode = error.response?.data?.error?.code;
+
+        if (errorCode === 'E_EMAIL_NOT_VERIFIED') {
           message = error.response.data.error.message || '회원가입 인증 절차를 완료해주세요 (회원가입 탭)';
           shouldShowToast = true;
           console.warn('이메일 미인증 오류:', errorContext);
@@ -94,6 +96,19 @@ class APIClient {
           const customError = new Error(message);
           (customError as any).status = error.response.status;
           (customError as any).error = error.response.data.error; // 원본 error 보존
+          (customError as any).context = errorContext;
+          throw customError;
+        }
+
+        if (errorCode === 'E_AUTH_INVALID') {
+          message = '이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해주세요.';
+          shouldShowToast = true;
+          console.warn('로그인 인증 실패:', errorContext);
+
+          const customError = new Error(message);
+          (customError as any).status = error.response.status;
+          (customError as any).error = error.response.data.error; // 원본 error 보존
+          (customError as any).code = errorCode; // 에러 코드 보존
           (customError as any).context = errorContext;
           throw customError;
         }
