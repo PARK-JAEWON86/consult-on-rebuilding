@@ -9,6 +9,7 @@ interface AiPhotoStudioModalProps {
   currentPhoto?: string
   userName?: string
   onPhotoUpdate: (photoUrl: string) => void
+  specialty?: string // 전문 분야 (예: '심리상담가', '변호사')
 }
 
 type Step = 'upload' | 'preview' | 'transforming' | 'transformed' | 'complete'
@@ -19,6 +20,7 @@ export function AiPhotoStudioModal({
   currentPhoto,
   userName,
   onPhotoUpdate,
+  specialty,
 }: AiPhotoStudioModalProps) {
   const [step, setStep] = useState<Step>('upload')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -26,6 +28,7 @@ export function AiPhotoStudioModal({
   const [transformedUrl, setTransformedUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 모달이 닫힐 때 상태 초기화
@@ -120,8 +123,13 @@ export function AiPhotoStudioModal({
       formData.append('image', selectedFile)
       formData.append('useAiTransform', 'true')
 
+      // 전문 분야 추가 (전문가 모드인 경우)
+      if (specialty) {
+        formData.append('specialty', specialty)
+      }
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
-      console.log('🎨 Starting AI transformation...')
+      console.log('🎨 Starting AI transformation...', specialty ? `(specialty: ${specialty})` : '')
 
       const response = await fetch(`${apiUrl}/users/profile-photo`, {
         method: 'POST',
@@ -150,14 +158,64 @@ export function AiPhotoStudioModal({
     }
   }
 
-  const handleUsePhoto = () => {
-    if (transformedUrl) {
-      onPhotoUpdate(transformedUrl)
+  const handleUsePhoto = async (useTransformed: boolean) => {
+    if (!selectedFile) return
+
+    setError(null)
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+
+      // 변환된 사진 사용 시: transformedUrl을 Blob으로 변환하여 전송
+      // 원본 사진 사용 시: selectedFile을 그대로 전송
+      if (useTransformed && transformedUrl) {
+        console.log('📸 Uploading AI transformed photo (already processed)...')
+
+        // data URI를 Blob으로 변환
+        const response = await fetch(transformedUrl)
+        const blob = await response.blob()
+        const file = new File([blob], selectedFile.name, { type: blob.type })
+
+        formData.append('image', file)
+        formData.append('useAiTransform', 'false') // 이미 변환된 이미지이므로 false
+      } else {
+        console.log('📸 Uploading original photo...')
+        formData.append('image', selectedFile)
+        formData.append('useAiTransform', 'false')
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1'
+
+      const uploadResponse = await fetch(`${apiUrl}/users/profile-photo`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+
+      const data = await uploadResponse.json()
+
+      if (!uploadResponse.ok) {
+        throw new Error(data.error?.message || data.message || `HTTP ${uploadResponse.status}`)
+      }
+
+      if (!data.success || !data.data?.avatarUrl) {
+        throw new Error('프로필 사진 업로드에 실패했습니다')
+      }
+
+      onPhotoUpdate(data.data.avatarUrl)
       setStep('complete')
+      console.log('✅ Photo uploaded successfully')
+
       // 2초 후 모달 닫기
       setTimeout(() => {
         onClose()
       }, 2000)
+    } catch (err) {
+      console.error('❌ Upload error:', err)
+      setError(err instanceof Error ? err.message : '사진 업로드 중 오류가 발생했습니다')
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -176,7 +234,7 @@ export function AiPhotoStudioModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black bg-opacity-50 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-[280px] bg-white rounded-lg shadow-2xl animate-in zoom-in-95 duration-200 max-h-[95vh] overflow-y-auto">
+      <div className={`relative w-full bg-white rounded-lg shadow-2xl animate-in zoom-in-95 duration-200 max-h-[95vh] overflow-y-auto ${step === 'transformed' ? 'max-w-[420px]' : 'max-w-[300px]'}`}>
         {/* 헤더 */}
         <div className="flex items-center justify-between p-2.5 border-b border-gray-200">
           <div className="flex items-center gap-1.5">
@@ -225,16 +283,16 @@ export function AiPhotoStudioModal({
                   }
                 `}
               >
-                <div className="flex flex-col items-center gap-2 p-3">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <Upload className="w-6 h-6 text-blue-600" />
+                <div className="flex flex-col items-center gap-3 p-4">
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <Upload className="w-8 h-8 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-900 mb-0.5">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
                       {isDragging ? '파일을 놓으세요' : '클릭 또는 드래그'}
                     </p>
                     <p className="text-xs text-gray-600">
-                      최대 5MB
+                      JPG, PNG, WEBP (최대 5MB)
                     </p>
                   </div>
                 </div>
@@ -376,11 +434,11 @@ export function AiPhotoStudioModal({
           {/* Step 4: Transformed (Before/After) */}
           {step === 'transformed' && previewUrl && transformedUrl && (
             <div className="space-y-2">
-              <div className="space-y-1.5">
-                {/* Before */}
-                <div className="space-y-0.5">
+              <div className="grid grid-cols-2 gap-2">
+                {/* Before (Left) */}
+                <div className="space-y-1">
                   <h3 className="text-xs font-semibold text-gray-700 text-center">원본</h3>
-                  <div className="relative w-full aspect-[2/3] rounded overflow-hidden shadow-md border border-gray-200">
+                  <div className="relative w-full aspect-[3/4] rounded overflow-hidden shadow-md border border-gray-300">
                     <img
                       src={previewUrl}
                       alt="Before"
@@ -389,38 +447,66 @@ export function AiPhotoStudioModal({
                   </div>
                 </div>
 
-                {/* After */}
-                <div className="space-y-0.5">
+                {/* After (Right) */}
+                <div className="space-y-1">
                   <h3 className="text-xs font-semibold text-blue-600 text-center flex items-center justify-center gap-0.5">
                     <Sparkles className="w-2.5 h-2.5" />
-                    AI 변환 결과
+                    AI 변환
                   </h3>
-                  <div className="relative w-full aspect-[2/3] rounded overflow-hidden shadow-lg border-2 border-blue-500">
+                  <div className="relative w-full aspect-[3/4] rounded overflow-hidden shadow-lg border-2 border-blue-500">
                     <img
                       src={transformedUrl}
                       alt="After"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">
+                    <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded-full">
                       ✨ NEW
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-1.5">
+              {error && (
+                <div className="p-1.5 bg-red-50 border border-red-200 rounded">
+                  <p className="text-xs text-red-600">{error}</p>
+                </div>
+              )}
+
+              {/* 업로드 중 로딩 표시 */}
+              {isUploading && (
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-blue-700 font-medium">프로필에 적용 중...</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => handleUsePhoto(false)}
+                    disabled={isUploading}
+                    className="px-2.5 py-2 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded font-medium transition-all shadow-md flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Camera className="w-3 h-3" />
+                    원본 사용
+                  </button>
+                  <button
+                    onClick={() => handleUsePhoto(true)}
+                    disabled={isUploading}
+                    className="px-2.5 py-2 text-xs bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded font-semibold transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    AI 변환 사용
+                  </button>
+                </div>
                 <button
                   onClick={handleReset}
-                  className="px-2.5 py-1.5 text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 rounded font-medium transition-colors"
+                  className="w-full px-2.5 py-1.5 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded font-medium transition-colors"
                 >
-                  다시 변환
-                </button>
-                <button
-                  onClick={handleUsePhoto}
-                  className="flex-1 px-2.5 py-1.5 text-xs bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded font-semibold transition-all shadow-lg shadow-green-500/30 flex items-center justify-center gap-0.5"
-                >
-                  <Check className="w-2.5 h-2.5" />
-                  사진 사용하기
+                  <ArrowLeft className="w-3 h-3 inline mr-0.5" />
+                  다시 변환하기
                 </button>
               </div>
             </div>

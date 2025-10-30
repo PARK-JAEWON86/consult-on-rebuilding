@@ -41,9 +41,10 @@ export class AiPhotoStudioService {
    * 셀카를 전문적인 프로필 사진으로 변환
    * @param imageBuffer 이미지 파일 버퍼
    * @param originalName 원본 파일 이름
+   * @param specialty 전문 분야 (예: '심리상담가', '변호사')
    * @returns 변환된 이미지 (base64)
    */
-  async transformPhoto(imageBuffer: Buffer, originalName: string): Promise<string> {
+  async transformPhoto(imageBuffer: Buffer, originalName: string, specialty?: string): Promise<string> {
     // 개발 환경: placeholder URL이면 mock 응답 반환
     if (!this.serviceUrl || this.serviceUrl.includes('your-ai-photo-studio-service')) {
       this.logger.warn('Using mock AI transformation (service URL not configured)');
@@ -55,36 +56,53 @@ export class AiPhotoStudioService {
     try {
       this.logger.log(`Transforming photo: ${originalName}`);
 
-      // 이미지를 base64로 인코딩
-      const base64Image = imageBuffer.toString('base64');
-      const mimeType = this.getContentType(originalName);
-      const dataUri = `data:${mimeType};base64,${base64Image}`;
+      // FormData 생성 (Cloud Run 서비스가 multipart/form-data를 기대함)
+      const FormData = require('form-data');
+      const formData = new FormData();
 
-      // Cloud Run 서비스에 JSON 요청 전송
+      // 이미지 버퍼를 'photo' 필드로 추가 (Cloud Run의 upload.single('photo')와 일치)
+      const mimeType = this.getContentType(originalName);
+      formData.append('photo', imageBuffer, {
+        filename: originalName,
+        contentType: mimeType,
+      });
+
+      // 전문 분야 추가 (선택 사항)
+      if (specialty) {
+        formData.append('specialty', specialty);
+      }
+
+      // Cloud Run 서비스에 multipart/form-data 요청 전송
       const response = await this.httpClient.post(
         '/transform',
-        {
-          image: dataUri,
-          filename: originalName,
-        },
+        formData,
         {
           headers: {
-            'Content-Type': 'application/json',
+            ...formData.getHeaders(),
           },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
         },
       );
 
-      // Cloud Run 응답 형식: { success: true, transformedImage: "data:image/...", analysis: "...", metadata: {...} }
-      if (!response.data.success || !response.data.transformedImage) {
+      // Cloud Run 응답 형식: { success: true, data: { image: base64, mimeType, ... } }
+      if (!response.data.success || !response.data.data?.image) {
         throw new Error(
           response.data.error || 'Failed to transform photo',
         );
       }
 
       this.logger.log(`Photo transformed successfully: ${originalName}`);
-      this.logger.log(`AI Analysis: ${response.data.analysis?.substring(0, 100)}...`);
+      if (response.data.data.aiResponse) {
+        this.logger.log(`AI Analysis: ${response.data.data.aiResponse.substring(0, 100)}...`);
+      }
 
-      return response.data.transformedImage;
+      // base64 이미지를 data URI 형식으로 변환
+      const transformedMimeType = response.data.data.mimeType || 'image/png';
+      const transformedImageBase64 = response.data.data.image;
+      const dataUri = `data:${transformedMimeType};base64,${transformedImageBase64}`;
+
+      return dataUri;
     } catch (error) {
       this.logger.error(
         `Failed to transform photo: ${originalName}`,

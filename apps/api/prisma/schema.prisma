@@ -14,7 +14,7 @@ model User {
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   passwordHash          String?
-  avatarUrl             String?                  @db.Text
+  avatarUrl             String?                  @db.LongText
   provider              String                   @default("local")
   providerId            String?
   emailVerifiedAt       DateTime?
@@ -66,7 +66,7 @@ model Expert {
   title              String?
   categories         Json
   bio                String?              @db.Text
-  avatarUrl          String?              @db.Text
+  avatarUrl          String?              @db.LongText
   ratingAvg          Float                @default(0)
   reviewCount        Int                  @default(0)
   isActive           Boolean              @default(true)

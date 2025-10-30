@@ -126,3 +126,12 @@ database/backups/
 
 # Claude documentation and analysis
 claudedocs/
+
+# Deployment artifacts
+Cloud\ Run/
+"Cloud Run"/
+*.zip
+cloud-run-*.zip
+
+# Private documentation (contains sensitive information)
+docs/IMAGE_STORAGE_MIGRATION_PLAN.md

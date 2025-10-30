@@ -23,9 +23,11 @@ import {
   Youtube,
   Linkedin,
   X,
-  Mail
+  Mail,
+  Sparkles
 } from "lucide-react";
 import AvailabilityScheduleEditor, { AvailabilitySlot, HolidaySettings, RestTimeSettings } from '@/components/experts/AvailabilityScheduleEditor';
+import { AiPhotoStudioModal } from '@/components/profile/AiPhotoStudioModal';
 
 type ConsultationType = "video" | "chat" | "voice";
 
@@ -117,6 +119,7 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
   onBack
 }, ref) => {
   const [activeTab, setActiveTab] = useState<'basic' | 'schedule'>('basic');
+  const [isAiStudioOpen, setIsAiStudioOpen] = useState(false);
 
   const [formData, setFormData] = useState<ExpertProfileEditData>({
     name: "",
@@ -619,13 +622,23 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
                     accept="image/*"
                     onChange={handleProfileImageUpload}
                   />
-                  <label
-                    htmlFor="profile-image-upload"
-                    className="cursor-pointer w-full inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {formData.profileImage ? '사진 변경' : '사진 업로드'}
-                  </label>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="profile-image-upload"
+                      className="cursor-pointer w-full inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {formData.profileImage ? '사진 변경' : '사진 업로드'}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAiStudioOpen(true)}
+                      className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/30"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      AI 스튜디오
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 mt-2 text-center">JPG, PNG (최대 5MB)</p>
                 </div>
               </div>
@@ -1199,6 +1212,17 @@ const ExpertProfileEdit = forwardRef<any, ExpertProfileEditProps>(({
           </div>
         </>
       )}
+
+      {/* AI Photo Studio Modal */}
+      <AiPhotoStudioModal
+        isOpen={isAiStudioOpen}
+        onClose={() => setIsAiStudioOpen(false)}
+        onPhotoUpdate={(avatarUrl: string) => {
+          handleInputChange('profileImage', avatarUrl);
+          setIsAiStudioOpen(false);
+        }}
+        specialty={formData.specialty}
+      />
     </div>
   );
 });
